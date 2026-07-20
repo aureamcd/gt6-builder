@@ -7,33 +7,43 @@ export type QuestionType =
   | 'DYNAMIC_REPEATER' 
   | 'CONDITIONAL_LOGIC';
 
-export interface Option {
+export interface Form {
   id: string;
-  label: string;
-  weight?: number;
-}
-
-export interface Question {
-  id: string;
-  type: QuestionType;
-  label: string;
-  required?: boolean;
-  options?: Option[];
-  allow_add_item?: boolean;
-  // For dynamic repeaters or conditionals
-  trigger_source_question_id?: string; 
-  sub_question_template?: Partial<Question>;
+  title: string;
+  created_at: string;
+  updated_at: string;
+  sections?: Section[];
 }
 
 export interface Section {
   id: string;
-  title: string;
-  description?: string;
-  blocks: Question[];
-}
-
-export interface FormSchema {
   form_id: string;
   title: string;
-  sections: Section[];
+  description?: string | null;
+  order_index: number;
+  created_at: string;
+  questions?: Question[];
+}
+
+export interface Question {
+  id: string;
+  section_id: string;
+  type: QuestionType;
+  label: string;
+  required: boolean;
+  allow_add_item: boolean;
+  trigger_source_question_id?: string | null;
+  sub_question_template?: any | null; // jsonb
+  order_index: number;
+  created_at: string;
+  options?: Option[];
+}
+
+export interface Option {
+  id: string;
+  question_id: string;
+  label: string;
+  weight?: number | null;
+  order_index: number;
+  created_at: string;
 }
