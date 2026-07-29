@@ -3,10 +3,10 @@
 import React, { useState, useEffect, use } from "react";
 import { 
   GripVertical, Plus, Settings, ChevronDown, CheckSquare, 
-  Type, List, AlignLeft, Grid, Eye, Save, Play, Layers, Trash2, X, Loader2
+  Type, List, AlignLeft, Grid, Eye, Save, Play, Layers, Trash2, X, Loader2, Share2, Key, MessageSquare
 } from "lucide-react";
 import { Form, Section, Question, QuestionType, Option } from "../../../types/form";
-import { saveFormState, getFormById } from "../../../lib/api";
+import { saveFormState, getFormById, generateShareToken, getFormSubmissions } from "../../../lib/api";
 
 const generateId = () => crypto.randomUUID();
 
@@ -16,17 +16,23 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
   const [activeSectionId, setActiveSectionId] = useState<string>("");
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'build' | 'responses'>('build');
+  const [submissions, setSubmissions] = useState<any[]>([]);
 
   useEffect(() => {
     async function loadForm() {
       try {
-        const data = await getFormById(id);
+        const [data, subs] = await Promise.all([
+          getFormById(id),
+          getFormSubmissions(id)
+        ]);
         if (data) {
           setSchema(data);
           if (data.sections && data.sections.length > 0) {
             setActiveSectionId(data.sections[0].id);
           }
         }
+        setSubmissions(subs);
       } catch (error) {
         console.error("Erro ao carregar:", error);
       } finally {
@@ -227,14 +233,56 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
         <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 shadow-sm shrink-0">
           <div className="flex items-center space-x-4">
             <a href="/" className="text-sm font-medium text-slate-500 bg-slate-100 hover:bg-slate-200 px-3 py-1 rounded-full transition-colors">← Voltar</a>
-            <span className="text-sm font-medium text-slate-500 bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full">Editando ID: {id.substring(0, 8)}...</span>
+            
+            <div className="flex bg-slate-100 rounded-lg p-1">
+              <button 
+                onClick={() => setActiveTab('build')}
+                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${activeTab === 'build' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                Perguntas
+              </button>
+              <button 
+                onClick={() => setActiveTab('responses')}
+                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors flex items-center space-x-2 ${activeTab === 'responses' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                <span>Respostas</span>
+                <span className="bg-indigo-100 text-indigo-600 text-xs px-2 py-0.5 rounded-full">{submissions.length}</span>
+              </button>
+            </div>
+
             <input 
               value={schema.title}
               onChange={(e) => setSchema(prev => prev ? {...prev, title: e.target.value} : prev)}
-              className="font-semibold text-slate-800 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-500 focus:outline-none px-1 w-96"
+              className="font-semibold text-slate-800 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-500 focus:outline-none px-1 w-64"
             />
           </div>
           <div className="flex items-center space-x-3">
+            <button 
+              onClick={() => {
+                const url = `${window.location.origin}/f/${id}`;
+                navigator.clipboard.writeText(url);
+                alert("Link público copiado: " + url);
+              }}
+              className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg shadow-sm hover:bg-slate-50 transition-colors"
+            >
+              <Share2 size={16} />
+              <span>Link (Responder)</span>
+            </button>
+            <button 
+              onClick={async () => {
+                try {
+                  const token = await generateShareToken(id);
+                  navigator.clipboard.writeText(token);
+                  alert(`Token gerado e copiado: ${token}\nEnvie para o outro usuário importar.`);
+                } catch (error) {
+                  alert("Erro ao gerar token. Certifique-se de salvar o formulário primeiro.");
+                }
+              }}
+              className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-slate-700 bg-amber-50 border border-amber-200 rounded-lg shadow-sm hover:bg-amber-100 transition-colors"
+            >
+              <Key size={16} className="text-amber-600" />
+              <span className="text-amber-700">Token (Importar)</span>
+            </button>
             <button 
               onClick={handleSave}
               disabled={isSaving}
@@ -247,10 +295,13 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
         </header>
 
         {/* Canvas Area */}
-        <div className="flex-1 overflow-y-auto p-8 bg-slate-50">
-          <div className="max-w-4xl mx-auto space-y-8 pb-32">
-            
-            {schema.sections?.map((section, index) => (
+        <div className="flex-1 overflow-y-auto bg-slate-50 relative">
+          
+          {/* BUILDER TAB */}
+          <div className={`p-8 ${activeTab === 'build' ? 'block' : 'hidden'}`}>
+            <div className="max-w-4xl mx-auto space-y-8 pb-32">
+              
+              {schema.sections?.map((section, index) => (
               <div 
                 key={section.id}
                 onClick={() => setActiveSectionId(section.id)}
@@ -305,7 +356,79 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
               <span>Adicionar Nova Seção</span>
             </button>
 
+            </div>
           </div>
+
+          {/* RESPONSES TAB */}
+          <div className={`p-8 ${activeTab === 'responses' ? 'block' : 'hidden'}`}>
+            <div className="max-w-4xl mx-auto space-y-6 pb-32">
+              
+              <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-800">Resultados do Questionário</h2>
+                  <p className="text-slate-500 text-sm mt-1">Veja as respostas enviadas pelos usuários.</p>
+                </div>
+                <div className="bg-indigo-50 text-indigo-700 px-4 py-2 rounded-lg flex flex-col items-center justify-center">
+                  <span className="text-2xl font-bold">{submissions.length}</span>
+                  <span className="text-xs uppercase tracking-wider font-semibold">Respostas</span>
+                </div>
+              </div>
+
+              {submissions.length === 0 ? (
+                <div className="text-center py-20 text-slate-400 border-2 border-dashed border-slate-200 rounded-xl bg-white/50">
+                  <MessageSquare size={40} className="mx-auto text-slate-300 mb-4" />
+                  <p>Ainda não há nenhuma resposta para este formulário.</p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {submissions.map((sub, index) => (
+                    <div key={sub.id} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                      <div className="bg-slate-50 px-6 py-3 border-b border-slate-200 flex justify-between items-center">
+                        <span className="font-semibold text-slate-700">Resposta #{submissions.length - index}</span>
+                        <span className="text-xs font-medium text-slate-400">{new Date(sub.created_at).toLocaleString('pt-BR')}</span>
+                      </div>
+                      <div className="p-6 space-y-6">
+                        {schema.sections?.map(section => (
+                          <div key={section.id}>
+                            <h3 className="text-sm font-bold text-indigo-600 uppercase tracking-wide mb-3">{section.title}</h3>
+                            <div className="space-y-4">
+                              {section.questions?.map(q => {
+                                const answer = sub.answers[q.id];
+                                let displayAnswer = answer;
+                                
+                                if (!answer || (Array.isArray(answer) && answer.length === 0)) {
+                                  displayAnswer = <span className="text-slate-300 italic">Não respondido</span>;
+                                } else if (q.type === 'RADIO_SINGLE' || q.type === 'CHECKBOX_MULTIPLE') {
+                                  // Map option IDs to option labels
+                                  if (Array.isArray(answer)) {
+                                    displayAnswer = answer.map(ansId => {
+                                      const opt = q.options?.find(o => o.id === ansId);
+                                      return opt ? opt.label : ansId;
+                                    }).join(", ");
+                                  } else {
+                                    const opt = q.options?.find(o => o.id === answer);
+                                    displayAnswer = opt ? opt.label : answer;
+                                  }
+                                }
+
+                                return (
+                                  <div key={q.id} className="border-b border-slate-100 pb-3 last:border-0 last:pb-0">
+                                    <p className="text-sm font-medium text-slate-500 mb-1">{q.label}</p>
+                                    <p className="text-base text-slate-800">{displayAnswer}</p>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
         </div>
       </main>
     </div>

@@ -12,6 +12,8 @@ export interface Form {
   title: string;
   created_at: string;
   updated_at: string;
+  user_id?: string | null;
+  share_token?: string | null;
   sections?: Section[];
 }
 
@@ -45,5 +47,12 @@ export interface Option {
   label: string;
   weight?: number | null;
   order_index: number;
+  created_at: string;
+}
+
+export interface Submission {
+  id: string;
+  form_id: string;
+  answers: any; // JSONB
   created_at: string;
 }

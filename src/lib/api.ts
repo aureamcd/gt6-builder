@@ -2,9 +2,13 @@ import { supabase } from './supabase';
 import { Form, Section, Question, Option } from '../types/form';
 
 export async function getForms(): Promise<Form[]> {
+  const { data: authData } = await supabase.auth.getUser();
+  if (!authData.user) return [];
+
   const { data, error } = await supabase
     .from('forms')
     .select('*')
+    .eq('user_id', authData.user.id)
     .order('updated_at', { ascending: false });
     
   if (error) throw error;
@@ -43,12 +47,16 @@ export async function getFormById(id: string): Promise<Form | null> {
 }
 
 export async function createEmptyForm(title: string = "Novo Formulário"): Promise<Form> {
+  const { data: authData } = await supabase.auth.getUser();
+  const userId = authData.user?.id || null;
+
   const newFormId = crypto.randomUUID();
   const form: Form = {
     id: newFormId,
     title,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
+    user_id: userId,
     sections: []
   };
 
@@ -56,7 +64,8 @@ export async function createEmptyForm(title: string = "Novo Formulário"): Promi
     id: form.id,
     title: form.title,
     created_at: form.created_at,
-    updated_at: form.updated_at
+    updated_at: form.updated_at,
+    user_id: form.user_id
   });
   if (error) throw error;
   
@@ -71,7 +80,9 @@ export async function saveFormState(form: Form) {
       .upsert({
         id: form.id,
         title: form.title,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        user_id: form.user_id || null,
+        share_token: form.share_token || null
       }, { onConflict: 'id' });
 
     if (formError) throw formError;
@@ -168,4 +179,97 @@ export async function saveFormState(form: Form) {
     console.error('Error saving form to DB:', error);
     return { success: false, error };
   }
+}
+
+export async function submitFormResponse(formId: string, answers: any) {
+  const { error } = await supabase.from('submissions').insert({
+    form_id: formId,
+    answers: answers
+  });
+  
+  if (error) throw error;
+  return true;
+}
+
+export async function getFormSubmissions(formId: string): Promise<any[]> {
+  const { data, error } = await supabase
+    .from('submissions')
+    .select('*')
+    .eq('form_id', formId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data || [];
+}
+
+export async function generateShareToken(formId: string): Promise<string> {
+  const token = crypto.randomUUID();
+  const { error } = await supabase
+    .from('forms')
+    .update({ share_token: token })
+    .eq('id', formId);
+    
+  if (error) throw error;
+  return token;
+}
+
+export async function cloneFormByToken(token: string): Promise<Form | null> {
+  // 1. Get current logged in user
+  const { data: authData } = await supabase.auth.getUser();
+  const userId = authData.user?.id;
+  
+  if (!userId) throw new Error("Usuário não autenticado");
+
+  // 2. Find form by share_token
+  const { data: sourceForm, error: formError } = await supabase
+    .from('forms')
+    .select('*')
+    .eq('share_token', token)
+    .single();
+    
+  if (formError || !sourceForm) throw new Error("Token inválido ou formulário não encontrado");
+
+  // 3. Fetch full source form with sections/questions/options
+  const fullSourceForm = await getFormById(sourceForm.id);
+  if (!fullSourceForm) throw new Error("Erro ao carregar estrutura do formulário original");
+
+  // 4. Create new cloned form with new IDs
+  const newFormId = crypto.randomUUID();
+  
+  const clonedForm: Form = {
+    ...fullSourceForm,
+    id: newFormId,
+    title: `${fullSourceForm.title} (Cópia)`,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    user_id: userId,
+    share_token: null, // Don't copy the share token
+    sections: fullSourceForm.sections?.map(sec => {
+      const newSecId = crypto.randomUUID();
+      return {
+        ...sec,
+        id: newSecId,
+        form_id: newFormId,
+        questions: sec.questions?.map(q => {
+          const newQId = crypto.randomUUID();
+          return {
+            ...q,
+            id: newQId,
+            section_id: newSecId,
+            options: q.options?.map(opt => ({
+              ...opt,
+              id: crypto.randomUUID(),
+              question_id: newQId
+            }))
+          };
+        })
+      };
+    })
+  };
+
+  // 5. Save the cloned form to the DB
+  const result = await saveFormState(clonedForm);
+  if (!result.success) throw result.error;
+  
+  return clonedForm;
 }

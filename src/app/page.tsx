@@ -1,20 +1,30 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { getForms, createEmptyForm } from "../lib/api";
+import { getForms, createEmptyForm, cloneFormByToken } from "../lib/api";
 import { Form } from "../types/form";
-import { Plus, FileText, Loader2, ArrowRight } from "lucide-react";
+import { Plus, FileText, Loader2, ArrowRight, LogOut, Download } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { supabase } from "../lib/supabase";
 
 export default function Dashboard() {
   const [forms, setForms] = useState<Form[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [user, setUser] = useState<any>(null);
   const router = useRouter();
 
   useEffect(() => {
     async function load() {
       try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          router.push("/login");
+          return;
+        }
+        setUser(session.user);
+
         const data = await getForms();
         setForms(data);
       } catch (error) {
@@ -24,7 +34,7 @@ export default function Dashboard() {
       }
     }
     load();
-  }, []);
+  }, [router]);
 
   const handleCreateNew = async () => {
     setIsCreating(true);
@@ -38,30 +48,73 @@ export default function Dashboard() {
     }
   };
 
+  const handleImportToken = async () => {
+    const token = prompt("Insira o token de compartilhamento para clonar o formulário:");
+    if (!token) return;
+    
+    setIsImporting(true);
+    try {
+      const newForm = await cloneFormByToken(token);
+      if (newForm) {
+        router.push(`/builder/${newForm.id}`);
+      }
+    } catch (error: any) {
+      console.error("Erro ao importar:", error);
+      alert("Erro ao importar formulário: " + (error.message || "Token inválido"));
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push("/login");
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-slate-50">
+        <Loader2 className="animate-spin text-indigo-600" size={32} />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 font-sans p-8">
       <div className="max-w-5xl mx-auto space-y-8">
-        <header className="flex items-center justify-between">
+        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-slate-800 tracking-tight">Meus Formulários</h1>
             <p className="text-slate-500 mt-1">Gerencie os questionários de Maturidade e Interoperabilidade.</p>
           </div>
-          <button 
-            onClick={handleCreateNew}
-            disabled={isCreating}
-            className="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg font-medium shadow-sm transition-all disabled:opacity-70 disabled:cursor-not-allowed"
-          >
-            {isCreating ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
-            <span>Criar Novo Formulário</span>
-          </button>
+          <div className="flex items-center space-x-3">
+            <button 
+              onClick={handleImportToken}
+              disabled={isImporting}
+              className="flex items-center space-x-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-4 py-2.5 rounded-lg font-medium shadow-sm transition-all disabled:opacity-70"
+            >
+              {isImporting ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
+              <span>Importar Token</span>
+            </button>
+            <button 
+              onClick={handleCreateNew}
+              disabled={isCreating}
+              className="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg font-medium shadow-sm transition-all disabled:opacity-70"
+            >
+              {isCreating ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
+              <span>Novo</span>
+            </button>
+            <button 
+              onClick={handleLogout}
+              className="flex items-center space-x-2 bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-2.5 rounded-lg font-medium shadow-sm transition-all"
+              title="Sair"
+            >
+              <LogOut size={18} />
+            </button>
+          </div>
         </header>
 
-        {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-            <Loader2 size={40} className="animate-spin text-indigo-500 mb-4" />
-            <p>Carregando seus formulários...</p>
-          </div>
-        ) : forms.length === 0 ? (
+        {forms.length === 0 ? (
           <div className="bg-white border border-slate-200 border-dashed rounded-2xl flex flex-col items-center justify-center py-24 text-center">
             <div className="bg-indigo-50 p-4 rounded-full text-indigo-500 mb-4">
               <FileText size={32} />
