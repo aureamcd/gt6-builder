@@ -1,6 +1,16 @@
 import { supabase } from './supabase';
 import { Form, Section, Question, Option } from '../types/form';
 
+export function generateUUID() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
 export async function getForms(): Promise<Form[]> {
   const { data: authData } = await supabase.auth.getUser();
   if (!authData.user) return [];
@@ -50,7 +60,7 @@ export async function createEmptyForm(title: string = "Novo Formulário"): Promi
   const { data: authData } = await supabase.auth.getUser();
   const userId = authData.user?.id || null;
 
-  const newFormId = crypto.randomUUID();
+  const newFormId = generateUUID();
   const form: Form = {
     id: newFormId,
     title,
@@ -203,7 +213,7 @@ export async function getFormSubmissions(formId: string): Promise<any[]> {
 }
 
 export async function generateShareToken(formId: string): Promise<string> {
-  const token = crypto.randomUUID();
+  const token = generateUUID();
   const { error } = await supabase
     .from('forms')
     .update({ share_token: token })
@@ -234,7 +244,7 @@ export async function cloneFormByToken(token: string): Promise<Form | null> {
   if (!fullSourceForm) throw new Error("Erro ao carregar estrutura do formulário original");
 
   // 4. Create new cloned form with new IDs
-  const newFormId = crypto.randomUUID();
+  const newFormId = generateUUID();
   
   const clonedForm: Form = {
     ...fullSourceForm,
@@ -245,20 +255,20 @@ export async function cloneFormByToken(token: string): Promise<Form | null> {
     user_id: userId,
     share_token: null, // Don't copy the share token
     sections: fullSourceForm.sections?.map(sec => {
-      const newSecId = crypto.randomUUID();
+      const newSecId = generateUUID();
       return {
         ...sec,
         id: newSecId,
         form_id: newFormId,
         questions: sec.questions?.map(q => {
-          const newQId = crypto.randomUUID();
+          const newQId = generateUUID();
           return {
             ...q,
             id: newQId,
             section_id: newSecId,
             options: q.options?.map(opt => ({
               ...opt,
-              id: crypto.randomUUID(),
+              id: generateUUID(),
               question_id: newQId
             }))
           };
