@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { getForms, createEmptyForm } from "../lib/api";
 import { Form } from "../types/form";
-import { Plus, FileText, Loader2, ArrowRight } from "lucide-react";
+import { Plus, FileText, Loader2, ArrowRight, Save } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function Dashboard() {
@@ -11,6 +11,8 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const router = useRouter();
+
+
 
   useEffect(() => {
     async function load() {
@@ -41,19 +43,22 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-slate-50 font-sans p-8">
       <div className="max-w-5xl mx-auto space-y-8">
-        <header className="flex items-center justify-between">
+        <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-0">
           <div>
-            <h1 className="text-3xl font-bold text-slate-800 tracking-tight">Meus Formulários</h1>
-            <p className="text-slate-500 mt-1">Gerencie os questionários de Maturidade e Interoperabilidade.</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-slate-800 tracking-tight">Meus Formulários</h1>
+            <p className="text-sm sm:text-base text-slate-500 mt-1">Gerencie os questionários de Maturidade e Interoperabilidade.</p>
           </div>
-          <button 
-            onClick={handleCreateNew}
-            disabled={isCreating}
-            className="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg font-medium shadow-sm transition-all disabled:opacity-70 disabled:cursor-not-allowed"
-          >
-            {isCreating ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
-            <span>Criar Novo Formulário</span>
-          </button>
+          <div className="flex items-center space-x-3 w-full sm:w-auto">
+
+            <button 
+              onClick={handleCreateNew}
+              disabled={isCreating}
+              className="flex items-center justify-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg font-medium shadow-sm transition-all disabled:opacity-70 disabled:cursor-not-allowed w-full sm:w-auto"
+            >
+              {isCreating ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
+              <span>Criar Novo Formulário</span>
+            </button>
+          </div>
         </header>
 
         {isLoading ? (

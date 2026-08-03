@@ -4,8 +4,15 @@ export type QuestionType =
   | 'RADIO_SINGLE' 
   | 'CHECKBOX_MULTIPLE' 
   | 'GRID_LIKERT' 
+  | 'DROPDOWN'
+  | 'DATE_TIME'
+  | 'FILE_UPLOAD'
   | 'DYNAMIC_REPEATER' 
-  | 'CONDITIONAL_LOGIC';
+  | 'CONDITIONAL_LOGIC'
+  | 'MEDIA_VIDEO'
+  | 'MEDIA_AUDIO'
+  | 'MEDIA_IMAGE'
+  | 'TEXT_MARKDOWN';
 
 export interface Form {
   id: string;
@@ -34,6 +41,8 @@ export interface Question {
   allow_add_item: boolean;
   trigger_source_question_id?: string | null;
   sub_question_template?: any | null; // jsonb
+  video_url?: string | null; // Added for MEDIA_VIDEO, serialized into sub_question_template
+  tags?: string[]; // Added for analytics (TIMAPS, SIMAPS, etc.)
   order_index: number;
   created_at: string;
   options?: Option[];

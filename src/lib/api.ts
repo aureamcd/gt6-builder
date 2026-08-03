@@ -32,6 +32,14 @@ export async function getFormById(id: string): Promise<Form | null> {
       s.questions?.sort((a: any, b: any) => a.order_index - b.order_index);
       s.questions?.forEach((q: any) => {
         q.options?.sort((a: any, b: any) => a.order_index - b.order_index);
+        if (q.sub_question_template) {
+          if (q.type === 'MEDIA_VIDEO' && q.sub_question_template.video_url) {
+            q.video_url = q.sub_question_template.video_url;
+          }
+          if (q.sub_question_template.tags) {
+            q.tags = q.sub_question_template.tags;
+          }
+        }
       });
     });
   }
@@ -120,7 +128,12 @@ export async function saveFormState(form: Form) {
             required: q.required,
             allow_add_item: q.allow_add_item,
             trigger_source_question_id: q.trigger_source_question_id || null,
-            sub_question_template: q.sub_question_template || null,
+            sub_question_template: (() => {
+              let tpl = q.sub_question_template || {};
+              if (q.type === 'MEDIA_VIDEO') tpl = { ...tpl, video_url: q.video_url };
+              if (q.tags) tpl = { ...tpl, tags: q.tags };
+              return Object.keys(tpl).length > 0 ? tpl : null;
+            })(),
             order_index: q.order_index
           });
         });
