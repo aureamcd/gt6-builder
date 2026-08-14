@@ -135,10 +135,14 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
     // Aguarda 2.5 segundos de inatividade para salvar no banco
     const timer = setTimeout(() => {
       setIsSaving(true);
-      saveFormState(schema).then(() => {
+      saveFormState(schema).then((result) => {
         setIsSaving(false);
+        if (!result.success) {
+          alert("Aviso: Falha ao salvar automaticamente! " + ((result.error as any)?.message || "Erro desconhecido"));
+          console.error("Auto-save error:", result.error);
+        }
       }).catch(err => {
-        console.error("Auto-save error:", err);
+        console.error("Auto-save throw:", err);
         setIsSaving(false);
       });
     }, 2500);
