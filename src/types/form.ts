@@ -17,9 +17,23 @@ export type QuestionType =
 export interface Form {
   id: string;
   title: string;
+  description?: string | null;
+  status: 'draft' | 'published' | 'archived';
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
+  user_id: string;
+  share_token?: string;
+  settings?: any;
   sections?: Section[];
+}
+
+export interface FormComment {
+  id: string;
+  form_id: string;
+  element_id: string;
+  text: string;
+  status: 'open' | 'resolved';
+  created_at: string;
 }
 
 export interface Section {
@@ -27,6 +41,9 @@ export interface Section {
   form_id: string;
   title: string;
   description?: string | null;
+  video_url?: string | null;
+  unlock_at_seconds?: number | null;
+  tags?: string[] | null;
   order_index: number;
   created_at: string;
   questions?: Question[];

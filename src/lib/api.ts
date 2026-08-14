@@ -1,6 +1,16 @@
 import { supabase } from './supabase';
 import { Form, Section, Question, Option } from '../types/form';
 
+export function generateUUID() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
 export async function getForms(): Promise<Form[]> {
   const { data, error } = await supabase
     .from('forms')
@@ -57,6 +67,7 @@ export async function createEmptyForm(title: string = "Novo Formulário"): Promi
     title,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
+    user_id: "",
     sections: []
   };
 
@@ -79,18 +90,15 @@ export async function saveFormState(form: Form) {
       .upsert({
         id: form.id,
         title: form.title,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        user_id: form.user_id || null,
+        share_token: form.share_token || null,
+        settings: form.settings || null
       }, { onConflict: 'id' });
 
     if (formError) throw formError;
 
     // We will save sections, questions and options.
-    // To handle deletions (things removed in UI), we can delete existing ones not in the payload.
-    // Or simpler for a sketch: delete all sections for this form and recreate them (cascade will handle questions/options).
-    // Let's do the clean approach: Delete all sections, then insert everything.
-    
-    // WARNING: In production, you might want to carefully upsert and delete missing items to preserve answer data.
-    // Since this is a builder sketch, wiping and rewriting structure is the easiest way to perfectly sync state.
     const { error: deleteError } = await supabase
       .from('sections')
       .delete()
@@ -106,6 +114,8 @@ export async function saveFormState(form: Form) {
       form_id: s.form_id,
       title: s.title,
       description: s.description,
+      video_url: s.video_url || null,
+      unlock_at_seconds: s.unlock_at_seconds || null,
       order_index: s.order_index
     }));
 
@@ -181,4 +191,85 @@ export async function saveFormState(form: Form) {
     console.error('Error saving form to DB:', error);
     return { success: false, error };
   }
+}
+
+export async function generateShareToken(formId: string): Promise<string> {
+  const token = generateUUID();
+  const { error } = await supabase
+    .from('forms')
+    .update({ share_token: token })
+    .eq('id', formId);
+    
+  if (error) throw error;
+  return token;
+}
+
+export async function getFormByShareToken(token: string): Promise<Form | null> {
+  const { data: sourceForm, error: formError } = await supabase
+    .from('forms')
+    .select('*')
+    .eq('share_token', token)
+    .single();
+    
+  if (formError || !sourceForm) return null;
+
+  return getFormById(sourceForm.id);
+}
+
+export async function getComments(formId: string) {
+  const { data, error } = await supabase
+    .from('form_comments')
+    .select('*')
+    .eq('form_id', formId)
+    .order('created_at', { ascending: true });
+    
+  if (error) {
+    console.error('Error fetching comments:', error);
+    return [];
+  }
+  return data || [];
+}
+
+export async function addComment(formId: string, elementId: string, text: string) {
+  const { data, error } = await supabase
+    .from('form_comments')
+    .insert([
+      { form_id: formId, element_id: elementId, text, status: 'open' }
+    ])
+    .select()
+    .single();
+    
+  if (error) {
+    console.error('Error adding comment:', error);
+    return null;
+  }
+  return data;
+}
+
+export async function updateCommentStatus(commentId: string, status: 'open' | 'resolved') {
+  const { data, error } = await supabase
+    .from('form_comments')
+    .update({ status })
+    .eq('id', commentId)
+    .select()
+    .single();
+    
+  if (error) {
+    console.error('Error updating comment:', error);
+    return null;
+  }
+  return data;
+}
+
+export async function deleteComment(commentId: string) {
+  const { error } = await supabase
+    .from('form_comments')
+    .delete()
+    .eq('id', commentId);
+    
+  if (error) {
+    console.error('Error deleting comment:', error);
+    return false;
+  }
+  return true;
 }
