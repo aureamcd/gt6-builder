@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { getForms, createEmptyForm, cloneFormByToken } from "../lib/api";
 import { Form } from "../types/form";
-import { Plus, FileText, Loader2, ArrowRight, Save } from "lucide-react";
+import { Plus, FileText, Loader2, ArrowRight, Save, Download, FileCode } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase";
 
@@ -15,8 +15,6 @@ export default function Dashboard() {
   const [user, setUser] = useState<any>(null);
   const router = useRouter();
 
-
-
   useEffect(() => {
     async function load() {
       try {
@@ -26,6 +24,27 @@ export default function Dashboard() {
           return;
         }
         setUser(session.user);
+
+        // Check if redirected with import_token query param
+        if (typeof window !== 'undefined') {
+          const params = new URLSearchParams(window.location.search);
+          const importToken = params.get('import_token');
+          if (importToken) {
+            setIsImporting(true);
+            try {
+              const newForm = await cloneFormByToken(importToken);
+              if (newForm) {
+                router.push(`/builder/${newForm.id}`);
+                return;
+              }
+            } catch (err: any) {
+              console.error("Erro ao clonar template:", err);
+              alert("Erro ao importar questionário a partir do link: " + (err.message || "Token inválido"));
+            } finally {
+              setIsImporting(false);
+            }
+          }
+        }
 
         const data = await getForms();
         setForms(data);
@@ -51,13 +70,23 @@ export default function Dashboard() {
   };
 
   const handleImportToken = async () => {
-    const token = prompt("Insira o token de compartilhamento para clonar o formulário:");
+    const token = prompt("Insira o token ou link de compartilhamento do template:");
     if (!token) return;
     
+    // Suporta tanto o token puro quanto a URL completa
+    let cleanToken = token.trim();
+    if (cleanToken.includes('import_token=')) {
+      const url = new URL(cleanToken);
+      cleanToken = url.searchParams.get('import_token') || cleanToken;
+    } else if (cleanToken.includes('/f/')) {
+      cleanToken = cleanToken.split('/f/')[1]?.split('?')[0] || cleanToken;
+    }
+
     setIsImporting(true);
     try {
-      const newForm = await cloneFormByToken(token);
+      const newForm = await cloneFormByToken(cleanToken);
       if (newForm) {
+        alert("Template importado com sucesso! Redirecionando para o construtor...");
         router.push(`/builder/${newForm.id}`);
       }
     } catch (error: any) {
@@ -73,10 +102,11 @@ export default function Dashboard() {
     router.push("/login");
   };
 
-  if (isLoading) {
+  if (isLoading || isImporting) {
     return (
-      <div className="flex h-screen items-center justify-center bg-slate-50">
-        <Loader2 className="animate-spin text-indigo-600" size={32} />
+      <div className="flex flex-col h-screen items-center justify-center bg-slate-50 space-y-3">
+        <Loader2 className="animate-spin text-indigo-600" size={36} />
+        {isImporting && <p className="text-sm font-medium text-slate-600">Importando template para a sua conta...</p>}
       </div>
     );
   }
@@ -90,6 +120,14 @@ export default function Dashboard() {
             <p className="text-sm sm:text-base text-slate-500 mt-1">Gerencie os questionários de Maturidade e Interoperabilidade.</p>
           </div>
           <div className="flex items-center space-x-3 w-full sm:w-auto">
+            <button 
+              onClick={handleImportToken}
+              disabled={isImporting}
+              className="flex items-center justify-center space-x-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 px-4 py-2 sm:py-2.5 rounded-lg font-medium shadow-sm transition-all disabled:opacity-70 disabled:cursor-not-allowed w-full sm:w-auto"
+            >
+              <Download size={18} />
+              <span>Importar Template</span>
+            </button>
 
             <button 
               onClick={handleCreateNew}
