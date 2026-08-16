@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, use } from "react";
 import { Form, Section, Question } from "../../../types/form";
-import { getFormByShareToken } from "../../../lib/api";
+import { getFormByShareToken, submitFormResponse } from "../../../lib/api";
 import { supabase } from "../../../lib/supabase";
 import { Loader2, ChevronRight, ChevronLeft, Calendar, UploadCloud, FileText, Headphones, Video } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -110,7 +110,6 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
         return { question_id: questionId, answer_text, answer_json };
       });
       
-      const { submitFormResponse } = await import('@/lib/api');
       const res = await submitFormResponse(schema.id, answersData);
       
       if (res.success) {
