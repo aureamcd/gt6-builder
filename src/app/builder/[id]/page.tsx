@@ -93,6 +93,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
   const [isAutoSaveEnabled, setIsAutoSaveEnabled] = useState(true);
   const [formComments, setFormComments] = useState<FormComment[]>([]);
   const [activeCommentElement, setActiveCommentElement] = useState<{id: string, title: string} | null>(null);
+  const [dragEnabledSubQId, setDragEnabledSubQId] = useState<string | null>(null);
 
   const fetchComments = async () => {
     const data = await getComments(id);
@@ -164,13 +165,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
     }
   };
 
-  useEffect(() => {
-    if (!schema || isLoading || !isAutoSaveEnabled) return;
-    const timer = setTimeout(() => {
-      handleSave(false);
-    }, 10000); // Salva 10s após a última alteração
-    return () => clearTimeout(timer);
-  }, [schema, isAutoSaveEnabled, isLoading]);
+  // Removido useEffect redundante de 10 segundos que causava race condition
 
   if (isLoading) return <div className="flex h-screen items-center justify-center bg-slate-50"><Loader2 className="animate-spin text-indigo-600" size={32} /></div>;
   if (!schema) return <div className="flex h-screen items-center justify-center bg-slate-50 text-slate-500">Formulário não encontrado.</div>;
@@ -473,7 +468,6 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
             <SidebarItem icon={<CheckSquare size={18} />} label="Múltipla Escolha" onClick={() => addQuestion('CHECKBOX_MULTIPLE')} />
             <SidebarItem icon={<List size={18} />} label="Escolha Única" onClick={() => addQuestion('RADIO_SINGLE')} />
             <SidebarItem icon={<ChevronDown size={18} />} label="Lista Suspensa" onClick={() => addQuestion('DROPDOWN')} />
-            <SidebarItem icon={<Grid size={18} />} label="Matriz (Likert)" onClick={() => addQuestion('GRID_LIKERT')} />
             <SidebarItem icon={<Calendar size={18} />} label="Data e Hora" onClick={() => addQuestion('DATE_TIME')} />
             <SidebarItem icon={<UploadCloud size={18} />} label="Upload de Arquivo" onClick={() => addQuestion('FILE_UPLOAD')} />
           </div>
@@ -584,7 +578,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
               <span className="hidden sm:inline">Pré-visualizar</span>
             </button>
             <button 
-              onClick={handleSave}
+              onClick={() => handleSave(true)}
               disabled={isSaving}
               className={`flex items-center justify-center space-x-2 px-3 py-2 sm:px-4 text-sm font-medium text-white rounded-lg shadow-sm transition-colors ${isSaving ? 'bg-indigo-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'}`}
             >
@@ -842,8 +836,8 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                       // Auto-add options if switching to a choice type and none exist
                       if (needsOptions && (!selectedQuestion.options || selectedQuestion.options.length === 0)) {
                         updates.options = [
-                          { id: generateId(), label: "Opção 1" },
-                          { id: generateId(), label: "Opção 2" }
+                          { id: generateId(), label: "Opção 1" } as any,
+                          { id: generateId(), label: "Opção 2" } as any
                         ];
                       }
                       
@@ -903,7 +897,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                 {/* Tags / Metadata */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-slate-700">Tag de Camada (IMAPS)</label>
-                  {selectedSection.tags && selectedSection.tags.length > 0 ? (
+                  {selectedSection?.tags && selectedSection.tags.length > 0 ? (
                     <div className="p-3 bg-amber-50 border border-amber-200 rounded-md text-xs text-amber-700 leading-relaxed">
                       <strong>Tags desativadas:</strong> A seção atual já possui tags configuradas ({selectedSection.tags.join(', ')}). Todas as perguntas desta seção herdarão automaticamente as tags da seção.
                     </div>
@@ -1015,7 +1009,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                           <div 
                             key={subQ.id} 
                             className="bg-white border border-slate-200 p-2 pl-7 rounded text-sm relative group/sub"
-                            draggable
+                            draggable={dragEnabledSubQId === subQ.id}
                             onDragStart={(e) => {
                               e.dataTransfer.setData('text/plain', index.toString());
                               e.dataTransfer.effectAllowed = 'move';
@@ -1037,7 +1031,13 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                               updateQuestionProperty(activeSectionId, selectedQuestion.id, 'sub_question_template', { ...selectedQuestion.sub_question_template, sub_questions: newSubQs });
                             }}
                           >
-                            <div className="absolute left-1 top-1/2 -translate-y-1/2 text-slate-300 cursor-grab hover:text-slate-500 active:cursor-grabbing">
+                            <div 
+                              className="absolute left-1 top-1/2 -translate-y-1/2 text-slate-300 cursor-grab hover:text-slate-500 active:cursor-grabbing"
+                              onMouseEnter={() => setDragEnabledSubQId(subQ.id)}
+                              onMouseLeave={() => setDragEnabledSubQId(null)}
+                              onTouchStart={() => setDragEnabledSubQId(subQ.id)}
+                              onTouchEnd={() => setDragEnabledSubQId(null)}
+                            >
                               <GripVertical size={16} />
                             </div>
                             <input 
@@ -1045,7 +1045,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                               value={subQ.label}
                               onChange={(e) => {
                                 const newSubQs = [...(selectedQuestion.sub_question_template.sub_questions || [])];
-                                newSubQs[index].label = e.target.value;
+                                newSubQs[index] = { ...newSubQs[index], label: e.target.value };
                                 updateQuestionProperty(activeSectionId, selectedQuestion.id, 'sub_question_template', { ...selectedQuestion.sub_question_template, sub_questions: newSubQs });
                               }}
                               className="w-full border-none bg-transparent font-medium focus:ring-0 p-0 text-slate-800"
@@ -1056,7 +1056,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                                 value={subQ.type}
                                 onChange={(e) => {
                                   const newSubQs = [...(selectedQuestion.sub_question_template.sub_questions || [])];
-                                  newSubQs[index].type = e.target.value;
+                                  newSubQs[index] = { ...newSubQs[index], type: e.target.value };
                                   updateQuestionProperty(activeSectionId, selectedQuestion.id, 'sub_question_template', { ...selectedQuestion.sub_question_template, sub_questions: newSubQs });
                                 }}
                                 className="w-full text-xs bg-slate-50 border border-slate-200 rounded px-2 py-1 outline-none"
@@ -1077,8 +1077,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                                       const rawText = e.target.value;
                                       const opts = rawText.split(',').map(t => ({ id: crypto.randomUUID(), label: t.trim() })).filter(o => o.label);
                                       const newSubQs = [...(selectedQuestion.sub_question_template.sub_questions || [])];
-                                      newSubQs[index].options = opts;
-                                      newSubQs[index]._rawOptionsText = rawText;
+                                      newSubQs[index] = { ...newSubQs[index], options: opts, _rawOptionsText: rawText };
                                       updateQuestionProperty(activeSectionId, selectedQuestion.id, 'sub_question_template', { ...selectedQuestion.sub_question_template, sub_questions: newSubQs });
                                     }}
                                     className="w-full text-xs bg-white border border-slate-200 rounded px-2 py-1.5 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
@@ -1090,7 +1089,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                                       checked={subQ.allow_add_item || false}
                                       onChange={(e) => {
                                         const newSubQs = [...(selectedQuestion.sub_question_template.sub_questions || [])];
-                                        newSubQs[index].allow_add_item = e.target.checked;
+                                        newSubQs[index] = { ...newSubQs[index], allow_add_item: e.target.checked };
                                         updateQuestionProperty(activeSectionId, selectedQuestion.id, 'sub_question_template', { ...selectedQuestion.sub_question_template, sub_questions: newSubQs });
                                       }}
                                     />
@@ -1108,8 +1107,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                                   value={subQ.depends_on_id || ''}
                                   onChange={(e) => {
                                     const newSubQs = [...(selectedQuestion.sub_question_template.sub_questions || [])];
-                                    newSubQs[index].depends_on_id = e.target.value || undefined;
-                                    newSubQs[index].depends_on_label = undefined; 
+                                    newSubQs[index] = { ...newSubQs[index], depends_on_id: e.target.value || undefined, depends_on_label: undefined };
                                     updateQuestionProperty(activeSectionId, selectedQuestion.id, 'sub_question_template', { ...selectedQuestion.sub_question_template, sub_questions: newSubQs });
                                   }}
                                   className="w-full text-xs bg-slate-50 border border-slate-200 rounded px-2 py-1 outline-none text-slate-700"
@@ -1127,7 +1125,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                                     value={subQ.depends_on_label || ''}
                                     onChange={(e) => {
                                       const newSubQs = [...(selectedQuestion.sub_question_template.sub_questions || [])];
-                                      newSubQs[index].depends_on_label = e.target.value;
+                                      newSubQs[index] = { ...newSubQs[index], depends_on_label: e.target.value };
                                       updateQuestionProperty(activeSectionId, selectedQuestion.id, 'sub_question_template', { ...selectedQuestion.sub_question_template, sub_questions: newSubQs });
                                     }}
                                     className="w-full text-xs bg-white border border-slate-200 rounded px-2 py-1.5 focus:border-indigo-500 outline-none"
@@ -1305,6 +1303,7 @@ function QuestionCard({
 }) {
   const [isUploading, setIsUploading] = useState(false);
   const [activeTab, setActiveTab] = useState<'url' | 'upload'>('url');
+  const [isDragEnabled, setIsDragEnabled] = useState(false);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1347,7 +1346,7 @@ function QuestionCard({
   return (
     <div 
       onClick={onClick}
-      draggable={draggable}
+      draggable={draggable && isDragEnabled}
       onDragStart={onDragStart}
       onDragOver={onDragOver}
       onDragEnd={onDragEnd}
@@ -1363,7 +1362,13 @@ function QuestionCard({
           Obrigatório
         </div>
       )}
-      <div className="absolute left-0 top-0 bottom-0 w-6 sm:w-8 flex items-center justify-center cursor-grab text-slate-300 hover:text-indigo-500">
+      <div 
+        className="absolute left-0 top-0 bottom-0 w-6 sm:w-8 flex items-center justify-center cursor-grab text-slate-300 hover:text-indigo-500"
+        onMouseEnter={() => setIsDragEnabled(true)}
+        onMouseLeave={() => setIsDragEnabled(false)}
+        onTouchStart={() => setIsDragEnabled(true)}
+        onTouchEnd={() => setIsDragEnabled(false)}
+      >
         <GripVertical size={16} />
       </div>
       
@@ -1437,11 +1442,6 @@ function QuestionCard({
                 </div>
               )}
             </div>
-          )}
-          {question.type === 'GRID_LIKERT' && (
-             <div className="h-24 bg-slate-50 border border-slate-200 rounded-md flex items-center justify-center text-slate-400 border-dashed">
-             Visualização da matriz Likert (1 a 5)
-           </div>
           )}
           {question.type === 'DATE_TIME' && (
              <div className="h-10 w-48 bg-slate-50 border border-slate-200 rounded-md flex items-center px-3 text-slate-400">

@@ -65,6 +65,7 @@ export async function createEmptyForm(title: string = "Novo Formulário"): Promi
   const form: Form = {
     id: newFormId,
     title,
+    status: 'draft',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     user_id: "",
@@ -121,7 +122,7 @@ export async function saveFormState(form: Form) {
 
     const { error: sectionsError } = await supabase
       .from('sections')
-      .insert(sectionsData);
+      .upsert(sectionsData, { onConflict: 'id' });
 
     if (sectionsError) throw sectionsError;
 
@@ -153,7 +154,7 @@ export async function saveFormState(form: Form) {
     if (questionsData.length > 0) {
       const { error: questionsError } = await supabase
         .from('questions')
-        .insert(questionsData);
+        .upsert(questionsData, { onConflict: 'id' });
         
       if (questionsError) throw questionsError;
     }
@@ -164,13 +165,13 @@ export async function saveFormState(form: Form) {
       if (sec.questions) {
         sec.questions.forEach(q => {
           if (q.options) {
-            q.options.forEach(opt => {
+            q.options.forEach((opt, idx) => {
               optionsData.push({
                 id: opt.id,
                 question_id: q.id,
                 label: opt.label,
                 weight: opt.weight || null,
-                order_index: opt.order_index
+                order_index: opt.order_index ?? idx
               });
             });
           }
@@ -181,7 +182,7 @@ export async function saveFormState(form: Form) {
     if (optionsData.length > 0) {
       const { error: optionsError } = await supabase
         .from('options')
-        .insert(optionsData);
+        .upsert(optionsData, { onConflict: 'id' });
         
       if (optionsError) throw optionsError;
     }

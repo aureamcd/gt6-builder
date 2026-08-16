@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
-import { FormSchema } from '@/types/form';
+
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json() as FormSchema;
+    const body = await request.json() as any;
     
     if (!body.form_id || !body.title) {
       return NextResponse.json({ error: 'form_id and title are required' }, { status: 400 });

@@ -115,8 +115,8 @@ async function run() {
         section_id: sectionId,
         type: q.type,
         label: q.label,
-        required: q.required || false,
-        allow_add_item: q.allow_add_item || false,
+        required: (q as any).required || false,
+        allow_add_item: (q as any).allow_add_item || false,
         order_index: qIdx,
       });
 

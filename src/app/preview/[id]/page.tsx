@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, use } from "react";
+import React, { useState, useEffect, use, useRef } from "react";
 import { Form, Section, Question } from "../../../types/form";
 import { getFormById } from "../../../lib/api";
 import { supabase } from "../../../lib/supabase";
@@ -50,6 +50,7 @@ export default function PreviewPage({ params }: { params: Promise<{ id: string }
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [activeCommentElement, setActiveCommentElement] = useState<{id: string, title: string} | null>(null);
   const [lockedVideos, setLockedVideos] = useState<Record<string, boolean>>({});
+  const maxTimeRef = useRef<Record<string, number>>({});
 
   const handleAnswerChange = (questionId: string, value: any) => {
     setAnswers(prev => ({ ...prev, [questionId]: value }));
@@ -143,6 +144,31 @@ export default function PreviewPage({ params }: { params: Promise<{ id: string }
 
   const totalTimeSeconds = schema?.sections?.reduce((acc, sec) => acc + calculateSectionTimeRaw(sec), 0) || 0;
 
+  const validateCurrentSection = () => {
+    if (!currentSection || !currentSection.questions) return true;
+    for (const q of currentSection.questions) {
+      if (q.required && q.type !== 'DYNAMIC_REPEATER') {
+        const val = answers[q.id];
+        if (val === undefined || val === null || val === '') return false;
+        if (Array.isArray(val) && val.length === 0) return false;
+      }
+    }
+    return true;
+  };
+
+  const handleNextSection = () => {
+    if (!validateCurrentSection()) {
+      alert("Por favor, responda todas as perguntas obrigatórias antes de prosseguir.");
+      return;
+    }
+    
+    if (activeSectionIndex === sections.length - 1) {
+      alert("Formulário finalizado! (A gravação de respostas será implementada em breve)");
+    } else {
+      setActiveSectionIndex(prev => Math.min(sections.length - 1, prev + 1));
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 font-sans flex flex-col">
       {/* Header */}
@@ -225,8 +251,16 @@ export default function PreviewPage({ params }: { params: Promise<{ id: string }
                       src={currentSection.video_url}
                       controls
                       onTimeUpdate={(e) => {
+                        const video = e.currentTarget;
+                        const maxTime = maxTimeRef.current[currentSection.id] || 0;
+                        if (video.currentTime > maxTime + 1) {
+                          video.currentTime = maxTime;
+                        } else if (video.currentTime > maxTime) {
+                          maxTimeRef.current[currentSection.id] = video.currentTime;
+                        }
+
                         if (currentSection.unlock_at_seconds) {
-                          handleVideoTimeUpdate(currentSection.id, e.currentTarget.currentTime, currentSection.unlock_at_seconds);
+                          handleVideoTimeUpdate(currentSection.id, video.currentTime, currentSection.unlock_at_seconds);
                         }
                       }}
                     />
@@ -264,7 +298,7 @@ export default function PreviewPage({ params }: { params: Promise<{ id: string }
                     return opt ? opt.label : val;
                   };
 
-                  const triggerQIndex = currentSection.questions.findIndex(sq => sq.id === q.trigger_source_question_id);
+                  const triggerQIndex = currentSection.questions?.findIndex(sq => sq.id === q.trigger_source_question_id) ?? -1;
                   const baseNumber = triggerQIndex >= 0 ? triggerQIndex + 1 : qIndex + 1;
 
                   return (
@@ -366,13 +400,7 @@ export default function PreviewPage({ params }: { params: Promise<{ id: string }
               <span>Anterior</span>
             </button>
             <button
-              onClick={() => {
-                if (activeSectionIndex === sections.length - 1) {
-                  alert("Formulário finalizado! (A gravação de respostas será implementada em breve)");
-                } else {
-                  setActiveSectionIndex(prev => Math.min(sections.length - 1, prev + 1));
-                }
-              }}
+              onClick={handleNextSection}
               disabled={isCurrentSectionLocked}
               title={isCurrentSectionLocked ? "Assista ao vídeo para prosseguir" : ""}
               className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-colors ${isCurrentSectionLocked ? 'bg-indigo-400 text-white cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm'}`}
@@ -400,6 +428,7 @@ export default function PreviewPage({ params }: { params: Promise<{ id: string }
 
 // Helper component to render each question type in interactive mode for the preview
 function QuestionRenderer({ question, number, value, onChange, onVideoTimeUpdate }: { question: any, number: number | string, value: any, onChange: (val: any) => void, onVideoTimeUpdate?: (time: number) => void }) {
+  const maxTimeRef = useRef<number>(0);
   return (
     <div className="group">
       <div className="flex items-start mb-4">
@@ -433,7 +462,7 @@ function QuestionRenderer({ question, number, value, onChange, onVideoTimeUpdate
 
         {question.type === 'RADIO_SINGLE' && (
           <div className="space-y-3">
-            {question.options?.map(opt => (
+            {question.options?.map((opt: any) => (
               <label key={opt.id} className="flex items-center space-x-3 cursor-pointer">
                 <input 
                   type="radio" 
@@ -469,7 +498,7 @@ function QuestionRenderer({ question, number, value, onChange, onVideoTimeUpdate
 
         {question.type === 'CHECKBOX_MULTIPLE' && (
           <div className="space-y-3">
-            {question.options?.map(opt => (
+            {question.options?.map((opt: any) => (
               <label key={opt.id} className="flex items-center space-x-3 cursor-pointer">
                 <input 
                   type="checkbox" 
@@ -527,13 +556,13 @@ function QuestionRenderer({ question, number, value, onChange, onVideoTimeUpdate
 
         {question.type === 'DROPDOWN' && (
           <select 
-            className="w-full sm:w-2/3 border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-shadow bg-white" 
+            className="w-full sm:w-2/3 border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-shadow bg-white text-slate-800 font-medium" 
             value={value || ''}
             onChange={(e) => onChange(e.target.value)}
           >
-            <option value="">Selecione uma opção...</option>
-            {question.options?.map(opt => (
-              <option key={opt.id} value={opt.id}>{opt.label}</option>
+            <option value="" className="text-slate-500">Selecione uma opção...</option>
+            {question.options?.map((opt: any) => (
+              <option key={opt.id} value={opt.id} className="text-slate-800 font-medium">{opt.label}</option>
             ))}
           </select>
         )}
@@ -555,7 +584,15 @@ function QuestionRenderer({ question, number, value, onChange, onVideoTimeUpdate
                   className="w-full max-h-[500px]"
                   src={question.video_url}
                   controls
-                  onTimeUpdate={(e) => onVideoTimeUpdate && onVideoTimeUpdate(e.currentTarget.currentTime)}
+                  onTimeUpdate={(e) => {
+                    const video = e.currentTarget;
+                    if (video.currentTime > maxTimeRef.current + 1) {
+                      video.currentTime = maxTimeRef.current;
+                    } else if (video.currentTime > maxTimeRef.current) {
+                      maxTimeRef.current = video.currentTime;
+                    }
+                    if (onVideoTimeUpdate) onVideoTimeUpdate(video.currentTime);
+                  }}
                 />
               </div>
             ) : (

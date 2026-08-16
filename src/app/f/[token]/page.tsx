@@ -63,6 +63,30 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
 
   const progressPercentage = totalQuestions > 0 ? Math.round((answeredQuestionsCount / totalQuestions) * 100) : 0;
 
+  const validateCurrentSection = () => {
+    if (!currentSection || !currentSection.questions) return true;
+    for (const q of currentSection.questions) {
+      if (q.required && q.type !== 'DYNAMIC_REPEATER') {
+        const val = answers[q.id];
+        if (val === undefined || val === null || val === '') return false;
+        if (Array.isArray(val) && val.length === 0) return false;
+      }
+    }
+    return true;
+  };
+
+  const handleNextSection = () => {
+    if (!validateCurrentSection()) {
+      alert("Por favor, responda todas as perguntas obrigatórias antes de prosseguir.");
+      return;
+    }
+    if (activeSectionIndex < sections.length - 1) {
+      setActiveSectionIndex(prev => prev + 1);
+    } else {
+      alert("Formulário finalizado! (A gravação de respostas será implementada em breve)");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 font-sans flex flex-col">
       {/* Header */}
@@ -160,7 +184,7 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
               <span>Anterior</span>
             </button>
             <button
-              onClick={() => setActiveSectionIndex(prev => Math.min(sections.length - 1, prev + 1))}
+              onClick={handleNextSection}
               disabled={activeSectionIndex === sections.length - 1}
               className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-colors ${activeSectionIndex === sections.length - 1 ? 'bg-indigo-400 text-white cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm'}`}
             >
@@ -295,13 +319,13 @@ function QuestionRenderer({ question, number, value, onChange }: { question: Que
 
         {question.type === 'DROPDOWN' && (
           <select 
-            className="w-full sm:w-2/3 border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-shadow bg-white" 
+            className="w-full sm:w-2/3 border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-shadow bg-white text-slate-800 font-medium" 
             value={value || ''}
             onChange={(e) => onChange(e.target.value)}
           >
-            <option value="">Selecione uma opção...</option>
-            {question.options?.map(opt => (
-              <option key={opt.id} value={opt.id}>{opt.label}</option>
+            <option value="" className="text-slate-500">Selecione uma opção...</option>
+            {question.options?.map((opt: any) => (
+              <option key={opt.id} value={opt.id} className="text-slate-800 font-medium">{opt.label}</option>
             ))}
           </select>
         )}

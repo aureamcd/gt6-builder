@@ -94,7 +94,7 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <h3 className="font-semibold text-lg text-slate-800 line-clamp-2 mb-2 group-hover:text-indigo-700 transition-colors">{form.title}</h3>
-                <p className="text-xs text-slate-400 mt-auto">Atualizado em {new Date(form.updated_at).toLocaleDateString('pt-BR')}</p>
+                <p className="text-xs text-slate-400 mt-auto">Atualizado em {new Date(form.updated_at || form.created_at || new Date()).toLocaleDateString('pt-BR')}</p>
                 <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between text-sm font-medium text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity">
                   <span>Editar formulário</span>
                   <ArrowRight size={16} />

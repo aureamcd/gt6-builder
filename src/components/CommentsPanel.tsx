@@ -19,10 +19,6 @@ export default function CommentsPanel({ formId, elementId, elementTitle, isEdito
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    loadComments();
-  }, [elementId]);
-
   const loadComments = async () => {
     setIsLoading(true);
     const data = await getComments(formId);
@@ -30,6 +26,10 @@ export default function CommentsPanel({ formId, elementId, elementTitle, isEdito
     setComments(data.filter((c: FormComment) => c.element_id === elementId));
     setIsLoading(false);
   };
+
+  useEffect(() => {
+    loadComments();
+  }, [elementId]);
 
   const handleSend = async () => {
     if (!newComment.trim()) return;
