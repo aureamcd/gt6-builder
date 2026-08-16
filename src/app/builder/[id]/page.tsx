@@ -1454,19 +1454,56 @@ function QuestionCard({
            </div>
           )}
           {question.type === 'TEXT_MARKDOWN' && (
-             <div className="h-20 bg-slate-50 border border-slate-200 rounded-md flex items-center justify-center text-slate-400 border-dashed">
-             <FileText size={20} className="mr-2" /> Bloco de Texto Formatado (Markdown)
-           </div>
+             <div className="space-y-2">
+               <textarea 
+                  placeholder="Digite o conteúdo do seu texto de aviso ou instrução aqui..."
+                  value={question.sub_question_template?.markdown_content || ''}
+                  onChange={(e) => updateQuestionProperty(activeSectionId, question.id, 'sub_question_template', { ...question.sub_question_template, markdown_content: e.target.value })}
+                  rows={4}
+                  className="w-full text-sm bg-white border border-slate-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-md px-3 py-2 outline-none resize-y"
+               />
+             </div>
           )}
           {question.type === 'MEDIA_IMAGE' && (
-             <div className="h-24 bg-slate-50 border border-slate-200 rounded-md flex flex-col items-center justify-center text-slate-400 border-dashed">
-             <ImageIcon size={24} className="mb-2" /> Upload de Imagem ou Cole a URL
-           </div>
+            <div className="space-y-4">
+              <input 
+                  type="text"
+                  placeholder="Cole o link da imagem aqui (ex: https://site.com/imagem.png)"
+                  value={question.sub_question_template?.image_url || ''}
+                  onChange={(e) => updateQuestionProperty(activeSectionId, question.id, 'sub_question_template', { ...question.sub_question_template, image_url: e.target.value })}
+                  className="w-full text-sm bg-white border border-slate-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-md px-3 py-2 outline-none"
+              />
+              {question.sub_question_template?.image_url ? (
+                <div className="flex justify-center border border-slate-200 rounded-lg p-2 bg-slate-50">
+                   <img src={question.sub_question_template.image_url} alt="Preview" className="max-h-64 object-contain rounded-md" />
+                </div>
+              ) : (
+                <div className="h-24 bg-slate-50 border border-slate-200 rounded-md flex flex-col items-center justify-center text-slate-400 border-dashed">
+                  <ImageIcon size={24} className="mb-2" />
+                  <span className="text-sm">Cole a URL da imagem acima</span>
+                </div>
+              )}
+            </div>
           )}
           {question.type === 'MEDIA_AUDIO' && (
-             <div className="h-16 bg-slate-50 border border-slate-200 rounded-md flex items-center justify-center text-slate-400 border-dashed">
-             <Headphones size={20} className="mr-2" /> Player de Áudio
-           </div>
+            <div className="space-y-4">
+              <input 
+                  type="text"
+                  placeholder="Cole o link do áudio aqui (ex: https://site.com/audio.mp3)"
+                  value={question.sub_question_template?.audio_url || ''}
+                  onChange={(e) => updateQuestionProperty(activeSectionId, question.id, 'sub_question_template', { ...question.sub_question_template, audio_url: e.target.value })}
+                  className="w-full text-sm bg-white border border-slate-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-md px-3 py-2 outline-none"
+              />
+              {question.sub_question_template?.audio_url ? (
+                <div className="flex justify-center border border-slate-200 rounded-lg p-4 bg-slate-50">
+                   <audio src={question.sub_question_template.audio_url} controls className="w-full max-w-md" />
+                </div>
+              ) : (
+                <div className="h-16 bg-slate-50 border border-slate-200 rounded-md flex items-center justify-center text-slate-400 border-dashed">
+                  <Headphones size={20} className="mr-2" /> Cole a URL do áudio acima
+                </div>
+              )}
+            </div>
           )}
           {question.type === 'MEDIA_VIDEO' && (
             <div className="space-y-4">

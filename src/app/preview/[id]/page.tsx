@@ -566,6 +566,35 @@ function QuestionRenderer({ question, number, value, onChange, onVideoTimeUpdate
             ))}
           </select>
         )}
+        {question.type === 'TEXT_MARKDOWN' && question.sub_question_template?.markdown_content && (
+          <div className="mb-6 px-4 py-4 bg-slate-50 border border-slate-200 rounded-lg whitespace-pre-wrap text-slate-700 font-medium">
+            {question.sub_question_template.markdown_content}
+          </div>
+        )}
+
+        {question.type === 'MEDIA_AUDIO' && (
+          <div className="flex justify-center mb-6">
+            {question.sub_question_template?.audio_url ? (
+               <audio src={question.sub_question_template.audio_url} controls className="w-full max-w-md shadow-sm rounded-full" />
+            ) : (
+               <div className="h-16 w-full max-w-md bg-slate-50 border border-slate-200 rounded-md flex items-center justify-center text-slate-400 border-dashed">
+                 <span className="text-sm">Áudio não configurado</span>
+               </div>
+            )}
+          </div>
+        )}
+
+        {question.type === 'MEDIA_IMAGE' && (
+          <div className="flex justify-center mb-6">
+            {question.sub_question_template?.image_url ? (
+               <img src={question.sub_question_template.image_url} alt="Media preview" className="max-w-full rounded-lg shadow-sm max-h-[500px] object-contain border border-slate-200" />
+            ) : (
+               <div className="h-32 w-full max-w-lg bg-slate-50 border border-slate-200 rounded-md flex flex-col items-center justify-center text-slate-400 border-dashed">
+                 <span className="text-sm">Imagem não configurada</span>
+               </div>
+            )}
+          </div>
+        )}
 
         {question.type === 'MEDIA_VIDEO' && (
           <div className="space-y-4">
