@@ -73,3 +73,10 @@ export interface Option {
   order_index: number;
   created_at: string;
 }
+
+export interface Submission {
+  id: string;
+  form_id: string;
+  answers: any; // JSONB
+  created_at: string;
+}

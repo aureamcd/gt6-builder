@@ -4,7 +4,7 @@ import React, { useState, useEffect, use } from "react";
 import { 
   GripVertical, Plus, Settings, ChevronDown, CheckSquare, 
   Type, List, AlignLeft, Grid, Eye, Save, Play, Layers, Trash2, X, Loader2, Menu, Video, 
-  Calendar, UploadCloud, Headphones, Image as ImageIcon, FileText, ExternalLink, Share2, Copy, Undo2, Redo2
+  Calendar, UploadCloud, Headphones, Image as ImageIcon, FileText, ExternalLink, Share2, Copy, Undo2, Redo2, Users, Globe, FileCode
 } from "lucide-react";
 import { Form, Section, Question, QuestionType, Option, FormComment } from "../../../types/form";
 import { saveFormState, getFormById, generateShareToken, getComments } from "../../../lib/api";
@@ -89,8 +89,9 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
   const [isLoading, setIsLoading] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
-  const [isCopied, setIsCopied] = useState(false);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [isAutoSaveEnabled, setIsAutoSaveEnabled] = useState(true);
+  const [lastSavedTime, setLastSavedTime] = useState<string | null>(null);
   const [formComments, setFormComments] = useState<FormComment[]>([]);
   const [activeCommentElement, setActiveCommentElement] = useState<{id: string, title: string} | null>(null);
   const [dragEnabledSubQId, setDragEnabledSubQId] = useState<string | null>(null);
@@ -132,21 +133,21 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
   useEffect(() => {
     if (!schema || isLoading || !isAutoSaveEnabled) return;
     
-    // Evita salvar no momento exato que a página carrega e nada mudou
-    // Aguarda 2.5 segundos de inatividade para salvar no banco
+    // Aguarda 1.8 segundos de inatividade para salvar no banco
     const timer = setTimeout(() => {
       setIsSaving(true);
       saveFormState(schema).then((result) => {
         setIsSaving(false);
-        if (!result.success) {
-          alert("Aviso: Falha ao salvar automaticamente! " + ((result.error as any)?.message || "Erro desconhecido"));
+        if (result.success) {
+          setLastSavedTime(new Date().toLocaleTimeString('pt-BR'));
+        } else {
           console.error("Auto-save error:", result.error);
         }
       }).catch(err => {
         console.error("Auto-save throw:", err);
         setIsSaving(false);
       });
-    }, 2500);
+    }, 1800);
 
     return () => clearTimeout(timer);
   }, [schema, isLoading, isAutoSaveEnabled]);
@@ -539,7 +540,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
             >
               <Menu size={20} />
             </button>
-            <a href="/" className="hidden sm:inline-flex items-center text-sm font-medium text-slate-500 bg-slate-100 hover:bg-slate-200 px-3 py-1 rounded-full transition-colors whitespace-nowrap shrink-0">← Voltar</a>
+            <a href="/" className="hidden sm:inline-flex items-center text-xs sm:text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 px-3.5 py-1.5 rounded-full transition-colors whitespace-nowrap shrink-0">← Painel de Questionários</a>
             <span className="hidden sm:inline-block text-sm font-medium text-slate-500 bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full whitespace-nowrap shrink-0">ID: {id.substring(0, 8)}</span>
             <input 
               value={schema.title}
@@ -551,10 +552,10 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
             <button 
               onClick={() => setIsAutoSaveEnabled(!isAutoSaveEnabled)}
               className={`flex items-center justify-center space-x-1 px-2 py-2 sm:px-3 text-xs sm:text-sm font-medium rounded-lg transition-colors ${isAutoSaveEnabled ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-slate-50 text-slate-500 border border-slate-200'}`}
-              title={isAutoSaveEnabled ? "Salvamento Automático Ativado" : "Salvamento Automático Desativado"}
+              title={isAutoSaveEnabled ? (lastSavedTime ? `Salvamento Automático Ativado (Último: ${lastSavedTime})` : "Salvamento Automático Ativado") : "Salvamento Automático Desativado"}
             >
-              <div className={`w-2 h-2 rounded-full ${isAutoSaveEnabled ? 'bg-indigo-500 animate-pulse' : 'bg-slate-300'}`}></div>
-              <span className="hidden lg:inline">{isAutoSaveEnabled ? 'Auto-save ON' : 'Auto-save OFF'}</span>
+              <div className={`w-2 h-2 rounded-full ${isAutoSaveEnabled ? (isSaving ? 'bg-amber-500 animate-ping' : 'bg-indigo-500 animate-pulse') : 'bg-slate-300'}`}></div>
+              <span className="hidden lg:inline">{isAutoSaveEnabled ? (isSaving ? 'Salvando...' : 'Auto-save ON') : 'Auto-save OFF'}</span>
             </button>
             <button 
               onClick={async () => {
@@ -688,6 +689,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                         onAddOption={() => addOption(section.id, q.id)}
                         onUpdateOptionLabel={(optId, newLabel) => updateOptionLabel(section.id, q.id, optId, newLabel)}
                         onDeleteOption={(optId) => deleteOption(section.id, q.id, optId)}
+                        onUpdateSubQuestionTemplate={(tpl) => updateQuestionProperty(section.id, q.id, 'sub_question_template', tpl)}
                         openCommentsCount={formComments.filter(c => c.element_id === q.id && c.status === 'open').length}
                         onCommentClick={() => setActiveCommentElement({ id: q.id, title: q.label || `Pergunta ${qIndex + 1}` })}
                         draggable
@@ -1187,53 +1189,116 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
       {/* Share Modal */}
       {isShareModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all">
-            <div className="flex justify-between items-center p-5 border-b border-slate-100 bg-slate-50/50">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden transform transition-all max-h-[90vh] flex flex-col">
+            <div className="flex justify-between items-center p-5 border-b border-slate-100 bg-slate-50/70 shrink-0">
               <h3 className="font-bold text-lg text-slate-800 flex items-center">
                 <Share2 size={20} className="mr-2 text-indigo-600" />
-                Compartilhar Formulário
+                Compartilhar Questionário
               </h3>
-              <button onClick={() => { setIsShareModalOpen(false); setIsCopied(false); }} className="text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100 transition-colors">
+              <button onClick={() => { setIsShareModalOpen(false); setCopiedKey(null); }} className="text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100 transition-colors">
                 <X size={20} />
               </button>
             </div>
             
-            <div className="p-6 space-y-6">
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700">Link Público</label>
-                <p className="text-xs text-slate-500 mb-2">Envie este link para as pessoas preencherem o questionário.</p>
+            <div className="p-6 space-y-6 overflow-y-auto">
+              
+              {/* Opção 1: Respostas Públicas */}
+              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+                <div className="flex items-center space-x-2 text-indigo-700 font-semibold text-sm">
+                  <Globe size={18} />
+                  <span>1. Link Público de Respostas</span>
+                </div>
+                <p className="text-xs text-slate-500">Envie este link para as pessoas responderem e enviarem dados do questionário.</p>
                 <div className="flex">
                   <input 
                     type="text" 
                     readOnly
                     value={typeof window !== 'undefined' ? `${window.location.origin}/f/${schema.share_token}` : ''}
-                    className="flex-1 bg-slate-50 border border-slate-200 rounded-l-lg px-3 py-2 text-sm text-slate-600 outline-none"
+                    className="flex-1 bg-white border border-slate-200 rounded-l-lg px-3 py-2 text-xs sm:text-sm text-slate-600 outline-none select-all"
                   />
                   <button 
                     onClick={() => {
                       navigator.clipboard.writeText(`${window.location.origin}/f/${schema.share_token}`);
-                      setIsCopied(true);
-                      setTimeout(() => setIsCopied(false), 2000);
+                      setCopiedKey('public');
+                      setTimeout(() => setCopiedKey(null), 2000);
                     }}
-                    className={`px-4 py-2 text-sm font-medium text-white rounded-r-lg transition-colors flex items-center ${isCopied ? 'bg-green-500 hover:bg-green-600' : 'bg-indigo-600 hover:bg-indigo-700'}`}
+                    className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-white rounded-r-lg transition-colors flex items-center shrink-0 ${copiedKey === 'public' ? 'bg-green-600' : 'bg-indigo-600 hover:bg-indigo-700'}`}
                   >
-                    {isCopied ? <CheckSquare size={16} className="mr-1" /> : <Copy size={16} className="mr-1" />}
-                    {isCopied ? 'Copiado!' : 'Copiar'}
+                    {copiedKey === 'public' ? <CheckSquare size={16} className="mr-1" /> : <Copy size={16} className="mr-1" />}
+                    {copiedKey === 'public' ? 'Copiado!' : 'Copiar'}
                   </button>
                 </div>
               </div>
 
-              <div className="space-y-2 pt-4 border-t border-slate-100">
-                <label className="text-sm font-semibold text-slate-700">Código QR</label>
-                <p className="text-xs text-slate-500 mb-2">As pessoas podem escanear este código pelo celular.</p>
-                <div className="flex justify-center bg-slate-50 rounded-xl p-4 border border-slate-200">
-                  <img 
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(typeof window !== 'undefined' ? `${window.location.origin}/f/${schema.share_token}` : '')}`} 
-                    alt="QR Code"
-                    className="w-32 h-32 rounded-lg"
+              {/* Opção 2: Compartilhar Template (Clonar cópia) */}
+              <div className="p-4 bg-purple-50/60 rounded-xl border border-purple-200/80 space-y-3">
+                <div className="flex items-center space-x-2 text-purple-700 font-semibold text-sm">
+                  <FileCode size={18} />
+                  <span>2. Enviar como Template (Cópia Independente)</span>
+                </div>
+                <p className="text-xs text-slate-600">A outra pessoa receberá uma cópia idêntica deste questionário na conta dela para editar sem alterar o seu original.</p>
+                <div className="flex">
+                  <input 
+                    type="text" 
+                    readOnly
+                    value={typeof window !== 'undefined' ? `${window.location.origin}/?import_token=${schema.share_token}` : ''}
+                    className="flex-1 bg-white border border-purple-200 rounded-l-lg px-3 py-2 text-xs sm:text-sm text-slate-600 outline-none select-all"
                   />
+                  <button 
+                    onClick={() => {
+                      navigator.clipboard.writeText(`${window.location.origin}/?import_token=${schema.share_token}`);
+                      setCopiedKey('template');
+                      setTimeout(() => setCopiedKey(null), 2000);
+                    }}
+                    className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-white rounded-r-lg transition-colors flex items-center shrink-0 ${copiedKey === 'template' ? 'bg-green-600' : 'bg-purple-600 hover:bg-purple-700'}`}
+                  >
+                    {copiedKey === 'template' ? <CheckSquare size={16} className="mr-1" /> : <Copy size={16} className="mr-1" />}
+                    {copiedKey === 'template' ? 'Copiado!' : 'Copiar'}
+                  </button>
                 </div>
               </div>
+
+              {/* Opção 3: Edição Colaborativa no Mesmo Arquivo */}
+              <div className="p-4 bg-amber-50/60 rounded-xl border border-amber-200/80 space-y-3">
+                <div className="flex items-center space-x-2 text-amber-800 font-semibold text-sm">
+                  <Users size={18} />
+                  <span>3. Edição Direta (Colaboração em Tempo Real)</span>
+                </div>
+                <p className="text-xs text-slate-600">Compartilhe o link do editor com sua equipe para que ambos trabalhem e editem este mesmo arquivo com salvamento automático.</p>
+                <div className="flex">
+                  <input 
+                    type="text" 
+                    readOnly
+                    value={typeof window !== 'undefined' ? `${window.location.origin}/builder/${id}` : ''}
+                    className="flex-1 bg-white border border-amber-200 rounded-l-lg px-3 py-2 text-xs sm:text-sm text-slate-600 outline-none select-all"
+                  />
+                  <button 
+                    onClick={() => {
+                      navigator.clipboard.writeText(`${window.location.origin}/builder/${id}`);
+                      setCopiedKey('collab');
+                      setTimeout(() => setCopiedKey(null), 2000);
+                    }}
+                    className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-white rounded-r-lg transition-colors flex items-center shrink-0 ${copiedKey === 'collab' ? 'bg-green-600' : 'bg-amber-600 hover:bg-amber-700'}`}
+                  >
+                    {copiedKey === 'collab' ? <CheckSquare size={16} className="mr-1" /> : <Copy size={16} className="mr-1" />}
+                    {copiedKey === 'collab' ? 'Copiado!' : 'Copiar'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Código QR */}
+              <div className="space-y-2 pt-2 border-t border-slate-100">
+                <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Código QR (Link Público)</label>
+                <div className="flex items-center space-x-4 bg-slate-50 rounded-xl p-3 border border-slate-200">
+                  <img 
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(typeof window !== 'undefined' ? `${window.location.origin}/f/${schema.share_token}` : '')}`} 
+                    alt="QR Code"
+                    className="w-20 h-20 rounded-lg border border-white shadow-sm shrink-0"
+                  />
+                  <p className="text-xs text-slate-500">Aponte a câmera do celular para abrir e preencher o formulário diretamente.</p>
+                </div>
+              </div>
+
             </div>
           </div>
         </div>
@@ -1279,7 +1344,8 @@ function QuestionCard({
   onDragEnd,
   onDrop,
   openCommentsCount,
-  onCommentClick
+  onCommentClick,
+  onUpdateSubQuestionTemplate
 }: { 
   question: Question, 
   number: number,
@@ -1300,6 +1366,7 @@ function QuestionCard({
   onDrop?: (e: React.DragEvent) => void,
   openCommentsCount?: number,
   onCommentClick?: () => void,
+  onUpdateSubQuestionTemplate?: (tpl: any) => void
 }) {
   const [isUploading, setIsUploading] = useState(false);
   const [activeTab, setActiveTab] = useState<'url' | 'upload'>('url');
@@ -1458,7 +1525,7 @@ function QuestionCard({
                <textarea 
                   placeholder="Digite o conteúdo do seu texto de aviso ou instrução aqui..."
                   value={question.sub_question_template?.markdown_content || ''}
-                  onChange={(e) => updateQuestionProperty(activeSectionId, question.id, 'sub_question_template', { ...question.sub_question_template, markdown_content: e.target.value })}
+                  onChange={(e) => onUpdateSubQuestionTemplate && onUpdateSubQuestionTemplate({ ...question.sub_question_template, markdown_content: e.target.value })}
                   rows={4}
                   className="w-full text-sm bg-white border border-slate-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-md px-3 py-2 outline-none resize-y"
                />
@@ -1470,7 +1537,7 @@ function QuestionCard({
                   type="text"
                   placeholder="Cole o link da imagem aqui (ex: https://site.com/imagem.png)"
                   value={question.sub_question_template?.image_url || ''}
-                  onChange={(e) => updateQuestionProperty(activeSectionId, question.id, 'sub_question_template', { ...question.sub_question_template, image_url: e.target.value })}
+                  onChange={(e) => onUpdateSubQuestionTemplate && onUpdateSubQuestionTemplate({ ...question.sub_question_template, image_url: e.target.value })}
                   className="w-full text-sm bg-white border border-slate-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-md px-3 py-2 outline-none"
               />
               {question.sub_question_template?.image_url ? (
@@ -1491,7 +1558,7 @@ function QuestionCard({
                   type="text"
                   placeholder="Cole o link do áudio aqui (ex: https://site.com/audio.mp3)"
                   value={question.sub_question_template?.audio_url || ''}
-                  onChange={(e) => updateQuestionProperty(activeSectionId, question.id, 'sub_question_template', { ...question.sub_question_template, audio_url: e.target.value })}
+                  onChange={(e) => onUpdateSubQuestionTemplate && onUpdateSubQuestionTemplate({ ...question.sub_question_template, audio_url: e.target.value })}
                   className="w-full text-sm bg-white border border-slate-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-md px-3 py-2 outline-none"
               />
               {question.sub_question_template?.audio_url ? (

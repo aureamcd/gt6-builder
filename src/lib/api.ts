@@ -12,9 +12,13 @@ export function generateUUID() {
 }
 
 export async function getForms(): Promise<Form[]> {
+  const { data: authData } = await supabase.auth.getUser();
+  if (!authData.user) return [];
+
   const { data, error } = await supabase
     .from('forms')
     .select('*')
+    .eq('user_id', authData.user.id)
     .order('updated_at', { ascending: false });
     
   if (error) throw error;
@@ -61,14 +65,17 @@ export async function getFormById(id: string): Promise<Form | null> {
 }
 
 export async function createEmptyForm(title: string = "Novo Formulário"): Promise<Form> {
-  const newFormId = crypto.randomUUID();
+  const { data: authData } = await supabase.auth.getUser();
+  const userId = authData.user?.id || null;
+
+  const newFormId = generateUUID();
   const form: Form = {
     id: newFormId,
     title,
     status: 'draft',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
-    user_id: "",
+    user_id: userId || "",
     sections: []
   };
 
@@ -76,7 +83,8 @@ export async function createEmptyForm(title: string = "Novo Formulário"): Promi
     id: form.id,
     title: form.title,
     created_at: form.created_at,
-    updated_at: form.updated_at
+    updated_at: form.updated_at,
+    user_id: userId
   });
   if (error) throw error;
   
@@ -215,6 +223,49 @@ export async function getFormByShareToken(token: string): Promise<Form | null> {
   if (formError || !sourceForm) return null;
 
   return getFormById(sourceForm.id);
+}
+
+export async function cloneFormByToken(token: string): Promise<Form | null> {
+  const sourceForm = await getFormByShareToken(token);
+  if (!sourceForm) throw new Error("Formulário não encontrado para este token");
+
+  const { data: authData } = await supabase.auth.getUser();
+  const userId = authData.user?.id || "";
+
+  const newFormId = generateUUID();
+  const clonedForm: Form = {
+    ...sourceForm,
+    id: newFormId,
+    title: `${sourceForm.title} (Cópia)`,
+    user_id: userId,
+    share_token: undefined,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    sections: sourceForm.sections?.map(s => {
+      const newSectionId = generateUUID();
+      return {
+        ...s,
+        id: newSectionId,
+        form_id: newFormId,
+        questions: s.questions?.map(q => {
+          const newQuestionId = generateUUID();
+          return {
+            ...q,
+            id: newQuestionId,
+            section_id: newSectionId,
+            options: q.options?.map(o => ({
+              ...o,
+              id: generateUUID(),
+              question_id: newQuestionId
+            }))
+          };
+        })
+      };
+    }) || []
+  };
+
+  await saveFormState(clonedForm);
+  return clonedForm;
 }
 
 export async function getComments(formId: string) {
