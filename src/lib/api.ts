@@ -75,7 +75,7 @@ export async function createEmptyForm(title: string = "Novo Formulário"): Promi
     status: 'draft',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
-    user_id: "",
+    user_id: userId || "",
     sections: []
   };
 
@@ -84,7 +84,7 @@ export async function createEmptyForm(title: string = "Novo Formulário"): Promi
     title: form.title,
     created_at: form.created_at,
     updated_at: form.updated_at,
-    user_id: form.user_id
+    user_id: userId
   });
   if (error) throw error;
   
