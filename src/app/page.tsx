@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { getForms, createEmptyForm, cloneFormByToken } from "../lib/api";
 import { Form } from "../types/form";
-import { Plus, FileText, Loader2, ArrowRight, Save, Download, FileCode } from "lucide-react";
+import { Plus, FileText, Loader2, ArrowRight, Save, Download, FileCode, LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase";
 
@@ -136,6 +136,15 @@ export default function Dashboard() {
             >
               {isCreating ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
               <span>Criar Novo Formulário</span>
+            </button>
+
+            <button 
+              onClick={handleLogout}
+              className="flex items-center justify-center space-x-2 bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-600 border border-slate-200 hover:border-red-200 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-lg font-medium shadow-sm transition-all w-full sm:w-auto"
+              title="Encerrar sessão"
+            >
+              <LogOut size={18} />
+              <span>Sair</span>
             </button>
           </div>
         </header>

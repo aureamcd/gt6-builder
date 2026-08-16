@@ -79,7 +79,7 @@ function LoginContent() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 sm:text-sm border-slate-300 rounded-md py-2 border outline-none transition-colors"
+                  className="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 sm:text-sm border-slate-300 rounded-md py-2 border outline-none transition-colors text-slate-900 placeholder:text-slate-400 bg-white"
                   placeholder="voce@instituicao.com"
                 />
               </div>
@@ -98,7 +98,7 @@ function LoginContent() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 sm:text-sm border-slate-300 rounded-md py-2 border outline-none transition-colors"
+                  className="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 sm:text-sm border-slate-300 rounded-md py-2 border outline-none transition-colors text-slate-900 placeholder:text-slate-400 bg-white"
                   placeholder="••••••••"
                 />
               </div>
