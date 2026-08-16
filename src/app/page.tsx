@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { getForms, createEmptyForm, cloneFormByToken } from "../lib/api";
 import { Form } from "../types/form";
-import { Plus, FileText, Loader2, ArrowRight, Save, Download, FileCode, LogOut } from "lucide-react";
+import { Plus, FileText, Loader2, ArrowRight, Save, Download, FileCode, LogOut, BarChart3 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase";
 
@@ -178,9 +178,21 @@ export default function Dashboard() {
                 </div>
                 <h3 className="font-semibold text-lg text-slate-800 line-clamp-2 mb-2 group-hover:text-indigo-700 transition-colors">{form.title}</h3>
                 <p className="text-xs text-slate-400 mt-auto">Atualizado em {new Date(form.updated_at || form.created_at || new Date()).toLocaleDateString('pt-BR')}</p>
-                <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between text-sm font-medium text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <span>Editar formulário</span>
-                  <ArrowRight size={16} />
+                <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between text-xs sm:text-sm font-medium">
+                  <span className="text-indigo-600 group-hover:underline flex items-center gap-1">
+                    Editar <ArrowRight size={14} />
+                  </span>
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      router.push(`/builder/${form.id}?tab=responses`);
+                    }}
+                    className="flex items-center space-x-1.5 text-slate-600 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 px-2.5 py-1 rounded-lg transition-colors text-xs font-semibold"
+                    title="Ver respostas deste questionário"
+                  >
+                    <BarChart3 size={14} />
+                    <span>Ver Respostas</span>
+                  </button>
                 </div>
               </div>
             ))}

@@ -365,3 +365,18 @@ export async function submitFormResponse(formId: string, answersData: { question
 
   return { success: true, responseId };
 }
+
+export async function getFormResponses(formId: string) {
+  const { data: responses, error: respError } = await supabase
+    .from('responses')
+    .select('*, answers(*)')
+    .eq('form_id', formId)
+    .order('submitted_at', { ascending: false });
+
+  if (respError) {
+    console.error('Error fetching responses:', respError);
+    return [];
+  }
+
+  return responses || [];
+}

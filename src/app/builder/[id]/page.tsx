@@ -4,10 +4,11 @@ import React, { useState, useEffect, use } from "react";
 import { 
   GripVertical, Plus, Settings, ChevronDown, CheckSquare, 
   Type, List, AlignLeft, Grid, Eye, Save, Play, Layers, Trash2, X, Loader2, Menu, Video, 
-  Calendar, UploadCloud, Headphones, Image as ImageIcon, FileText, ExternalLink, Share2, Copy, Undo2, Redo2, Users, Globe, FileCode
+  Calendar, UploadCloud, Headphones, Image as ImageIcon, FileText, ExternalLink, Share2, Copy, Undo2, Redo2, Users, Globe, FileCode,
+  ArrowLeft, BarChart3, Inbox, FileDown, CheckCircle2
 } from "lucide-react";
 import { Form, Section, Question, QuestionType, Option, FormComment } from "../../../types/form";
-import { saveFormState, getFormById, generateShareToken, getComments } from "../../../lib/api";
+import { saveFormState, getFormById, generateShareToken, getComments, getFormResponses } from "../../../lib/api";
 import CommentsPanel from "../../../components/CommentsPanel";
 import { MessageSquare } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
@@ -92,6 +93,9 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [isAutoSaveEnabled, setIsAutoSaveEnabled] = useState(true);
   const [lastSavedTime, setLastSavedTime] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'builder' | 'responses'>('builder');
+  const [responsesList, setResponsesList] = useState<any[]>([]);
+  const [isLoadingResponses, setIsLoadingResponses] = useState(false);
   const [formComments, setFormComments] = useState<FormComment[]>([]);
   const [activeCommentElement, setActiveCommentElement] = useState<{id: string, title: string} | null>(null);
   const [dragEnabledSubQId, setDragEnabledSubQId] = useState<string | null>(null);
@@ -99,6 +103,18 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
   const fetchComments = async () => {
     const data = await getComments(id);
     setFormComments(data);
+  };
+
+  const fetchResponses = async () => {
+    setIsLoadingResponses(true);
+    try {
+      const data = await getFormResponses(id);
+      setResponsesList(data);
+    } catch (err) {
+      console.error("Erro ao buscar respostas:", err);
+    } finally {
+      setIsLoadingResponses(false);
+    }
   };
 
   useEffect(() => {
@@ -112,6 +128,15 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
             setActiveSectionId(data.sections[0].id);
           }
           fetchComments();
+          fetchResponses();
+
+          // Check if URL has ?tab=responses
+          if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('tab') === 'responses') {
+              setActiveTab('responses');
+            }
+          }
         }
       } catch (error) {
         console.error("Erro ao carregar:", error);
@@ -516,46 +541,70 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
       {/* Main Workspace */}
       <main className="flex-1 flex flex-col h-screen overflow-hidden w-full">
         {/* Top Navbar */}
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 sm:px-6 shadow-sm shrink-0">
+        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-3 sm:px-6 shadow-sm shrink-0 gap-2">
           <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
             <button 
               onClick={handleUndo} 
               disabled={history.length === 0}
               title="Desfazer (Ctrl+Z)"
-              className="flex items-center justify-center p-2 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg disabled:opacity-30 disabled:hover:text-slate-500 disabled:hover:bg-transparent transition-colors shrink-0"
+              className="flex items-center justify-center p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg disabled:opacity-30 disabled:hover:text-slate-500 disabled:hover:bg-transparent transition-colors shrink-0"
             >
-              <Undo2 size={20} />
+              <Undo2 size={18} />
             </button>
             <button 
               onClick={handleRedo} 
               disabled={future.length === 0}
               title="Refazer (Ctrl+Y)"
-              className="flex items-center justify-center p-2 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg disabled:opacity-30 disabled:hover:text-slate-500 disabled:hover:bg-transparent transition-colors shrink-0"
+              className="flex items-center justify-center p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg disabled:opacity-30 disabled:hover:text-slate-500 disabled:hover:bg-transparent transition-colors shrink-0"
             >
-              <Redo2 size={20} />
+              <Redo2 size={18} />
             </button>
             <button 
               onClick={() => setIsMobileMenuOpen(true)}
-              className="md:hidden p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-md shrink-0"
+              className="md:hidden p-1.5 -ml-1 text-slate-600 hover:bg-slate-100 rounded-md shrink-0"
             >
-              <Menu size={20} />
+              <Menu size={18} />
             </button>
-            <a href="/" className="hidden sm:inline-flex items-center text-xs sm:text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 px-3.5 py-1.5 rounded-full transition-colors whitespace-nowrap shrink-0">← Painel de Questionários</a>
-            <span className="hidden sm:inline-block text-sm font-medium text-slate-500 bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full whitespace-nowrap shrink-0">ID: {id.substring(0, 8)}</span>
+            <a href="/" className="inline-flex items-center text-xs font-semibold text-slate-700 hover:text-indigo-600 bg-slate-100 hover:bg-indigo-50 px-2.5 py-1.5 rounded-lg transition-colors whitespace-nowrap shrink-0 gap-1">
+              <ArrowLeft size={14} />
+              <span className="hidden sm:inline">Questionários</span>
+            </a>
             <input 
               value={schema.title}
               onChange={(e) => setSchema(prev => prev ? {...prev, title: e.target.value} : prev)}
-              className="font-semibold text-slate-800 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-500 focus:outline-none px-1 w-full min-w-0 truncate"
+              className="font-bold text-slate-800 text-sm sm:text-base bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-500 focus:outline-none px-2 py-1 flex-1 min-w-[120px] truncate"
+              placeholder="Título do questionário..."
             />
           </div>
-          <div className="flex items-center space-x-2 sm:space-x-3 shrink-0 ml-2">
+
+          {/* Tab Switcher (Construtor / Respostas) */}
+          <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 shrink-0">
+            <button
+              onClick={() => setActiveTab('builder')}
+              className={`flex items-center space-x-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${activeTab === 'builder' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+            >
+              <span>Construtor</span>
+            </button>
+            <button
+              onClick={() => { setActiveTab('responses'); fetchResponses(); }}
+              className={`flex items-center space-x-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${activeTab === 'responses' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+            >
+              <BarChart3 size={13} />
+              <span>Respostas</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${activeTab === 'responses' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-200 text-slate-600'}`}>
+                {responsesList.length}
+              </span>
+            </button>
+          </div>
+
+          <div className="flex items-center space-x-2 sm:space-x-3 shrink-0 ml-1">
             <button 
               onClick={() => setIsAutoSaveEnabled(!isAutoSaveEnabled)}
-              className={`flex items-center justify-center space-x-1 px-2 py-2 sm:px-3 text-xs sm:text-sm font-medium rounded-lg transition-colors ${isAutoSaveEnabled ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-slate-50 text-slate-500 border border-slate-200'}`}
+              className={`flex items-center justify-center space-x-1 px-2 py-1.5 sm:px-3 text-xs font-medium rounded-lg transition-colors ${isAutoSaveEnabled ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-slate-50 text-slate-500 border border-slate-200'}`}
               title={isAutoSaveEnabled ? (lastSavedTime ? `Salvamento Automático Ativado (Último: ${lastSavedTime})` : "Salvamento Automático Ativado") : "Salvamento Automático Desativado"}
             >
               <div className={`w-2 h-2 rounded-full ${isAutoSaveEnabled ? (isSaving ? 'bg-amber-500 animate-ping' : 'bg-indigo-500 animate-pulse') : 'bg-slate-300'}`}></div>
-              <span className="hidden lg:inline">{isAutoSaveEnabled ? (isSaving ? 'Salvando...' : 'Auto-save ON') : 'Auto-save OFF'}</span>
+              <span className="hidden xl:inline">{isAutoSaveEnabled ? (isSaving ? 'Salvando...' : 'Auto-save ON') : 'Auto-save OFF'}</span>
             </button>
             <button 
               onClick={async () => {
@@ -590,14 +639,145 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
           </div>
         </header>
 
-        {/* Canvas Area */}
-        <div 
-          className="flex-1 overflow-y-auto p-4 sm:p-8 bg-slate-50"
-          onDragOver={handleContainerDragOver}
-        >
-          <div className="max-w-4xl mx-auto space-y-8 pb-32">
-            
-            {schema.sections?.map((section, index) => (
+        {/* Canvas Area or Responses Area */}
+        {activeTab === 'responses' ? (
+          <div className="flex-1 overflow-y-auto p-4 sm:p-8 bg-slate-50">
+            <div className="max-w-4xl mx-auto space-y-6 pb-24">
+              
+              {/* Header de Respostas */}
+              <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                    <BarChart3 className="text-indigo-600" size={24} />
+                    <span>Respostas Recebidas</span>
+                  </h2>
+                  <p className="text-sm text-slate-500 mt-1">
+                    Total de <strong>{responsesList.length}</strong> envio(s) registrado(s) para este questionário.
+                  </p>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={fetchResponses}
+                    disabled={isLoadingResponses}
+                    className="flex items-center space-x-1.5 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 px-3 py-2 rounded-lg transition-colors"
+                  >
+                    {isLoadingResponses ? <Loader2 size={14} className="animate-spin" /> : null}
+                    <span>Atualizar</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(responsesList, null, 2));
+                      const downloadAnchor = document.createElement('a');
+                      downloadAnchor.setAttribute("href", dataStr);
+                      downloadAnchor.setAttribute("download", `respostas_${schema.title.replace(/\s+/g, '_')}.json`);
+                      document.body.appendChild(downloadAnchor);
+                      downloadAnchor.click();
+                      downloadAnchor.remove();
+                    }}
+                    disabled={responsesList.length === 0}
+                    className="flex items-center space-x-1.5 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 px-3 py-2 rounded-lg transition-colors shadow-sm"
+                  >
+                    <FileDown size={14} />
+                    <span>Exportar JSON</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Lista de Respostas */}
+              {isLoadingResponses ? (
+                <div className="py-20 flex flex-col items-center justify-center text-slate-400 space-y-3">
+                  <Loader2 size={32} className="animate-spin text-indigo-600" />
+                  <p className="text-sm">Carregando respostas do banco de dados...</p>
+                </div>
+              ) : responsesList.length === 0 ? (
+                <div className="bg-white rounded-2xl border-2 border-dashed border-slate-200 p-12 text-center flex flex-col items-center justify-center">
+                  <div className="w-16 h-16 bg-indigo-50 text-indigo-500 rounded-full flex items-center justify-center mb-4">
+                    <Inbox size={32} />
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-800">Nenhuma resposta recebida ainda</h3>
+                  <p className="text-sm text-slate-500 max-w-md mt-1 mb-6">
+                    Compartilhe o link público deste formulário para que as pessoas possam preencher e enviar suas respostas.
+                  </p>
+                  <button
+                    onClick={() => setIsShareModalOpen(true)}
+                    className="flex items-center space-x-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-2.5 rounded-lg shadow-sm transition-colors"
+                  >
+                    <Share2 size={16} />
+                    <span>Compartilhar Link Público</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {responsesList.map((resp, idx) => {
+                    const answersMap: Record<string, any> = {};
+                    resp.answers?.forEach((a: any) => {
+                      answersMap[a.question_id] = a.answer_text || a.answer_json;
+                    });
+
+                    return (
+                      <div key={resp.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div className="bg-slate-50/80 px-6 py-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center space-x-3">
+                            <span className="bg-indigo-600 text-white text-xs font-bold px-2.5 py-1 rounded-full">
+                              #{responsesList.length - idx}
+                            </span>
+                            <span className="font-bold text-slate-800 text-sm sm:text-base">Submissão</span>
+                          </div>
+                          <span className="text-xs font-medium text-slate-500 bg-white px-2.5 py-1 rounded-full border border-slate-200">
+                            {new Date(resp.submitted_at || resp.created_at).toLocaleString('pt-BR')}
+                          </span>
+                        </div>
+
+                        <div className="p-6 space-y-6">
+                          {schema.sections?.map((sec, sIdx) => (
+                            <div key={sec.id} className="space-y-3">
+                              <h4 className="text-xs font-bold text-indigo-600 uppercase tracking-wider">
+                                Seção {sIdx + 1}: {sec.title || "Sem título"}
+                              </h4>
+                              <div className="grid grid-cols-1 gap-3 bg-slate-50/50 p-4 rounded-xl border border-slate-100">
+                                {sec.questions?.map((q, qIdx) => {
+                                  const val = answersMap[q.id];
+                                  let formattedVal = val;
+                                  if (val === undefined || val === null || val === '') {
+                                    formattedVal = <span className="text-slate-400 italic text-xs">Não respondido</span>;
+                                  } else if (typeof val === 'object') {
+                                    formattedVal = <span className="font-mono text-xs bg-slate-100 p-1.5 rounded block text-slate-700 whitespace-pre-wrap">{JSON.stringify(val, null, 2)}</span>;
+                                  } else {
+                                    formattedVal = <span className="font-medium text-slate-800 text-sm">{String(val)}</span>;
+                                  }
+
+                                  return (
+                                    <div key={q.id} className="border-b border-slate-100 pb-2.5 last:border-0 last:pb-0">
+                                      <p className="text-xs text-slate-500 font-medium mb-1">
+                                        {qIdx + 1}. {q.label}
+                                      </p>
+                                      <div className="pl-3 border-l-2 border-indigo-400">
+                                        {formattedVal}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+            </div>
+          </div>
+        ) : (
+          /* Canvas Area */
+          <div 
+            className="flex-1 overflow-y-auto p-4 sm:p-8 bg-slate-50"
+            onDragOver={handleContainerDragOver}
+          >
+            <div className="max-w-4xl mx-auto space-y-8 pb-32">
+              
+              {schema.sections?.map((section, index) => (
               <div 
                 key={section.id}
                 onClick={() => setActiveSectionId(section.id)}
@@ -738,6 +918,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
 
           </div>
         </div>
+        )}
       </main>
 
       {/* Right Sidebar: Properties Panel */}
