@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { getForms, createEmptyForm, cloneFormByToken } from "../lib/api";
+import { getForms, createEmptyForm, cloneFormByToken, deleteForm } from "../lib/api";
 import { Form } from "../types/form";
-import { Plus, FileText, Loader2, ArrowRight, Save, Download, FileCode, LogOut, BarChart3 } from "lucide-react";
+import { Plus, FileText, Loader2, ArrowRight, Save, Download, FileCode, LogOut, BarChart3, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase";
 
@@ -97,6 +97,19 @@ export default function Dashboard() {
     }
   };
 
+  const handleDeleteForm = async (formId: string, formTitle: string) => {
+    const confirmDelete = window.confirm(`Tem certeza que deseja excluir o questionário "${formTitle}"? Esta ação removerá todas as perguntas e respostas permanentemente.`);
+    if (!confirmDelete) return;
+
+    try {
+      await deleteForm(formId);
+      setForms(prev => prev.filter(f => f.id !== formId));
+    } catch (err: any) {
+      console.error("Erro ao excluir formulário:", err);
+      alert("Erro ao excluir formulário: " + (err.message || "Erro inesperado"));
+    }
+  };
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.push("/login");
@@ -175,6 +188,16 @@ export default function Dashboard() {
                   <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg group-hover:bg-indigo-600 group-hover:text-white transition-colors">
                     <FileText size={20} />
                   </div>
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteForm(form.id, form.title);
+                    }}
+                    className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Excluir formulário"
+                  >
+                    <Trash2 size={16} />
+                  </button>
                 </div>
                 <h3 className="font-semibold text-lg text-slate-800 line-clamp-2 mb-2 group-hover:text-indigo-700 transition-colors">{form.title}</h3>
                 <p className="text-xs text-slate-400 mt-auto">Atualizado em {new Date(form.updated_at || form.created_at || new Date()).toLocaleDateString('pt-BR')}</p>

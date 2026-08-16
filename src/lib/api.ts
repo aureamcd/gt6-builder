@@ -380,3 +380,17 @@ export async function getFormResponses(formId: string) {
 
   return responses || [];
 }
+
+export async function deleteForm(formId: string): Promise<boolean> {
+  const { error } = await supabase
+    .from('forms')
+    .delete()
+    .eq('id', formId);
+
+  if (error) {
+    console.error('Error deleting form:', error);
+    throw error;
+  }
+
+  return true;
+}

@@ -8,10 +8,11 @@ import {
   ArrowLeft, BarChart3, Inbox, FileDown, CheckCircle2
 } from "lucide-react";
 import { Form, Section, Question, QuestionType, Option, FormComment } from "../../../types/form";
-import { saveFormState, getFormById, generateShareToken, getComments, getFormResponses } from "../../../lib/api";
+import { saveFormState, getFormById, generateShareToken, getComments, getFormResponses, deleteForm } from "../../../lib/api";
 import CommentsPanel from "../../../components/CommentsPanel";
 import { MessageSquare } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
+import { useRouter } from "next/navigation";
 
 const generateId = () => crypto.randomUUID();
 
@@ -81,6 +82,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
     setFuture(f => f.slice(1));
     _setSchema(next);
   };
+  const router = useRouter();
   const [activeSectionId, setActiveSectionId] = useState<string>("");
   const [selectedQuestionId, setSelectedQuestionId] = useState<string | null>(null);
   const [selectedElementType, setSelectedElementType] = useState<'question' | 'section' | null>(null);
@@ -534,6 +536,25 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                 <p className="text-xs text-slate-500 mt-0.5">Exibe para o usuário a estimativa de tempo (total e por seção) no formulário público.</p>
               </div>
             </label>
+
+            <div className="pt-4 border-t border-slate-200">
+              <button
+                onClick={async () => {
+                  const confirmDelete = window.confirm(`Tem certeza que deseja excluir o questionário "${schema?.title}"? Esta ação removerá todas as perguntas e respostas permanentemente.`);
+                  if (!confirmDelete) return;
+                  try {
+                    await deleteForm(id);
+                    router.push('/');
+                  } catch (err: any) {
+                    alert("Erro ao excluir: " + (err.message || "Erro inesperado"));
+                  }
+                }}
+                className="w-full flex items-center justify-center space-x-2 text-xs font-semibold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 py-2.5 rounded-lg transition-colors shadow-sm"
+              >
+                <Trash2 size={14} />
+                <span>Excluir este Questionário</span>
+              </button>
+            </div>
           </div>
         </div>
       </aside>
