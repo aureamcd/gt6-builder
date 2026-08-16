@@ -1,119 +1,152 @@
 "use client";
 
-import React, { useState } from "react";
-import { supabase, getFriendlyAuthError } from "../../lib/supabase";
-import { useRouter } from "next/navigation";
-import { Loader2, Mail, Lock, AlertCircle } from "lucide-react";
+import React, { useState, Suspense } from 'react';
+import { supabase } from '../../lib/supabase';
+import { Loader2, Mail, Lock, ShieldCheck } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
 
-export default function LoginPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+function LoginContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams?.get('redirectTo') || '/';
 
-  const handleAuth = async (isSignUp: boolean) => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLogin, setIsLogin] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [message, setMessage] = useState<{ type: 'error' | 'success', text: string } | null>(null);
+
+  const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
     setIsLoading(true);
-    setError(null);
     setMessage(null);
-    
+
     try {
-      if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-        });
+      if (isLogin) {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        setMessage("Conta criada! Verifique seu email para confirmar (se exigido) ou faça login.");
+        
+        // Logado com sucesso
+        router.push(redirectTo);
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
+        const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
-        router.push("/");
+        
+        setMessage({ type: 'success', text: 'Conta criada! Você já pode fazer login.' });
+        setIsLogin(true); // Troca para a tela de login
       }
     } catch (err: any) {
-      setError(getFriendlyAuthError(err.message));
+      setMessage({ type: 'error', text: err.message || 'Erro ao autenticar.' });
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col justify-center items-center p-4">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
-        <div className="p-8">
-          <div className="text-center mb-8">
-            <h1 className="text-2xl font-bold text-slate-800 tracking-tight">GT6 Builder</h1>
-            <p className="text-slate-500 mt-2">Acesse para criar e gerenciar seus formulários</p>
-          </div>
+    <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8 font-sans">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="flex justify-center text-indigo-600">
+          <ShieldCheck size={48} />
+        </div>
+        <h2 className="mt-6 text-center text-3xl font-extrabold text-slate-900">
+          {isLogin ? 'Acesse a Plataforma' : 'Criar Nova Conta'}
+        </h2>
+        <p className="mt-2 text-center text-sm text-slate-600">
+          Formulários Institucionais GT6
+        </p>
+      </div>
 
-          {error && (
-            <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-r text-sm flex items-start">
-              <AlertCircle size={16} className="mt-0.5 mr-2 shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-white py-8 px-4 shadow sm:rounded-xl sm:px-10 border border-slate-200">
+          <form className="space-y-6" onSubmit={handleAuth}>
+            
+            {message && (
+              <div className={`p-4 rounded-md text-sm ${message.type === 'error' ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'}`}>
+                {message.text}
+              </div>
+            )}
 
-          {message && (
-            <div className="mb-6 p-4 bg-green-50 border-l-4 border-green-500 text-green-700 rounded-r text-sm">
-              {message}
-            </div>
-          )}
-
-          <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
-              <div className="relative">
+              <label className="block text-sm font-medium text-slate-700">
+                Endereço de E-mail
+              </label>
+              <div className="mt-1 relative rounded-md shadow-sm">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail size={18} className="text-slate-400" />
+                  <Mail className="h-5 w-5 text-slate-400" />
                 </div>
-                <input 
+                <input
                   type="email"
+                  required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="block w-full pl-10 pr-3 py-2 border border-slate-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-colors text-slate-900 placeholder-slate-400"
-                  placeholder="seu@email.com"
+                  className="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 sm:text-sm border-slate-300 rounded-md py-2 border outline-none transition-colors"
+                  placeholder="voce@instituicao.com"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Senha</label>
-              <div className="relative">
+              <label className="block text-sm font-medium text-slate-700">
+                Senha
+              </label>
+              <div className="mt-1 relative rounded-md shadow-sm">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock size={18} className="text-slate-400" />
+                  <Lock className="h-5 w-5 text-slate-400" />
                 </div>
-                <input 
+                <input
                   type="password"
+                  required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full pl-10 pr-3 py-2 border border-slate-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-colors text-slate-900 placeholder-slate-400"
+                  className="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 sm:text-sm border-slate-300 rounded-md py-2 border outline-none transition-colors"
                   placeholder="••••••••"
                 />
               </div>
             </div>
 
-            <div className="pt-4">
-              <button 
-                onClick={() => handleAuth(false)}
+            <div>
+              <button
+                type="submit"
                 disabled={isLoading}
-                className="w-full flex justify-center items-center bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-lg font-medium shadow-sm transition-all disabled:opacity-70"
+                className={`w-full flex justify-center items-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white transition-colors ${isLoading ? 'bg-indigo-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'}`}
               >
-                {isLoading ? <Loader2 size={18} className="animate-spin mr-2" /> : null}
-                Entrar
+                {isLoading && <Loader2 className="animate-spin -ml-1 mr-2 h-4 w-4" />}
+                {isLogin ? 'Entrar' : 'Cadastrar'}
+              </button>
+            </div>
+          </form>
+
+          <div className="mt-6">
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-slate-300" />
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-white text-slate-500">
+                  {isLogin ? 'Primeiro acesso?' : 'Já tem uma conta?'}
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-6">
+              <button
+                onClick={() => { setIsLogin(!isLogin); setMessage(null); }}
+                className="w-full flex justify-center py-2 px-4 border border-slate-300 rounded-md shadow-sm text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 transition-colors focus:outline-none"
+              >
+                {isLogin ? 'Criar nova conta' : 'Fazer login'}
               </button>
             </div>
           </div>
         </div>
-        <div className="bg-slate-50 px-8 py-5 border-t border-slate-100 text-center">
-          <p className="text-sm text-slate-500">
-            Ainda não tem uma conta? <a href="/register" className="text-indigo-600 font-medium hover:underline">Cadastre-se</a>
-          </p>
-        </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="animate-spin text-indigo-600" size={32} /></div>}>
+      <LoginContent />
+    </Suspense>
   );
 }

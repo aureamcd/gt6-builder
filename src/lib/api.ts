@@ -46,6 +46,14 @@ export async function getFormById(id: string): Promise<Form | null> {
       s.questions?.sort((a: any, b: any) => a.order_index - b.order_index);
       s.questions?.forEach((q: any) => {
         q.options?.sort((a: any, b: any) => a.order_index - b.order_index);
+        if (q.sub_question_template) {
+          if (q.type === 'MEDIA_VIDEO' && q.sub_question_template.video_url) {
+            q.video_url = q.sub_question_template.video_url;
+          }
+          if (q.sub_question_template.tags) {
+            q.tags = q.sub_question_template.tags;
+          }
+        }
       });
     });
   }
@@ -64,9 +72,10 @@ export async function createEmptyForm(title: string = "Novo Formulário"): Promi
   const form: Form = {
     id: newFormId,
     title,
+    status: 'draft',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
-    user_id: userId,
+    user_id: "",
     sections: []
   };
 
@@ -92,18 +101,13 @@ export async function saveFormState(form: Form) {
         title: form.title,
         updated_at: new Date().toISOString(),
         user_id: form.user_id || null,
-        share_token: form.share_token || null
+        share_token: form.share_token || null,
+        settings: form.settings || null
       }, { onConflict: 'id' });
 
     if (formError) throw formError;
 
     // We will save sections, questions and options.
-    // To handle deletions (things removed in UI), we can delete existing ones not in the payload.
-    // Or simpler for a sketch: delete all sections for this form and recreate them (cascade will handle questions/options).
-    // Let's do the clean approach: Delete all sections, then insert everything.
-    
-    // WARNING: In production, you might want to carefully upsert and delete missing items to preserve answer data.
-    // Since this is a builder sketch, wiping and rewriting structure is the easiest way to perfectly sync state.
     const { error: deleteError } = await supabase
       .from('sections')
       .delete()
@@ -119,12 +123,14 @@ export async function saveFormState(form: Form) {
       form_id: s.form_id,
       title: s.title,
       description: s.description,
+      video_url: s.video_url || null,
+      unlock_at_seconds: s.unlock_at_seconds || null,
       order_index: s.order_index
     }));
 
     const { error: sectionsError } = await supabase
       .from('sections')
-      .insert(sectionsData);
+      .upsert(sectionsData, { onConflict: 'id' });
 
     if (sectionsError) throw sectionsError;
 
@@ -141,7 +147,12 @@ export async function saveFormState(form: Form) {
             required: q.required,
             allow_add_item: q.allow_add_item,
             trigger_source_question_id: q.trigger_source_question_id || null,
-            sub_question_template: q.sub_question_template || null,
+            sub_question_template: (() => {
+              let tpl = q.sub_question_template || {};
+              if (q.type === 'MEDIA_VIDEO') tpl = { ...tpl, video_url: q.video_url };
+              if (q.tags) tpl = { ...tpl, tags: q.tags };
+              return Object.keys(tpl).length > 0 ? tpl : null;
+            })(),
             order_index: q.order_index
           });
         });
@@ -151,7 +162,7 @@ export async function saveFormState(form: Form) {
     if (questionsData.length > 0) {
       const { error: questionsError } = await supabase
         .from('questions')
-        .insert(questionsData);
+        .upsert(questionsData, { onConflict: 'id' });
         
       if (questionsError) throw questionsError;
     }
@@ -162,13 +173,13 @@ export async function saveFormState(form: Form) {
       if (sec.questions) {
         sec.questions.forEach(q => {
           if (q.options) {
-            q.options.forEach(opt => {
+            q.options.forEach((opt, idx) => {
               optionsData.push({
                 id: opt.id,
                 question_id: q.id,
                 label: opt.label,
                 weight: opt.weight || null,
-                order_index: opt.order_index
+                order_index: opt.order_index ?? idx
               });
             });
           }
@@ -179,7 +190,7 @@ export async function saveFormState(form: Form) {
     if (optionsData.length > 0) {
       const { error: optionsError } = await supabase
         .from('options')
-        .insert(optionsData);
+        .upsert(optionsData, { onConflict: 'id' });
         
       if (optionsError) throw optionsError;
     }
@@ -189,27 +200,6 @@ export async function saveFormState(form: Form) {
     console.error('Error saving form to DB:', error);
     return { success: false, error };
   }
-}
-
-export async function submitFormResponse(formId: string, answers: any) {
-  const { error } = await supabase.from('submissions').insert({
-    form_id: formId,
-    answers: answers
-  });
-  
-  if (error) throw error;
-  return true;
-}
-
-export async function getFormSubmissions(formId: string): Promise<any[]> {
-  const { data, error } = await supabase
-    .from('submissions')
-    .select('*')
-    .eq('form_id', formId)
-    .order('created_at', { ascending: false });
-
-  if (error) throw error;
-  return data || [];
 }
 
 export async function generateShareToken(formId: string): Promise<string> {
@@ -223,63 +213,72 @@ export async function generateShareToken(formId: string): Promise<string> {
   return token;
 }
 
-export async function cloneFormByToken(token: string): Promise<Form | null> {
-  // 1. Get current logged in user
-  const { data: authData } = await supabase.auth.getUser();
-  const userId = authData.user?.id;
-  
-  if (!userId) throw new Error("Usuário não autenticado");
-
-  // 2. Find form by share_token
+export async function getFormByShareToken(token: string): Promise<Form | null> {
   const { data: sourceForm, error: formError } = await supabase
     .from('forms')
     .select('*')
     .eq('share_token', token)
     .single();
     
-  if (formError || !sourceForm) throw new Error("Token inválido ou formulário não encontrado");
+  if (formError || !sourceForm) return null;
 
-  // 3. Fetch full source form with sections/questions/options
-  const fullSourceForm = await getFormById(sourceForm.id);
-  if (!fullSourceForm) throw new Error("Erro ao carregar estrutura do formulário original");
+  return getFormById(sourceForm.id);
+}
 
-  // 4. Create new cloned form with new IDs
-  const newFormId = generateUUID();
-  
-  const clonedForm: Form = {
-    ...fullSourceForm,
-    id: newFormId,
-    title: `${fullSourceForm.title} (Cópia)`,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    user_id: userId,
-    share_token: null, // Don't copy the share token
-    sections: fullSourceForm.sections?.map(sec => {
-      const newSecId = generateUUID();
-      return {
-        ...sec,
-        id: newSecId,
-        form_id: newFormId,
-        questions: sec.questions?.map(q => {
-          const newQId = generateUUID();
-          return {
-            ...q,
-            id: newQId,
-            section_id: newSecId,
-            options: q.options?.map(opt => ({
-              ...opt,
-              id: generateUUID(),
-              question_id: newQId
-            }))
-          };
-        })
-      };
-    })
-  };
+export async function getComments(formId: string) {
+  const { data, error } = await supabase
+    .from('form_comments')
+    .select('*')
+    .eq('form_id', formId)
+    .order('created_at', { ascending: true });
+    
+  if (error) {
+    console.error('Error fetching comments:', error);
+    return [];
+  }
+  return data || [];
+}
 
-  // 5. Save the cloned form to the DB
-  const result = await saveFormState(clonedForm);
-  if (!result.success) throw result.error;
-  
-  return clonedForm;
+export async function addComment(formId: string, elementId: string, text: string) {
+  const { data, error } = await supabase
+    .from('form_comments')
+    .insert([
+      { form_id: formId, element_id: elementId, text, status: 'open' }
+    ])
+    .select()
+    .single();
+    
+  if (error) {
+    console.error('Error adding comment:', error);
+    return null;
+  }
+  return data;
+}
+
+export async function updateCommentStatus(commentId: string, status: 'open' | 'resolved') {
+  const { data, error } = await supabase
+    .from('form_comments')
+    .update({ status })
+    .eq('id', commentId)
+    .select()
+    .single();
+    
+  if (error) {
+    console.error('Error updating comment:', error);
+    return null;
+  }
+  return data;
+}
+
+export async function deleteComment(commentId: string) {
+  const { error } = await supabase
+    .from('form_comments')
+    .delete()
+    .eq('id', commentId);
+    
+  if (error) {
+    console.error('Error deleting comment:', error);
+    return false;
+  }
+  return true;
 }

@@ -4,17 +4,36 @@ export type QuestionType =
   | 'RADIO_SINGLE' 
   | 'CHECKBOX_MULTIPLE' 
   | 'GRID_LIKERT' 
+  | 'DROPDOWN'
+  | 'DATE_TIME'
+  | 'FILE_UPLOAD'
   | 'DYNAMIC_REPEATER' 
-  | 'CONDITIONAL_LOGIC';
+  | 'CONDITIONAL_LOGIC'
+  | 'MEDIA_VIDEO'
+  | 'MEDIA_AUDIO'
+  | 'MEDIA_IMAGE'
+  | 'TEXT_MARKDOWN';
 
 export interface Form {
   id: string;
   title: string;
+  description?: string | null;
+  status: 'draft' | 'published' | 'archived';
   created_at: string;
-  updated_at: string;
-  user_id?: string | null;
-  share_token?: string | null;
+  updated_at?: string;
+  user_id: string;
+  share_token?: string;
+  settings?: any;
   sections?: Section[];
+}
+
+export interface FormComment {
+  id: string;
+  form_id: string;
+  element_id: string;
+  text: string;
+  status: 'open' | 'resolved';
+  created_at: string;
 }
 
 export interface Section {
@@ -22,6 +41,9 @@ export interface Section {
   form_id: string;
   title: string;
   description?: string | null;
+  video_url?: string | null;
+  unlock_at_seconds?: number | null;
+  tags?: string[] | null;
   order_index: number;
   created_at: string;
   questions?: Question[];
@@ -36,6 +58,8 @@ export interface Question {
   allow_add_item: boolean;
   trigger_source_question_id?: string | null;
   sub_question_template?: any | null; // jsonb
+  video_url?: string | null; // Added for MEDIA_VIDEO, serialized into sub_question_template
+  tags?: string[]; // Added for analytics (TIMAPS, SIMAPS, etc.)
   order_index: number;
   created_at: string;
   options?: Option[];

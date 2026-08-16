@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { getForms, createEmptyForm, cloneFormByToken } from "../lib/api";
 import { Form } from "../types/form";
-import { Plus, FileText, Loader2, ArrowRight, LogOut, Download } from "lucide-react";
+import { Plus, FileText, Loader2, ArrowRight, Save } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase";
 
@@ -14,6 +14,8 @@ export default function Dashboard() {
   const [isImporting, setIsImporting] = useState(false);
   const [user, setUser] = useState<any>(null);
   const router = useRouter();
+
+
 
   useEffect(() => {
     async function load() {
@@ -82,34 +84,20 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-slate-50 font-sans p-8">
       <div className="max-w-5xl mx-auto space-y-8">
-        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-0">
           <div>
-            <h1 className="text-3xl font-bold text-slate-800 tracking-tight">Meus Formulários</h1>
-            <p className="text-slate-500 mt-1">Gerencie os questionários de Maturidade e Interoperabilidade.</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-slate-800 tracking-tight">Meus Formulários</h1>
+            <p className="text-sm sm:text-base text-slate-500 mt-1">Gerencie os questionários de Maturidade e Interoperabilidade.</p>
           </div>
-          <div className="flex items-center space-x-3">
-            <button 
-              onClick={handleImportToken}
-              disabled={isImporting}
-              className="flex items-center space-x-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-4 py-2.5 rounded-lg font-medium shadow-sm transition-all disabled:opacity-70"
-            >
-              {isImporting ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
-              <span>Importar Token</span>
-            </button>
+          <div className="flex items-center space-x-3 w-full sm:w-auto">
+
             <button 
               onClick={handleCreateNew}
               disabled={isCreating}
-              className="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg font-medium shadow-sm transition-all disabled:opacity-70"
+              className="flex items-center justify-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg font-medium shadow-sm transition-all disabled:opacity-70 disabled:cursor-not-allowed w-full sm:w-auto"
             >
               {isCreating ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
-              <span>Novo</span>
-            </button>
-            <button 
-              onClick={handleLogout}
-              className="flex items-center space-x-2 bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-2.5 rounded-lg font-medium shadow-sm transition-all"
-              title="Sair"
-            >
-              <LogOut size={18} />
+              <span>Criar Novo Formulário</span>
             </button>
           </div>
         </header>
@@ -142,7 +130,7 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <h3 className="font-semibold text-lg text-slate-800 line-clamp-2 mb-2 group-hover:text-indigo-700 transition-colors">{form.title}</h3>
-                <p className="text-xs text-slate-400 mt-auto">Atualizado em {new Date(form.updated_at).toLocaleDateString('pt-BR')}</p>
+                <p className="text-xs text-slate-400 mt-auto">Atualizado em {new Date(form.updated_at || form.created_at || new Date()).toLocaleDateString('pt-BR')}</p>
                 <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between text-sm font-medium text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity">
                   <span>Editar formulário</span>
                   <ArrowRight size={16} />
