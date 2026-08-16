@@ -274,3 +274,43 @@ export async function deleteComment(commentId: string) {
   }
   return true;
 }
+
+export async function submitFormResponse(formId: string, answersData: { question_id: string, answer_text?: string | null, answer_json?: any }[]) {
+  // 1. Create a response entry
+  const { data: response, error: responseError } = await supabase
+    .from('responses')
+    .insert({
+      form_id: formId,
+      submitted_at: new Date().toISOString()
+    })
+    .select('id')
+    .single();
+
+  if (responseError) {
+    console.error("Error creating response:", responseError);
+    return { success: false, error: responseError };
+  }
+
+  const responseId = response.id;
+
+  // 2. Prepare and insert answers
+  const formattedAnswers = answersData.map(a => ({
+    response_id: responseId,
+    question_id: a.question_id,
+    answer_text: a.answer_text || null,
+    answer_json: a.answer_json || null
+  }));
+
+  if (formattedAnswers.length > 0) {
+    const { error: answersError } = await supabase
+      .from('answers')
+      .insert(formattedAnswers);
+
+    if (answersError) {
+      console.error("Error inserting answers:", answersError);
+      return { success: false, error: answersError };
+    }
+  }
+
+  return { success: true, responseId };
+}

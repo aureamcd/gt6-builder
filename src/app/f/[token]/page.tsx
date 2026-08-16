@@ -14,6 +14,8 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
   const [isLoading, setIsLoading] = useState(true);
   const [activeSectionIndex, setActiveSectionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, any>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hasSubmitted, setHasSubmitted] = useState(false);
 
   const handleAnswerChange = (questionId: string, value: any) => {
     setAnswers(prev => ({ ...prev, [questionId]: value }));
@@ -82,8 +84,46 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
     }
     if (activeSectionIndex < sections.length - 1) {
       setActiveSectionIndex(prev => prev + 1);
-    } else {
-      alert("Formulário finalizado! (A gravação de respostas será implementada em breve)");
+      window.scrollTo(0, 0);
+    }
+  };
+
+  const handleSubmitResponse = async () => {
+    if (!validateCurrentSection()) {
+      alert("Por favor, responda todas as perguntas obrigatórias antes de enviar.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const answersData = Object.keys(answers).map(questionId => {
+        const val = answers[questionId];
+        let answer_text = null;
+        let answer_json = null;
+        
+        if (typeof val === 'string') {
+          answer_text = val;
+        } else {
+          answer_json = val;
+        }
+        
+        return { question_id: questionId, answer_text, answer_json };
+      });
+      
+      const { submitFormResponse } = await import('@/lib/api');
+      const res = await submitFormResponse(schema.id, answersData);
+      
+      if (res.success) {
+        setHasSubmitted(true);
+        window.scrollTo(0, 0);
+      } else {
+        alert("Ocorreu um erro ao enviar suas respostas. Tente novamente.");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Erro de conexão.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -99,11 +139,23 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex flex-col gap-6">
+      <main className="max-w-4xl mx-auto w-full p-4 flex-1 mt-6">
+        {hasSubmitted ? (
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-12 text-center">
+             <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
+               <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+               </svg>
+             </div>
+             <h2 className="text-3xl font-bold text-slate-800 mb-4">Respostas Enviadas!</h2>
+             <p className="text-slate-500 text-lg">Muito obrigado por sua participação. Suas respostas foram registradas com sucesso.</p>
+          </div>
+        ) : (
+          <>
         
         {/* Progress Indicator */}
         {sections.length > 0 && (
-          <div className="bg-white rounded-xl shadow-sm p-4 border border-slate-200">
+          <div className="bg-white rounded-xl shadow-sm p-4 border border-slate-200 mb-6">
             <div className="flex items-center justify-between text-sm font-medium text-slate-500 mb-2">
               <span>{answeredQuestionsCount} de {totalQuestions} perguntas respondidas</span>
               <span>{progressPercentage}% concluído</span>
@@ -126,26 +178,6 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
               {currentSection.description && (
                 <div className="mt-4 p-4 bg-indigo-50 border border-indigo-100 rounded-lg text-indigo-900 whitespace-pre-wrap">
                   {currentSection.description}
-                </div>
-              )}
-              {currentSection.video_url && (
-                <div className="mt-6 w-full max-w-3xl mx-auto overflow-hidden rounded-xl shadow-md bg-black">
-                  {(currentSection.video_url.includes('youtube.com') || currentSection.video_url.includes('youtu.be')) ? (
-                    <div className="relative w-full" style={{ paddingTop: '56.25%' }}>
-                      <iframe 
-                        className="absolute top-0 left-0 w-full h-full"
-                        src={currentSection.video_url.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
-                        title="Section Video"
-                        allowFullScreen
-                      />
-                    </div>
-                  ) : (
-                    <video 
-                      className="w-full max-h-[500px]"
-                      src={currentSection.video_url}
-                      controls
-                    />
-                  )}
                 </div>
               )}
             </div>
@@ -173,27 +205,43 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
         )}
 
         {/* Navigation Buttons */}
-        {sections.length > 0 && (
-          <div className="flex items-center justify-between mt-4 pb-12">
-            <button
-              onClick={() => setActiveSectionIndex(prev => Math.max(0, prev - 1))}
-              disabled={activeSectionIndex === 0}
-              className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-colors ${activeSectionIndex === 0 ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 shadow-sm'}`}
-            >
-              <ChevronLeft size={20} />
-              <span>Anterior</span>
-            </button>
-            <button
+        <div className="mt-8 flex justify-between pb-12">
+          <button 
+            onClick={() => {
+              setActiveSectionIndex(prev => prev - 1);
+              window.scrollTo(0, 0);
+            }}
+            disabled={activeSectionIndex === 0}
+            className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-colors ${activeSectionIndex === 0 ? 'opacity-0 pointer-events-none' : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50'}`}
+          >
+            <ChevronLeft size={20} />
+            <span>Voltar</span>
+          </button>
+          
+          {activeSectionIndex < sections.length - 1 ? (
+            <button 
               onClick={handleNextSection}
-              disabled={activeSectionIndex === sections.length - 1}
-              className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-colors ${activeSectionIndex === sections.length - 1 ? 'bg-indigo-400 text-white cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm'}`}
+              className="flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-colors bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm"
             >
               <span>Próxima</span>
               <ChevronRight size={20} />
             </button>
-          </div>
-        )}
+          ) : (
+            <button 
+              onClick={handleSubmitResponse}
+              disabled={isSubmitting}
+              className={`flex items-center space-x-2 px-8 py-3 rounded-lg font-bold transition-colors ${isSubmitting ? 'bg-indigo-400 text-white cursor-wait' : 'bg-green-600 text-white hover:bg-green-700 shadow-md'}`}
+            >
+              <span>{isSubmitting ? 'Enviando...' : 'Enviar Respostas'}</span>
+              {!isSubmitting && <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-1" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>}
+            </button>
+          )}
+        </div>
 
+      </>
+        )}
       </main>
     </div>
   );
