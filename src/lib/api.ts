@@ -225,6 +225,49 @@ export async function getFormByShareToken(token: string): Promise<Form | null> {
   return getFormById(sourceForm.id);
 }
 
+export async function cloneFormByToken(token: string): Promise<Form | null> {
+  const sourceForm = await getFormByShareToken(token);
+  if (!sourceForm) throw new Error("Formulário não encontrado para este token");
+
+  const { data: authData } = await supabase.auth.getUser();
+  const userId = authData.user?.id || "";
+
+  const newFormId = generateUUID();
+  const clonedForm: Form = {
+    ...sourceForm,
+    id: newFormId,
+    title: `${sourceForm.title} (Cópia)`,
+    user_id: userId,
+    share_token: undefined,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    sections: sourceForm.sections?.map(s => {
+      const newSectionId = generateUUID();
+      return {
+        ...s,
+        id: newSectionId,
+        form_id: newFormId,
+        questions: s.questions?.map(q => {
+          const newQuestionId = generateUUID();
+          return {
+            ...q,
+            id: newQuestionId,
+            section_id: newSectionId,
+            options: q.options?.map(o => ({
+              ...o,
+              id: generateUUID(),
+              question_id: newQuestionId
+            }))
+          };
+        })
+      };
+    }) || []
+  };
+
+  await saveFormState(clonedForm);
+  return clonedForm;
+}
+
 export async function getComments(formId: string) {
   const { data, error } = await supabase
     .from('form_comments')

@@ -12,25 +12,7 @@ import CommentsPanel from "../../../components/CommentsPanel";
 import { MessageSquare } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
 
-const generateId = () => {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return crypto.randomUUID();
-  }
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-    var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
-};
-
-const typeLabels: Record<string, string> = {
-  'TEXT_SHORT': 'Texto Curto',
-  'TEXT_LONG': 'Texto Longo',
-  'CHECKBOX_MULTIPLE': 'Múltipla Escolha',
-  'RADIO_SINGLE': 'Escolha Única',
-  'GRID_LIKERT': 'Matriz Likert',
-  'CONDITIONAL_LOGIC': 'Regra Condicional',
-  'DYNAMIC_REPEATER': 'Repetidor Dinâmico'
-};
+const generateId = () => crypto.randomUUID();
 
 const calculateSectionTime = (section: Section) => {
   let seconds = 0;
@@ -121,10 +103,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
   useEffect(() => {
     async function loadForm() {
       try {
-        const [data, subs] = await Promise.all([
-          getFormById(id),
-          getFormSubmissions(id)
-        ]);
+        const data = await getFormById(id);
         if (data) {
           // When loading from DB, initialize _setSchema silently to not affect history
           _setSchema(data);
@@ -133,7 +112,6 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
           }
           fetchComments();
         }
-        setSubmissions(subs);
       } catch (error) {
         console.error("Erro ao carregar:", error);
       } finally {
@@ -204,14 +182,14 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
       allow_add_item: false,
       order_index: schema.sections?.find(s => s.id === activeSectionId)?.questions?.length || 0,
       created_at: new Date().toISOString(),
-      options: type === 'RADIO_SINGLE' || type === 'CHECKBOX_MULTIPLE'
-        ? [{
-          id: generateId(),
-          question_id: newQuestionId,
-          label: "Opção 1",
-          order_index: 0,
-          created_at: new Date().toISOString()
-        }]
+      options: type === 'RADIO_SINGLE' || type === 'CHECKBOX_MULTIPLE' 
+        ? [{ 
+            id: generateId(), 
+            question_id: newQuestionId,
+            label: "Opção 1",
+            order_index: 0,
+            created_at: new Date().toISOString()
+          }] 
         : undefined
     };
 
@@ -247,12 +225,12 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
   const updateQuestionLabel = (sectionId: string, questionId: string, newLabel: string) => {
     setSchema(prev => prev ? ({
       ...prev,
-      sections: prev.sections?.map(sec =>
-        sec.id === sectionId
+      sections: prev.sections?.map(sec => 
+        sec.id === sectionId 
           ? {
-            ...sec,
-            questions: sec.questions?.map(q => q.id === questionId ? { ...q, label: newLabel } : q)
-          }
+              ...sec,
+              questions: sec.questions?.map(q => q.id === questionId ? { ...q, label: newLabel } : q)
+            }
           : sec
       )
     }) : prev);
@@ -275,8 +253,8 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
   const deleteQuestion = (sectionId: string, questionId: string) => {
     setSchema(prev => prev ? ({
       ...prev,
-      sections: prev.sections?.map(sec =>
-        sec.id === sectionId
+      sections: prev.sections?.map(sec => 
+        sec.id === sectionId 
           ? { ...sec, questions: sec.questions?.filter(q => q.id !== questionId) }
           : sec
       )
@@ -320,24 +298,24 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
   const addOption = (sectionId: string, questionId: string) => {
     setSchema(prev => prev ? ({
       ...prev,
-      sections: prev.sections?.map(sec =>
-        sec.id === sectionId
+      sections: prev.sections?.map(sec => 
+        sec.id === sectionId 
           ? {
-            ...sec,
-            questions: sec.questions?.map(q => {
-              if (q.id === questionId) {
-                const newOption: Option = {
-                  id: generateId(),
-                  question_id: q.id,
-                  label: `Opção ${(q.options?.length || 0) + 1}`,
-                  order_index: q.options?.length || 0,
-                  created_at: new Date().toISOString()
-                };
-                return { ...q, options: [...(q.options || []), newOption] };
-              }
-              return q;
-            })
-          }
+              ...sec,
+              questions: sec.questions?.map(q => {
+                if (q.id === questionId) {
+                  const newOption: Option = {
+                    id: generateId(),
+                    question_id: q.id,
+                    label: `Opção ${(q.options?.length || 0) + 1}`,
+                    order_index: q.options?.length || 0,
+                    created_at: new Date().toISOString()
+                  };
+                  return { ...q, options: [...(q.options || []), newOption] };
+                }
+                return q;
+              })
+            }
           : sec
       )
     }) : prev);
@@ -346,20 +324,20 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
   const updateOptionLabel = (sectionId: string, questionId: string, optionId: string, newLabel: string) => {
     setSchema(prev => prev ? ({
       ...prev,
-      sections: prev.sections?.map(sec =>
-        sec.id === sectionId
+      sections: prev.sections?.map(sec => 
+        sec.id === sectionId 
           ? {
-            ...sec,
-            questions: sec.questions?.map(q => {
-              if (q.id === questionId) {
-                return {
-                  ...q,
-                  options: q.options?.map(opt => opt.id === optionId ? { ...opt, label: newLabel } : opt)
-                };
-              }
-              return q;
-            })
-          }
+              ...sec,
+              questions: sec.questions?.map(q => {
+                if (q.id === questionId) {
+                  return {
+                    ...q,
+                    options: q.options?.map(opt => opt.id === optionId ? { ...opt, label: newLabel } : opt)
+                  };
+                }
+                return q;
+              })
+            }
           : sec
       )
     }) : prev);
@@ -368,20 +346,20 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
   const deleteOption = (sectionId: string, questionId: string, optionId: string) => {
     setSchema(prev => prev ? ({
       ...prev,
-      sections: prev.sections?.map(sec =>
-        sec.id === sectionId
+      sections: prev.sections?.map(sec => 
+        sec.id === sectionId 
           ? {
-            ...sec,
-            questions: sec.questions?.map(q => {
-              if (q.id === questionId) {
-                return {
-                  ...q,
-                  options: q.options?.filter(opt => opt.id !== optionId)
-                };
-              }
-              return q;
-            })
-          }
+              ...sec,
+              questions: sec.questions?.map(q => {
+                if (q.id === questionId) {
+                  return {
+                    ...q,
+                    options: q.options?.filter(opt => opt.id !== optionId)
+                  };
+                }
+                return q;
+              })
+            }
           : sec
       )
     }) : prev);
@@ -501,9 +479,11 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
             <SidebarItem icon={<Video size={18} />} label="Vídeo (YouTube/Vimeo)" onClick={() => addQuestion('MEDIA_VIDEO')} />
             <SidebarItem icon={<Headphones size={18} />} label="Áudio" onClick={() => addQuestion('MEDIA_AUDIO')} />
           </div>
+
           <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mt-8 mb-4">Lógica Avançada</h2>
-          <div className="grid grid-cols-1 gap-2 pb-2">
-            {renderAdvancedLogicItems()}
+          <div className="space-y-2">
+            <SidebarItem icon={<Settings size={18} />} label="Regra Condicional" onClick={() => addQuestion('CONDITIONAL_LOGIC')} className="border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100" />
+            <SidebarItem icon={<Layers size={18} />} label="Repetidor Dinâmico" onClick={() => addQuestion('DYNAMIC_REPEATER')} className="border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100" />
           </div>
 
           <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mt-8 mb-4">Configurações Globais</h2>
@@ -708,6 +688,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                         onAddOption={() => addOption(section.id, q.id)}
                         onUpdateOptionLabel={(optId, newLabel) => updateOptionLabel(section.id, q.id, optId, newLabel)}
                         onDeleteOption={(optId) => deleteOption(section.id, q.id, optId)}
+                        onUpdateSubQuestionTemplate={(tpl) => updateQuestionProperty(section.id, q.id, 'sub_question_template', tpl)}
                         openCommentsCount={formComments.filter(c => c.element_id === q.id && c.status === 'open').length}
                         onCommentClick={() => setActiveCommentElement({ id: q.id, title: q.label || `Pergunta ${qIndex + 1}` })}
                         draggable
@@ -743,62 +724,18 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                   ))}
                 </div>
               </div>
+            ))}
+            
+            {/* Add Section Button */}
+            <button 
+              onClick={addSection}
+              className="w-full py-4 border-2 border-dashed border-slate-300 rounded-xl text-slate-500 font-medium hover:border-indigo-400 hover:text-indigo-600 transition-colors flex flex-col items-center justify-center space-y-2 bg-slate-50/50"
+            >
+              <Plus size={24} />
+              <span>Adicionar Nova Seção</span>
+            </button>
 
-              {submissions.length === 0 ? (
-                <div className="text-center py-20 text-slate-400 border-2 border-dashed border-slate-200 rounded-xl bg-white/50">
-                  <MessageSquare size={40} className="mx-auto text-slate-300 mb-4" />
-                  <p>Ainda não há nenhuma resposta para este formulário.</p>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  {submissions.map((sub, index) => (
-                    <div key={sub.id} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                      <div className="bg-slate-50 px-6 py-3 border-b border-slate-200 flex justify-between items-center">
-                        <span className="font-semibold text-slate-700">Resposta #{submissions.length - index}</span>
-                        <span className="text-xs font-medium text-slate-400">{new Date(sub.created_at).toLocaleString('pt-BR')}</span>
-                      </div>
-                      <div className="p-6 space-y-6">
-                        {schema.sections?.map(section => (
-                          <div key={section.id}>
-                            <h3 className="text-sm font-bold text-indigo-600 uppercase tracking-wide mb-3">{section.title}</h3>
-                            <div className="space-y-4">
-                              {section.questions?.map(q => {
-                                const answer = sub.answers[q.id];
-                                let displayAnswer = answer;
-
-                                if (!answer || (Array.isArray(answer) && answer.length === 0)) {
-                                  displayAnswer = <span className="text-slate-300 italic">Não respondido</span>;
-                                } else if (q.type === 'RADIO_SINGLE' || q.type === 'CHECKBOX_MULTIPLE') {
-                                  // Map option IDs to option labels
-                                  if (Array.isArray(answer)) {
-                                    displayAnswer = answer.map(ansId => {
-                                      const opt = q.options?.find(o => o.id === ansId);
-                                      return opt ? opt.label : ansId;
-                                    }).join(", ");
-                                  } else {
-                                    const opt = q.options?.find(o => o.id === answer);
-                                    displayAnswer = opt ? opt.label : answer;
-                                  }
-                                }
-
-                                return (
-                                  <div key={q.id} className="border-b border-slate-100 pb-3 last:border-0 last:pb-0">
-                                    <p className="text-sm font-medium text-slate-500 mb-1">{q.label}</p>
-                                    <p className="text-base text-slate-800">{displayAnswer}</p>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
           </div>
-
         </div>
       </main>
 
@@ -1309,34 +1246,11 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
 
 // Subcomponents
 
-function AutoResizeTextarea({ value, onChange, className, placeholder, ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  const ref = React.useRef<HTMLTextAreaElement>(null);
-
-  React.useEffect(() => {
-    if (ref.current) {
-      ref.current.style.height = 'auto';
-      ref.current.style.height = ref.current.scrollHeight + 'px';
-    }
-  }, [value]);
-
-  return (
-    <textarea
-      {...props}
-      ref={ref}
-      value={value}
-      onChange={onChange}
-      className={`${className} resize-none overflow-hidden`}
-      placeholder={placeholder}
-      rows={props.rows || 1}
-    />
-  );
-}
-
 function SidebarItem({ icon, label, onClick, className = "" }: { icon: React.ReactNode, label: string, onClick: () => void, className?: string }) {
   return (
-    <div
+    <div 
       onClick={onClick}
-      className={`flex items-center space-x-3 p-3 bg-white border border-slate-100 rounded-xl cursor-pointer hover:shadow-lg hover:shadow-indigo-100/40 hover:-translate-y-0.5 transition-all duration-200 group shrink-0 ${className}`}
+      className={`flex items-center space-x-3 p-3 bg-white border border-slate-200 rounded-lg cursor-pointer hover:shadow-md transition-all group ${className}`}
     >
       <div className="text-slate-500 group-hover:text-indigo-600 transition-colors">
         {icon}
@@ -1366,7 +1280,8 @@ function QuestionCard({
   onDragEnd,
   onDrop,
   openCommentsCount,
-  onCommentClick
+  onCommentClick,
+  onUpdateSubQuestionTemplate
 }: { 
   question: Question, 
   number: number,
@@ -1387,6 +1302,7 @@ function QuestionCard({
   onDrop?: (e: React.DragEvent) => void,
   openCommentsCount?: number,
   onCommentClick?: () => void,
+  onUpdateSubQuestionTemplate?: (tpl: any) => void
 }) {
   const [isUploading, setIsUploading] = useState(false);
   const [activeTab, setActiveTab] = useState<'url' | 'upload'>('url');
@@ -1465,7 +1381,6 @@ function QuestionCard({
             <span className="font-bold text-slate-400 mt-1 text-sm sm:text-base">{number}.</span>
             <input 
               value={question.label}
-              rows={1}
               onChange={(e) => onUpdateLabel(e.target.value)}
               className="font-semibold text-slate-800 text-sm sm:text-base bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-500 focus:outline-none w-full py-1"
               placeholder="Digite sua pergunta..."
@@ -1492,7 +1407,7 @@ function QuestionCard({
             </button>
           </div>
         </div>
-
+        
         <div className="mt-4 text-sm text-slate-500">
           {question.type === 'TEXT_SHORT' && (
             <div className="h-10 bg-slate-50 border border-slate-200 rounded-md flex items-center px-3">
@@ -1511,9 +1426,8 @@ function QuestionCard({
                   <div className={`w-4 h-4 border border-slate-300 flex items-center justify-center shrink-0 ${question.type === 'RADIO_SINGLE' || question.type === 'DROPDOWN' ? 'rounded-full' : 'rounded'}`}></div>
                   <input 
                     value={opt.label}
-                    rows={1}
                     onChange={(e) => onUpdateOptionLabel && onUpdateOptionLabel(opt.id, e.target.value)}
-                    className="text-slate-700 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-purple-500 focus:outline-none w-full min-w-0 py-1 leading-tight mt-0.5"
+                    className="text-slate-700 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-500 focus:outline-none w-full py-1"
                   />
                   <button onClick={() => onDeleteOption && onDeleteOption(opt.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover/opt:opacity-100 transition-opacity p-1" title="Remover Opção">
                     <X size={14} />
@@ -1547,7 +1461,7 @@ function QuestionCard({
                <textarea 
                   placeholder="Digite o conteúdo do seu texto de aviso ou instrução aqui..."
                   value={question.sub_question_template?.markdown_content || ''}
-                  onChange={(e) => updateQuestionProperty(activeSectionId, question.id, 'sub_question_template', { ...question.sub_question_template, markdown_content: e.target.value })}
+                  onChange={(e) => onUpdateSubQuestionTemplate && onUpdateSubQuestionTemplate({ ...question.sub_question_template, markdown_content: e.target.value })}
                   rows={4}
                   className="w-full text-sm bg-white border border-slate-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-md px-3 py-2 outline-none resize-y"
                />
@@ -1559,7 +1473,7 @@ function QuestionCard({
                   type="text"
                   placeholder="Cole o link da imagem aqui (ex: https://site.com/imagem.png)"
                   value={question.sub_question_template?.image_url || ''}
-                  onChange={(e) => updateQuestionProperty(activeSectionId, question.id, 'sub_question_template', { ...question.sub_question_template, image_url: e.target.value })}
+                  onChange={(e) => onUpdateSubQuestionTemplate && onUpdateSubQuestionTemplate({ ...question.sub_question_template, image_url: e.target.value })}
                   className="w-full text-sm bg-white border border-slate-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-md px-3 py-2 outline-none"
               />
               {question.sub_question_template?.image_url ? (
@@ -1580,7 +1494,7 @@ function QuestionCard({
                   type="text"
                   placeholder="Cole o link do áudio aqui (ex: https://site.com/audio.mp3)"
                   value={question.sub_question_template?.audio_url || ''}
-                  onChange={(e) => updateQuestionProperty(activeSectionId, question.id, 'sub_question_template', { ...question.sub_question_template, audio_url: e.target.value })}
+                  onChange={(e) => onUpdateSubQuestionTemplate && onUpdateSubQuestionTemplate({ ...question.sub_question_template, audio_url: e.target.value })}
                   className="w-full text-sm bg-white border border-slate-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-md px-3 py-2 outline-none"
               />
               {question.sub_question_template?.audio_url ? (
