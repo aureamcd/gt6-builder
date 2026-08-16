@@ -13,6 +13,8 @@ export default function Dashboard() {
   const [isCreating, setIsCreating] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [formToDelete, setFormToDelete] = useState<{ id: string, title: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -97,16 +99,18 @@ export default function Dashboard() {
     }
   };
 
-  const handleDeleteForm = async (formId: string, formTitle: string) => {
-    const confirmDelete = window.confirm(`Tem certeza que deseja excluir o questionário "${formTitle}"? Esta ação removerá todas as perguntas e respostas permanentemente.`);
-    if (!confirmDelete) return;
-
+  const handleConfirmDelete = async () => {
+    if (!formToDelete) return;
+    setIsDeleting(true);
     try {
-      await deleteForm(formId);
-      setForms(prev => prev.filter(f => f.id !== formId));
+      await deleteForm(formToDelete.id);
+      setForms(prev => prev.filter(f => f.id !== formToDelete.id));
+      setFormToDelete(null);
     } catch (err: any) {
       console.error("Erro ao excluir formulário:", err);
       alert("Erro ao excluir formulário: " + (err.message || "Erro inesperado"));
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -125,100 +129,143 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans p-8">
-      <div className="max-w-5xl mx-auto space-y-8">
-        <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-0">
+    <div className="min-h-screen bg-slate-50 font-sans p-4 sm:p-8">
+      <div className="max-w-5xl mx-auto space-y-6 sm:space-y-8">
+        <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-slate-800 tracking-tight">Meus Formulários</h1>
             <p className="text-sm sm:text-base text-slate-500 mt-1">Gerencie os questionários de Maturidade e Interoperabilidade.</p>
           </div>
-          <div className="flex items-center space-x-3 w-full sm:w-auto">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
             <button 
               onClick={handleImportToken}
               disabled={isImporting}
-              className="flex items-center justify-center space-x-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 px-4 py-2 sm:py-2.5 rounded-lg font-medium shadow-sm transition-all disabled:opacity-70 disabled:cursor-not-allowed w-full sm:w-auto"
+              className="flex-1 sm:flex-none flex items-center justify-center space-x-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-medium shadow-sm transition-all disabled:opacity-70 disabled:cursor-not-allowed"
             >
-              <Download size={18} />
+              <Download size={16} />
               <span>Importar Template</span>
             </button>
 
             <button 
               onClick={handleCreateNew}
               disabled={isCreating}
-              className="flex items-center justify-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg font-medium shadow-sm transition-all disabled:opacity-70 disabled:cursor-not-allowed w-full sm:w-auto"
+              className="flex-1 sm:flex-none flex items-center justify-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-medium shadow-sm transition-all disabled:opacity-70 disabled:cursor-not-allowed"
             >
-              {isCreating ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
-              <span>Criar Novo Formulário</span>
+              {isCreating ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+              <span>Criar Novo</span>
             </button>
 
             <button 
               onClick={handleLogout}
-              className="flex items-center justify-center space-x-2 bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-600 border border-slate-200 hover:border-red-200 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-lg font-medium shadow-sm transition-all w-full sm:w-auto"
+              className="flex items-center justify-center space-x-1.5 bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-600 border border-slate-200 hover:border-red-200 px-3 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-medium shadow-sm transition-all"
               title="Encerrar sessão"
             >
-              <LogOut size={18} />
+              <LogOut size={16} />
               <span>Sair</span>
             </button>
           </div>
         </header>
 
         {forms.length === 0 ? (
-          <div className="bg-white border border-slate-200 border-dashed rounded-2xl flex flex-col items-center justify-center py-24 text-center">
+          <div className="bg-white border border-slate-200 border-dashed rounded-2xl flex flex-col items-center justify-center py-20 px-4 text-center">
             <div className="bg-indigo-50 p-4 rounded-full text-indigo-500 mb-4">
               <FileText size={32} />
             </div>
             <h3 className="text-xl font-semibold text-slate-800">Nenhum formulário encontrado</h3>
-            <p className="text-slate-500 mt-2 max-w-sm">Você ainda não possui formulários criados. Comece criando o seu primeiro questionário.</p>
+            <p className="text-slate-500 mt-2 max-w-sm text-sm">Você ainda não possui formulários criados. Comece criando o seu primeiro questionário.</p>
             <button 
               onClick={handleCreateNew}
-              className="mt-6 text-indigo-600 font-medium hover:text-indigo-800 transition-colors"
+              className="mt-6 text-indigo-600 font-medium hover:text-indigo-800 transition-colors text-sm"
             >
               Criar Formulário Agora →
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {forms.map(form => (
               <div 
                 key={form.id} 
                 onClick={() => router.push(`/builder/${form.id}`)}
-                className="group bg-white rounded-xl border border-slate-200 p-6 hover:shadow-md hover:border-indigo-300 transition-all cursor-pointer flex flex-col"
+                className="group bg-white rounded-xl border border-slate-200 p-5 sm:p-6 hover:shadow-md hover:border-indigo-300 transition-all cursor-pointer flex flex-col justify-between"
               >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg group-hover:bg-indigo-600 group-hover:text-white transition-colors">
-                    <FileText size={20} />
+                <div>
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                      <FileText size={20} />
+                    </div>
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setFormToDelete({ id: form.id, title: form.title });
+                      }}
+                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Excluir formulário"
+                    >
+                      <Trash2 size={16} />
+                    </button>
                   </div>
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteForm(form.id, form.title);
-                    }}
-                    className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    title="Excluir formulário"
-                  >
-                    <Trash2 size={16} />
-                  </button>
+                  <h3 className="font-semibold text-base sm:text-lg text-slate-800 line-clamp-2 mb-2 group-hover:text-indigo-700 transition-colors">{form.title}</h3>
                 </div>
-                <h3 className="font-semibold text-lg text-slate-800 line-clamp-2 mb-2 group-hover:text-indigo-700 transition-colors">{form.title}</h3>
-                <p className="text-xs text-slate-400 mt-auto">Atualizado em {new Date(form.updated_at || form.created_at || new Date()).toLocaleDateString('pt-BR')}</p>
-                <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between text-xs sm:text-sm font-medium">
-                  <span className="text-indigo-600 group-hover:underline flex items-center gap-1">
-                    Editar <ArrowRight size={14} />
+
+                <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-medium">
+                  <span className="text-slate-400">
+                    {new Date(form.updated_at || form.created_at || new Date()).toLocaleDateString('pt-BR')}
                   </span>
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      router.push(`/builder/${form.id}?tab=responses`);
-                    }}
-                    className="flex items-center space-x-1.5 text-slate-600 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 px-2.5 py-1 rounded-lg transition-colors text-xs font-semibold"
-                    title="Ver respostas deste questionário"
-                  >
-                    <BarChart3 size={14} />
-                    <span>Ver Respostas</span>
-                  </button>
+                  <div className="flex items-center space-x-2">
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        router.push(`/builder/${form.id}?tab=responses`);
+                      }}
+                      className="flex items-center space-x-1 text-slate-600 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 px-2 py-1 rounded-md transition-colors"
+                      title="Ver respostas"
+                    >
+                      <BarChart3 size={13} />
+                      <span>Respostas</span>
+                    </button>
+                    <span className="text-indigo-600 font-semibold group-hover:translate-x-0.5 transition-transform flex items-center gap-0.5">
+                      Editar <ArrowRight size={13} />
+                    </span>
+                  </div>
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Modal Bonito de Confirmação de Exclusão */}
+        {formToDelete && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
+              <div className="w-12 h-12 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Trash2 size={24} />
+              </div>
+              <h3 className="text-lg font-bold text-slate-800 text-center">Excluir Questionário?</h3>
+              <p className="text-sm text-slate-500 text-center mt-2 leading-relaxed">
+                Você tem certeza que deseja excluir o questionário <strong className="text-slate-800">"{formToDelete.title}"</strong>?
+              </p>
+              <div className="mt-2 p-3 bg-red-50 rounded-lg text-xs text-red-700 text-center border border-red-100">
+                Esta ação apagará permanentemente todas as perguntas e respostas recebidas.
+              </div>
+
+              <div className="mt-6 flex items-center justify-center space-x-3">
+                <button
+                  onClick={() => setFormToDelete(null)}
+                  disabled={isDeleting}
+                  className="flex-1 py-2.5 px-4 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-medium text-sm transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleConfirmDelete}
+                  disabled={isDeleting}
+                  className="flex-1 py-2.5 px-4 rounded-xl bg-red-600 hover:bg-red-700 text-white font-medium text-sm transition-colors shadow-sm flex items-center justify-center space-x-1.5 disabled:opacity-70"
+                >
+                  {isDeleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                  <span>{isDeleting ? 'Excluindo...' : 'Sim, Excluir'}</span>
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

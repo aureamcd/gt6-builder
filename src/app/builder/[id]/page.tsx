@@ -92,6 +92,8 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
   const [isLoading, setIsLoading] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeletingForm, setIsDeletingForm] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [isAutoSaveEnabled, setIsAutoSaveEnabled] = useState(true);
   const [lastSavedTime, setLastSavedTime] = useState<string | null>(null);
@@ -539,16 +541,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
 
             <div className="pt-4 border-t border-slate-200">
               <button
-                onClick={async () => {
-                  const confirmDelete = window.confirm(`Tem certeza que deseja excluir o questionário "${schema?.title}"? Esta ação removerá todas as perguntas e respostas permanentemente.`);
-                  if (!confirmDelete) return;
-                  try {
-                    await deleteForm(id);
-                    router.push('/');
-                  } catch (err: any) {
-                    alert("Erro ao excluir: " + (err.message || "Erro inesperado"));
-                  }
-                }}
+                onClick={() => setIsDeleteModalOpen(true)}
                 className="w-full flex items-center justify-center space-x-2 text-xs font-semibold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 py-2.5 rounded-lg transition-colors shadow-sm"
               >
                 <Trash2 size={14} />
@@ -943,10 +936,16 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
         )}
       </main>
 
-      {/* Right Sidebar: Properties Panel */}
+      {/* Right Sidebar: Properties Panel (Responsive Drawer on mobile + sidebar on desktop) */}
       {(selectedElementType === 'question' && selectedQuestion) || (selectedElementType === 'section' && selectedSection) ? (
-        <aside className="w-80 bg-white border-l border-slate-200 flex flex-col shadow-xl z-20 shrink-0 hidden lg:flex">
-          <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+        <>
+          {/* Mobile Overlay for Right Sidebar */}
+          <div 
+            className="fixed inset-0 bg-slate-900/50 z-40 lg:hidden backdrop-blur-xs" 
+            onClick={() => setSelectedElementType(null)}
+          />
+          <aside className="fixed inset-y-0 right-0 z-50 w-full sm:w-96 bg-white border-l border-slate-200 flex flex-col shadow-2xl lg:shadow-xl lg:relative lg:w-80 lg:z-20 shrink-0 transition-transform">
+            <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
             <h2 className="font-bold text-slate-800">
               {selectedElementType === 'section' ? 'Propriedades da Seção' : 'Propriedades da Pergunta'}
             </h2>
@@ -1373,6 +1372,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
 
           </div>
         </aside>
+        </>
       ) : null}
 
       {/* Active Comment Panel */}
@@ -1387,6 +1387,51 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
             fetchComments();
           }}
         />
+      )}
+
+      {/* Modal Bonito de Confirmação de Exclusão no Builder */}
+      {isDeleteModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
+            <div className="w-12 h-12 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Trash2 size={24} />
+            </div>
+            <h3 className="text-lg font-bold text-slate-800 text-center">Excluir este Questionário?</h3>
+            <p className="text-sm text-slate-500 text-center mt-2 leading-relaxed">
+              Você tem certeza que deseja excluir o questionário <strong className="text-slate-800">"{schema?.title}"</strong>?
+            </p>
+            <div className="mt-2 p-3 bg-red-50 rounded-lg text-xs text-red-700 text-center border border-red-100">
+              Esta ação apagará permanentemente todas as seções, perguntas e respostas registradas.
+            </div>
+
+            <div className="mt-6 flex items-center justify-center space-x-3">
+              <button
+                onClick={() => setIsDeleteModalOpen(false)}
+                disabled={isDeletingForm}
+                className="flex-1 py-2.5 px-4 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-medium text-sm transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={async () => {
+                  setIsDeletingForm(true);
+                  try {
+                    await deleteForm(id);
+                    router.push('/');
+                  } catch (err: any) {
+                    alert("Erro ao excluir: " + (err.message || "Erro inesperado"));
+                    setIsDeletingForm(false);
+                  }
+                }}
+                disabled={isDeletingForm}
+                className="flex-1 py-2.5 px-4 rounded-xl bg-red-600 hover:bg-red-700 text-white font-medium text-sm transition-colors shadow-sm flex items-center justify-center space-x-1.5 disabled:opacity-70"
+              >
+                {isDeletingForm ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                <span>{isDeletingForm ? 'Excluindo...' : 'Sim, Excluir'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Share Modal */}
