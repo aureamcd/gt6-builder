@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState, useEffect, use } from "react";
+import React, { useState, useEffect, use, useRef } from "react";
 import { 
   GripVertical, Plus, Settings, ChevronDown, CheckSquare, 
   Type, List, AlignLeft, Grid, Eye, Save, Play, Layers, Trash2, X, Loader2, Menu, Video, 
   Calendar, UploadCloud, Headphones, Image as ImageIcon, FileText, ExternalLink, Share2, Copy, Undo2, Redo2, Users, Globe, FileCode,
-  ArrowLeft, BarChart3, Inbox, FileDown, CheckCircle2
+  ArrowLeft, BarChart3, Inbox, FileDown, CheckCircle2, AlertCircle
 } from "lucide-react";
 import { Form, Section, Question, QuestionType, Option, FormComment } from "../../../types/form";
 import { saveFormState, getFormById, generateShareToken, getComments, getFormResponses, deleteForm, registerAccessedForm } from "../../../lib/api";
@@ -54,6 +54,13 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
   const [history, setHistory] = useState<Form[]>([]);
   const [future, setFuture] = useState<Form[]>([]);
 
+  const clientIdRef = useRef(generateId());
+  const channelRef = useRef<any>(null);
+  const isRemoteUpdateRef = useRef(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [onlineCollaborators, setOnlineCollaborators] = useState<Array<{ clientId: string, name: string, email: string, color: string }>>([]);
+  const [lastSyncedBy, setLastSyncedBy] = useState<string | null>(null);
+
   const setSchema = (newSchemaOrUpdater: React.SetStateAction<Form | null>) => {
     _setSchema(prev => {
       const nextSchema = typeof newSchemaOrUpdater === 'function' ? (newSchemaOrUpdater as any)(prev) : newSchemaOrUpdater;
@@ -61,6 +68,20 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
       if (prev && nextSchema && JSON.stringify(prev) !== JSON.stringify(nextSchema)) {
         setHistory(h => [...h, prev].slice(-50));
         setFuture([]);
+
+        // Broadcast alterações em tempo real para outros colaboradores conectados
+        if (channelRef.current && !isRemoteUpdateRef.current) {
+          channelRef.current.send({
+            type: 'broadcast',
+            event: 'form_schema_update',
+            payload: {
+              schema: nextSchema,
+              senderId: clientIdRef.current,
+              senderName: currentUser?.user_metadata?.name || currentUser?.email?.split('@')[0] || 'Colega',
+              timestamp: Date.now()
+            }
+          });
+        }
       }
       
       return nextSchema;
@@ -103,6 +124,105 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
   const [formComments, setFormComments] = useState<FormComment[]>([]);
   const [activeCommentElement, setActiveCommentElement] = useState<{id: string, title: string} | null>(null);
   const [dragEnabledSubQId, setDragEnabledSubQId] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info'; title?: string } | null>(null);
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success', title?: string) => {
+    setToast({ message, type, title });
+  };
+
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => {
+        setToast(null);
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
+
+  // Realtime Collaboration (Supabase Channels: Broadcast + Presence)
+  useEffect(() => {
+    let channel: any;
+
+    async function initRealtime() {
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
+      if (user) {
+        setCurrentUser(user);
+      }
+      const userName = user?.user_metadata?.name || user?.email?.split('@')[0] || 'Usuário';
+      const userEmail = user?.email || '';
+      const colors = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#3b82f6', '#14b8a6'];
+      const userColor = colors[Math.floor(Math.random() * colors.length)];
+
+      channel = supabase.channel(`form_builder_realtime_${id}`, {
+        config: {
+          broadcast: { self: false },
+          presence: { key: clientIdRef.current }
+        }
+      });
+
+      channelRef.current = channel;
+
+      // 1. Receber edições de outros usuários em tempo real
+      channel.on('broadcast', { event: 'form_schema_update' }, ({ payload }: any) => {
+        if (payload && payload.senderId !== clientIdRef.current && payload.schema) {
+          isRemoteUpdateRef.current = true;
+          _setSchema(payload.schema);
+          setLastSyncedBy(payload.senderName || 'Colaborador');
+          setTimeout(() => {
+            setLastSyncedBy(null);
+          }, 3000);
+          setTimeout(() => {
+            isRemoteUpdateRef.current = false;
+          }, 300);
+        }
+      });
+
+      // 2. Acompanhar colaboradores online (Presence)
+      channel
+        .on('presence', { event: 'sync' }, () => {
+          const state = channel.presenceState();
+          const users: any[] = [];
+          Object.values(state).forEach((presences: any) => {
+            presences.forEach((p: any) => {
+              if (p.clientId !== clientIdRef.current) {
+                users.push(p);
+              }
+            });
+          });
+          setOnlineCollaborators(users);
+        })
+        .on('presence', { event: 'join' }, ({ newPresences }: any) => {
+          newPresences.forEach((p: any) => {
+            if (p.clientId !== clientIdRef.current) {
+              showToast(`${p.name || 'Outro usuário'} entrou na edição simultânea.`, 'info', 'Colaborador Conectado');
+            }
+          });
+        });
+
+      channel.subscribe(async (status: string) => {
+        if (status === 'SUBSCRIBED') {
+          await channel.track({
+            clientId: clientIdRef.current,
+            name: userName,
+            email: userEmail,
+            color: userColor,
+            joinedAt: new Date().toISOString()
+          });
+        }
+      });
+    }
+
+    if (id) {
+      initRealtime();
+    }
+
+    return () => {
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
+    };
+  }, [id]);
 
   const fetchComments = async () => {
     const data = await getComments(id);
@@ -189,9 +309,11 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
     setIsSaving(false);
     if (showNotification) {
       if (result.success) {
-        alert("Formulário salvo no banco de dados com sucesso!");
+        const time = new Date().toLocaleTimeString('pt-BR');
+        setLastSavedTime(time);
+        showToast("Todas as perguntas, seções e configurações foram salvas com sucesso!", "success", "Questionário Salvo!");
       } else {
-        alert("Erro ao salvar: " + (result.error as any)?.message || "Erro desconhecido");
+        showToast((result.error as any)?.message || "Ocorreu um erro ao salvar as alterações.", "error", "Falha ao salvar");
       }
     }
   };
@@ -614,6 +736,28 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
             </div>
 
             <div className="flex items-center space-x-2 shrink-0">
+              {/* Online Collaborators Badge */}
+              {onlineCollaborators.length > 0 && (
+                <div className="hidden md:flex items-center space-x-1.5 bg-indigo-50/80 border border-indigo-100 px-2.5 py-1 rounded-lg">
+                  <div className="flex items-center -space-x-1.5">
+                    {onlineCollaborators.map((c, i) => (
+                      <div 
+                        key={c.clientId || i}
+                        title={`${c.name} (${c.email || 'Online'})`}
+                        style={{ backgroundColor: c.color || '#6366f1' }}
+                        className="inline-flex items-center justify-center w-6 h-6 rounded-full text-white text-[10px] font-bold ring-2 ring-white shadow-sm uppercase cursor-default"
+                      >
+                        {c.name ? c.name.slice(0, 2) : 'U'}
+                      </div>
+                    ))}
+                  </div>
+                  <span className="text-[11px] font-semibold text-indigo-700 pl-1 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    {onlineCollaborators.length} {onlineCollaborators.length === 1 ? 'colega online' : 'colegas online'}
+                  </span>
+                </div>
+              )}
+
               <button 
                 onClick={() => setIsAutoSaveEnabled(!isAutoSaveEnabled)}
                 className={`flex items-center justify-center space-x-1 px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors whitespace-nowrap ${isAutoSaveEnabled ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-slate-50 text-slate-500 border border-slate-200'}`}
@@ -1544,11 +1688,62 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                     alt="QR Code"
                     className="w-20 h-20 rounded-lg border border-white shadow-sm shrink-0"
                   />
-                  <p className="text-xs text-slate-500">Aponte a câmera do celular para abrir e preencher o formulário diretamente.</p>
                 </div>
               </div>
 
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Live Sync Realtime Pill */}
+      {lastSyncedBy && (
+        <div className="fixed top-20 right-6 z-40 animate-in fade-in slide-in-from-top-2 duration-300 pointer-events-none">
+          <div className="bg-slate-900/90 backdrop-blur-md text-white text-xs font-medium px-3.5 py-2 rounded-xl shadow-xl border border-indigo-500/30 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+            <span>Atualizado em tempo real por <strong className="text-indigo-300">{lastSyncedBy}</strong></span>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Modern Toast Notification */}
+      {toast && (
+        <div className="fixed bottom-6 right-6 z-50 animate-in fade-in slide-in-from-bottom-5 duration-300">
+          <div className={`flex items-start p-4 rounded-2xl shadow-2xl border backdrop-blur-md max-w-sm transition-all ${
+            toast.type === 'success' 
+              ? 'bg-slate-900/95 text-white border-emerald-500/40 shadow-emerald-950/30' 
+              : toast.type === 'error'
+              ? 'bg-red-950/95 text-white border-red-500/40 shadow-red-950/30'
+              : 'bg-slate-900/95 text-white border-indigo-500/40 shadow-indigo-950/30'
+          }`}>
+            <div className={`p-2 rounded-xl shrink-0 mr-3.5 ${
+              toast.type === 'success' 
+                ? 'bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/30' 
+                : toast.type === 'error'
+                ? 'bg-red-500/20 text-red-400 ring-1 ring-red-500/30'
+                : 'bg-indigo-500/20 text-indigo-400 ring-1 ring-indigo-500/30'
+            }`}>
+              {toast.type === 'success' ? (
+                <CheckCircle2 className="w-5 h-5" />
+              ) : (
+                <AlertCircle className="w-5 h-5" />
+              )}
+            </div>
+            <div className="flex-1 pt-0.5">
+              <h4 className="text-sm font-semibold tracking-tight text-white flex items-center gap-1.5">
+                {toast.title || (toast.type === 'success' ? 'Sucesso!' : 'Aviso')}
+              </h4>
+              <p className="text-xs text-slate-300 mt-1 leading-relaxed">
+                {toast.message}
+              </p>
+            </div>
+            <button 
+              onClick={() => setToast(null)}
+              className="text-slate-400 hover:text-white p-1 ml-2 rounded-lg hover:bg-white/10 transition-colors shrink-0"
+              title="Fechar"
+            >
+              <X size={16} />
+            </button>
           </div>
         </div>
       )}
