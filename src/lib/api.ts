@@ -409,6 +409,30 @@ export async function submitFormResponse(formId: string, answersData: { question
     }
   }
 
+  // 3. Broadcast realtime event to form builder
+  try {
+    const channel = supabase.channel(`form_builder_realtime_${formId}`);
+    channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        channel.send({
+          type: 'broadcast',
+          event: 'new_response_submitted',
+          payload: {
+            formId,
+            responseId,
+            submittedAt: new Date().toISOString()
+          }
+        }).then(() => {
+          setTimeout(() => {
+            supabase.removeChannel(channel);
+          }, 1000);
+        });
+      }
+    });
+  } catch (e) {
+    console.warn("Could not broadcast response submission:", e);
+  }
+
   return { success: true, responseId };
 }
 

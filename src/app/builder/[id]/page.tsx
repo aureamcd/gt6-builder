@@ -139,7 +139,24 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
     }
   }, [toast]);
 
-  // Realtime Collaboration (Supabase Channels: Broadcast + Presence)
+  const fetchComments = async () => {
+    const data = await getComments(id);
+    setFormComments(data);
+  };
+
+  const fetchResponses = async () => {
+    setIsLoadingResponses(true);
+    try {
+      const data = await getFormResponses(id);
+      setResponsesList(data);
+    } catch (err) {
+      console.error("Erro ao buscar respostas:", err);
+    } finally {
+      setIsLoadingResponses(false);
+    }
+  };
+
+  // Realtime Collaboration & Live Responses (Supabase Channels: Broadcast + Presence + Postgres Changes)
   useEffect(() => {
     let channel: any;
 
@@ -163,7 +180,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
 
       channelRef.current = channel;
 
-      // 1. Receber edições de outros usuários em tempo real
+      // 1. Receber edições do formulário em tempo real
       channel.on('broadcast', { event: 'form_schema_update' }, ({ payload }: any) => {
         if (payload && payload.senderId !== clientIdRef.current && payload.schema) {
           isRemoteUpdateRef.current = true;
@@ -178,7 +195,24 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
         }
       });
 
-      // 2. Acompanhar colaboradores online (Presence)
+      // 2. Receber novas respostas em tempo real (via Broadcast)
+      channel.on('broadcast', { event: 'new_response_submitted' }, () => {
+        fetchResponses();
+        showToast("Uma nova resposta foi registrada no formulário!", "success", "Nova Resposta Recebida! 🎉");
+      });
+
+      // 3. Receber novas respostas em tempo real (via Postgres Changes se habilitado)
+      channel.on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'responses',
+        filter: `form_id=eq.${id}`
+      }, () => {
+        fetchResponses();
+        showToast("Uma nova resposta foi registrada no formulário!", "success", "Nova Resposta Recebida! 🎉");
+      });
+
+      // 4. Acompanhar colaboradores online (Presence)
       channel
         .on('presence', { event: 'sync' }, () => {
           const state = channel.presenceState();
@@ -223,23 +257,6 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
       }
     };
   }, [id]);
-
-  const fetchComments = async () => {
-    const data = await getComments(id);
-    setFormComments(data);
-  };
-
-  const fetchResponses = async () => {
-    setIsLoadingResponses(true);
-    try {
-      const data = await getFormResponses(id);
-      setResponsesList(data);
-    } catch (err) {
-      console.error("Erro ao buscar respostas:", err);
-    } finally {
-      setIsLoadingResponses(false);
-    }
-  };
 
   useEffect(() => {
     async function loadForm() {
