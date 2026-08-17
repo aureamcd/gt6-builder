@@ -15,6 +15,9 @@ export default function Dashboard() {
   const [user, setUser] = useState<any>(null);
   const [formToDelete, setFormToDelete] = useState<{ id: string, title: string, is_shared?: boolean } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [importTokenInput, setImportTokenInput] = useState("");
+  const [importError, setImportError] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -71,29 +74,42 @@ export default function Dashboard() {
     }
   };
 
-  const handleImportToken = async () => {
-    const token = prompt("Insira o token ou link de compartilhamento do template:");
-    if (!token) return;
-    
-    // Suporta tanto o token puro quanto a URL completa
-    let cleanToken = token.trim();
+  const handleOpenImportModal = () => {
+    setIsImportModalOpen(true);
+    setImportTokenInput("");
+    setImportError(null);
+  };
+
+  const handleExecuteImport = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!importTokenInput.trim()) {
+      setImportError("Por favor, cole um token ou link válido.");
+      return;
+    }
+
+    let cleanToken = importTokenInput.trim();
     if (cleanToken.includes('import_token=')) {
-      const url = new URL(cleanToken);
-      cleanToken = url.searchParams.get('import_token') || cleanToken;
+      try {
+        const url = new URL(cleanToken);
+        cleanToken = url.searchParams.get('import_token') || cleanToken;
+      } catch (e) {
+        // use as is
+      }
     } else if (cleanToken.includes('/f/')) {
       cleanToken = cleanToken.split('/f/')[1]?.split('?')[0] || cleanToken;
     }
 
     setIsImporting(true);
+    setImportError(null);
     try {
       const newForm = await cloneFormByToken(cleanToken);
       if (newForm) {
-        alert("Template importado com sucesso! Redirecionando para o construtor...");
+        setIsImportModalOpen(false);
         router.push(`/builder/${newForm.id}`);
       }
     } catch (error: any) {
       console.error("Erro ao importar:", error);
-      alert("Erro ao importar formulário: " + (error.message || "Token inválido"));
+      setImportError(error.message || "Token ou link inválido. Verifique e tente novamente.");
     } finally {
       setIsImporting(false);
     }
@@ -148,7 +164,7 @@ export default function Dashboard() {
           </div>
           <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
             <button 
-              onClick={handleImportToken}
+              onClick={handleOpenImportModal}
               disabled={isImporting}
               className="flex-1 sm:flex-none flex items-center justify-center space-x-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-medium shadow-sm transition-all disabled:opacity-70 disabled:cursor-not-allowed"
             >
@@ -291,6 +307,60 @@ export default function Dashboard() {
                   <span>{isDeleting ? 'Removendo...' : (formToDelete.is_shared ? 'Sim, Remover' : 'Sim, Excluir')}</span>
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+        {/* Modal Bonito de Importar Template */}
+        {isImportModalOpen && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
+              <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Download size={24} />
+              </div>
+              <h3 className="text-lg font-bold text-slate-800 text-center">Importar Template</h3>
+              <p className="text-sm text-slate-500 text-center mt-1.5 leading-relaxed">
+                Cole o token ou o link completo do questionário que você recebeu para criar uma cópia na sua conta.
+              </p>
+
+              <form onSubmit={handleExecuteImport} className="mt-5 space-y-4">
+                <div>
+                  <input
+                    type="text"
+                    autoFocus
+                    placeholder="Cole aqui o token ou link..."
+                    value={importTokenInput}
+                    onChange={(e) => {
+                      setImportTokenInput(e.target.value);
+                      if (importError) setImportError(null);
+                    }}
+                    className="w-full text-sm text-slate-900 bg-slate-50 border border-slate-300 focus:border-indigo-500 focus:bg-white rounded-xl px-3.5 py-2.5 outline-none transition-all shadow-inner"
+                  />
+                  {importError && (
+                    <p className="text-xs text-red-600 font-medium mt-1.5 pl-1">
+                      {importError}
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-center space-x-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => { setIsImportModalOpen(false); setImportError(null); }}
+                    disabled={isImporting}
+                    className="flex-1 py-2.5 px-4 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-medium text-sm transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isImporting}
+                    className="flex-1 py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm transition-colors shadow-sm flex items-center justify-center space-x-1.5 disabled:opacity-70"
+                  >
+                    {isImporting ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                    <span>{isImporting ? 'Importando...' : 'Importar e Abrir'}</span>
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}
