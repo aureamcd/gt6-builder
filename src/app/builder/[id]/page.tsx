@@ -8,7 +8,7 @@ import {
   ArrowLeft, BarChart3, Inbox, FileDown, CheckCircle2
 } from "lucide-react";
 import { Form, Section, Question, QuestionType, Option, FormComment } from "../../../types/form";
-import { saveFormState, getFormById, generateShareToken, getComments, getFormResponses, deleteForm } from "../../../lib/api";
+import { saveFormState, getFormById, generateShareToken, getComments, getFormResponses, deleteForm, registerAccessedForm } from "../../../lib/api";
 import CommentsPanel from "../../../components/CommentsPanel";
 import { MessageSquare } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
@@ -133,6 +133,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
           }
           fetchComments();
           fetchResponses();
+          registerAccessedForm(id);
 
           // Check if URL has ?tab=responses
           if (typeof window !== 'undefined') {

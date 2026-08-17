@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { getForms, createEmptyForm, cloneFormByToken, deleteForm } from "../lib/api";
 import { Form } from "../types/form";
-import { Plus, FileText, Loader2, ArrowRight, Save, Download, FileCode, LogOut, BarChart3, Trash2 } from "lucide-react";
+import { Plus, FileText, Loader2, ArrowRight, Save, Download, FileCode, LogOut, BarChart3, Trash2, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase";
 
@@ -13,7 +13,7 @@ export default function Dashboard() {
   const [isCreating, setIsCreating] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [user, setUser] = useState<any>(null);
-  const [formToDelete, setFormToDelete] = useState<{ id: string, title: string } | null>(null);
+  const [formToDelete, setFormToDelete] = useState<{ id: string, title: string, is_shared?: boolean } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const router = useRouter();
 
@@ -103,12 +103,22 @@ export default function Dashboard() {
     if (!formToDelete) return;
     setIsDeleting(true);
     try {
-      await deleteForm(formToDelete.id);
+      if (formToDelete.is_shared) {
+        // Remover apenas da visualização local do usuário
+        if (typeof window !== 'undefined') {
+          const accessed: string[] = JSON.parse(localStorage.getItem('gt6_accessed_forms') || '[]');
+          const updated = accessed.filter(id => id !== formToDelete.id);
+          localStorage.setItem('gt6_accessed_forms', JSON.stringify(updated));
+        }
+      } else {
+        // Excluir permanentemente do banco (é o autor original)
+        await deleteForm(formToDelete.id);
+      }
       setForms(prev => prev.filter(f => f.id !== formToDelete.id));
       setFormToDelete(null);
     } catch (err: any) {
-      console.error("Erro ao excluir formulário:", err);
-      alert("Erro ao excluir formulário: " + (err.message || "Erro inesperado"));
+      console.error("Erro ao remover formulário:", err);
+      alert("Erro ao remover formulário: " + (err.message || "Erro inesperado"));
     } finally {
       setIsDeleting(false);
     }
@@ -190,16 +200,28 @@ export default function Dashboard() {
               >
                 <div>
                   <div className="flex items-start justify-between mb-3">
-                    <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg group-hover:bg-indigo-600 group-hover:text-white transition-colors">
-                      <FileText size={20} />
+                    <div className="flex items-center space-x-2">
+                      <div className={`p-2 rounded-lg transition-colors ${form.is_shared ? 'bg-purple-50 text-purple-600 group-hover:bg-purple-600 group-hover:text-white' : 'bg-indigo-50 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white'}`}>
+                        <FileText size={20} />
+                      </div>
+                      {form.is_shared ? (
+                        <span className="inline-flex items-center space-x-1 text-[11px] font-bold bg-purple-50 text-purple-700 border border-purple-200 px-2 py-0.5 rounded-full">
+                          <Users size={11} />
+                          <span>Compartilhado</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center space-x-1 text-[11px] font-medium bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
+                          <span>Meu</span>
+                        </span>
+                      )}
                     </div>
                     <button 
                       onClick={(e) => {
                         e.stopPropagation();
-                        setFormToDelete({ id: form.id, title: form.title });
+                        setFormToDelete({ id: form.id, title: form.title, is_shared: form.is_shared });
                       }}
                       className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Excluir formulário"
+                      title={form.is_shared ? "Remover da minha lista" : "Excluir formulário"}
                     >
                       <Trash2 size={16} />
                     </button>
@@ -240,12 +262,16 @@ export default function Dashboard() {
               <div className="w-12 h-12 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Trash2 size={24} />
               </div>
-              <h3 className="text-lg font-bold text-slate-800 text-center">Excluir Questionário?</h3>
+              <h3 className="text-lg font-bold text-slate-800 text-center">
+                {formToDelete.is_shared ? 'Remover da sua lista?' : 'Excluir Questionário?'}
+              </h3>
               <p className="text-sm text-slate-500 text-center mt-2 leading-relaxed">
-                Você tem certeza que deseja excluir o questionário <strong className="text-slate-800">"{formToDelete.title}"</strong>?
+                Você tem certeza que deseja {formToDelete.is_shared ? 'remover' : 'excluir'} o questionário <strong className="text-slate-800">"{formToDelete.title}"</strong>?
               </p>
-              <div className="mt-2 p-3 bg-red-50 rounded-lg text-xs text-red-700 text-center border border-red-100">
-                Esta ação apagará permanentemente todas as perguntas e respostas recebidas.
+              <div className={`mt-2 p-3 rounded-lg text-xs text-center border ${formToDelete.is_shared ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-red-50 text-red-700 border-red-100'}`}>
+                {formToDelete.is_shared 
+                  ? 'O formulário será removido apenas da sua visualização e continuará ativo para o criador.' 
+                  : 'Esta ação apagará permanentemente todas as perguntas e respostas recebidas.'}
               </div>
 
               <div className="mt-6 flex items-center justify-center space-x-3">
@@ -262,7 +288,7 @@ export default function Dashboard() {
                   className="flex-1 py-2.5 px-4 rounded-xl bg-red-600 hover:bg-red-700 text-white font-medium text-sm transition-colors shadow-sm flex items-center justify-center space-x-1.5 disabled:opacity-70"
                 >
                   {isDeleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
-                  <span>{isDeleting ? 'Excluindo...' : 'Sim, Excluir'}</span>
+                  <span>{isDeleting ? 'Removendo...' : (formToDelete.is_shared ? 'Sim, Remover' : 'Sim, Excluir')}</span>
                 </button>
               </div>
             </div>
