@@ -695,14 +695,13 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
       {/* Main Workspace */}
       <main className="flex-1 flex flex-col h-screen overflow-hidden min-w-0">
         {/* Top Navbar */}
-        <header className="h-16 bg-white border-b border-slate-200 px-3 sm:px-5 shadow-sm shrink-0 overflow-x-auto">
-          <div className="flex items-center justify-between min-w-[780px] h-full gap-4">
-            <div className="flex items-center space-x-2 shrink-0">
+        <header className="h-16 bg-white border-b border-slate-200 px-2 sm:px-4 shadow-sm shrink-0 flex items-center justify-between gap-1 sm:gap-2 lg:gap-4 overflow-hidden">
+            <div className="flex items-center space-x-1 sm:space-x-2 shrink-0 overflow-hidden">
               <button 
                 onClick={handleUndo} 
                 disabled={history.length === 0}
                 title="Desfazer (Ctrl+Z)"
-                className="flex items-center justify-center p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg disabled:opacity-30 disabled:hover:text-slate-500 disabled:hover:bg-transparent transition-colors shrink-0"
+                className="flex items-center justify-center p-1 sm:p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg disabled:opacity-30 disabled:hover:text-slate-500 disabled:hover:bg-transparent transition-colors shrink-0"
               >
                 <Undo2 size={18} />
               </button>
@@ -710,25 +709,25 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                 onClick={handleRedo} 
                 disabled={future.length === 0}
                 title="Refazer (Ctrl+Y)"
-                className="flex items-center justify-center p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg disabled:opacity-30 disabled:hover:text-slate-500 disabled:hover:bg-transparent transition-colors shrink-0"
+                className="flex items-center justify-center p-1 sm:p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg disabled:opacity-30 disabled:hover:text-slate-500 disabled:hover:bg-transparent transition-colors shrink-0"
               >
                 <Redo2 size={18} />
               </button>
               <button 
                 onClick={() => setIsMobileMenuOpen(true)}
-                className="md:hidden p-1.5 -ml-1 text-slate-600 hover:bg-slate-100 rounded-md shrink-0"
+                className="md:hidden p-1.5 text-slate-600 hover:bg-slate-100 rounded-md shrink-0"
               >
                 <Menu size={18} />
               </button>
-              <a href="/" className="inline-flex items-center text-xs font-semibold text-slate-700 hover:text-indigo-600 bg-slate-100 hover:bg-indigo-50 px-2.5 py-1.5 rounded-lg transition-colors whitespace-nowrap shrink-0 gap-1">
+              <a href="/" className="inline-flex items-center text-xs font-semibold text-slate-700 hover:text-indigo-600 bg-slate-100 hover:bg-indigo-50 px-2 py-1.5 rounded-lg transition-colors whitespace-nowrap shrink-0 gap-1">
                 <ArrowLeft size={14} />
-                <span>Questionários</span>
+                <span className="hidden lg:inline">Questionários</span>
               </a>
               <input 
                 value={schema.title}
                 onChange={(e) => setSchema(prev => prev ? {...prev, title: e.target.value} : prev)}
-                className="font-bold text-slate-800 text-sm sm:text-base bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-500 focus:outline-none px-2 py-1 w-44 sm:w-56 truncate"
-                placeholder="Título do questionário..."
+                className="font-bold text-slate-800 text-sm sm:text-base bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-500 focus:outline-none px-1 sm:px-2 py-1 w-20 sm:w-32 md:w-44 lg:w-56 truncate"
+                placeholder="Título..."
               />
             </div>
 
@@ -736,26 +735,29 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
             <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 shrink-0">
               <button
                 onClick={() => setActiveTab('builder')}
-                className={`flex items-center space-x-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${activeTab === 'builder' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+                className={`flex items-center space-x-1.5 px-2 sm:px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${activeTab === 'builder' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+                title="Construtor"
               >
-                <span>Construtor</span>
+                <span className="hidden md:inline">Construtor</span>
+                <span className="md:hidden"><Menu size={14} /></span>
               </button>
               <button
                 onClick={() => { setActiveTab('responses'); fetchResponses(); }}
-                className={`flex items-center space-x-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${activeTab === 'responses' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+                className={`flex items-center space-x-1.5 px-2 sm:px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${activeTab === 'responses' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+                title="Respostas"
               >
                 <BarChart3 size={13} />
-                <span>Respostas</span>
+                <span className="hidden md:inline">Respostas</span>
                 <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${activeTab === 'responses' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-200 text-slate-600'}`}>
                   {responsesList.length}
                 </span>
               </button>
             </div>
 
-            <div className="flex items-center space-x-2 shrink-0">
+            <div className="flex items-center space-x-1 sm:space-x-2 shrink-0">
               {/* Online Collaborators Badge */}
               {onlineCollaborators.length > 0 && (
-                <div className="hidden md:flex items-center space-x-1.5 bg-indigo-50/80 border border-indigo-100 px-2.5 py-1 rounded-lg">
+                <div className="hidden xl:flex items-center space-x-1.5 bg-indigo-50/80 border border-indigo-100 px-2.5 py-1 rounded-lg">
                   <div className="flex items-center -space-x-1.5">
                     {onlineCollaborators.map((c, i) => (
                       <div 
@@ -770,14 +772,14 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                   </div>
                   <span className="text-[11px] font-semibold text-indigo-700 pl-1 flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    {onlineCollaborators.length} {onlineCollaborators.length === 1 ? 'colega online' : 'colegas online'}
+                    {onlineCollaborators.length} {onlineCollaborators.length === 1 ? 'colega' : 'colegas'}
                   </span>
                 </div>
               )}
 
               <button 
                 onClick={() => setIsAutoSaveEnabled(!isAutoSaveEnabled)}
-                className={`flex items-center justify-center space-x-1 px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors whitespace-nowrap ${isAutoSaveEnabled ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-slate-50 text-slate-500 border border-slate-200'}`}
+                className={`flex items-center justify-center space-x-1 px-2 py-1.5 text-xs font-medium rounded-lg transition-colors whitespace-nowrap ${isAutoSaveEnabled ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-slate-50 text-slate-500 border border-slate-200'}`}
                 title={isAutoSaveEnabled ? (lastSavedTime ? `Salvamento Automático Ativado (Último: ${lastSavedTime})` : "Salvamento Automático Ativado") : "Salvamento Automático Desativado"}
               >
                 <div className={`w-2 h-2 rounded-full ${isAutoSaveEnabled ? (isSaving ? 'bg-amber-500 animate-ping' : 'bg-indigo-500 animate-pulse') : 'bg-slate-300'}`}></div>
@@ -792,28 +794,30 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                   }
                   setIsShareModalOpen(true);
                 }}
-                className="flex items-center justify-center space-x-1.5 px-3 py-2 text-xs sm:text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg shadow-sm hover:bg-slate-50 transition-colors shrink-0 whitespace-nowrap"
+                className="flex items-center justify-center space-x-1.5 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg shadow-sm hover:bg-slate-50 transition-colors shrink-0 whitespace-nowrap"
+                title="Compartilhar"
               >
                 <Share2 size={15} />
-                <span>Compartilhar</span>
+                <span className="hidden md:inline">Compartilhar</span>
               </button>
               <button 
                 onClick={() => window.open(`/preview/${id}`, '_blank')}
-                className="flex items-center justify-center space-x-1.5 px-3 py-2 text-xs sm:text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg shadow-sm hover:bg-slate-50 transition-colors shrink-0 whitespace-nowrap"
+                className="flex items-center justify-center space-x-1.5 px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg shadow-sm hover:bg-slate-50 transition-colors shrink-0 whitespace-nowrap"
+                title="Pré-visualizar"
               >
                 <ExternalLink size={15} />
-                <span>Pré-visualizar</span>
+                <span className="hidden md:inline">Pré-visualizar</span>
               </button>
               <button 
                 onClick={() => handleSave(true)}
                 disabled={isSaving}
-                className={`flex items-center justify-center space-x-1.5 px-3.5 py-2 text-xs sm:text-sm font-medium text-white rounded-lg shadow-sm transition-colors shrink-0 whitespace-nowrap ${isSaving ? 'bg-indigo-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'}`}
+                className={`flex items-center justify-center space-x-1.5 px-3 py-2 text-xs sm:text-sm font-medium text-white rounded-lg shadow-sm transition-colors shrink-0 whitespace-nowrap ${isSaving ? 'bg-indigo-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'}`}
+                title="Salvar Formulário"
               >
                 {isSaving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
-                <span>{isSaving ? 'Salvando...' : 'Salvar'}</span>
+                <span className="hidden sm:inline">{isSaving ? 'Salvando...' : 'Salvar'}</span>
               </button>
             </div>
-          </div>
         </header>
 
         {/* Canvas Area or Responses Area */}
