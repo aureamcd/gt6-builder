@@ -5,10 +5,10 @@ import {
   GripVertical, Plus, Settings, ChevronDown, CheckSquare, 
   Type, List, AlignLeft, Grid, Eye, Save, Play, Layers, Trash2, X, Loader2, Menu, Video, 
   Calendar, UploadCloud, Headphones, Image as ImageIcon, FileText, ExternalLink, Share2, Copy, Undo2, Redo2, Users, Globe, FileCode,
-  ArrowLeft, BarChart3, Inbox, FileDown, CheckCircle2, AlertCircle
+  ArrowLeft, BarChart3, Inbox, FileDown, CheckCircle2, AlertCircle, Lock, Key, RefreshCw
 } from "lucide-react";
 import { Form, Section, Question, QuestionType, Option, FormComment } from "../../../types/form";
-import { saveFormState, getFormById, generateShareToken, getComments, getFormResponses, deleteForm, registerAccessedForm } from "../../../lib/api";
+import { saveFormState, getFormById, generateShareToken, getComments, getFormResponses, deleteForm, registerAccessedForm, generateAccessToken } from "../../../lib/api";
 import CommentsPanel from "../../../components/CommentsPanel";
 import { MessageSquare } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
@@ -658,6 +658,112 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
 
           <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mt-8 mb-4">Configurações Globais</h2>
           <div className="space-y-4">
+            {/* Privacidade & Acesso */}
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wide">
+                Privacidade do Questionário
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSchema(prev => prev ? {
+                      ...prev,
+                      settings: {
+                        ...(prev.settings || {}),
+                        visibility: 'public'
+                      }
+                    } : prev);
+                  }}
+                  className={`flex items-center justify-center space-x-1.5 py-2 px-2 rounded-lg text-xs font-semibold border transition-all ${
+                    (schema?.settings?.visibility || 'public') === 'public'
+                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  <Globe size={13} />
+                  <span>Público</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const currentToken = schema?.settings?.access_token || generateAccessToken();
+                    setSchema(prev => prev ? {
+                      ...prev,
+                      settings: {
+                        ...(prev.settings || {}),
+                        visibility: 'private',
+                        access_token: currentToken
+                      }
+                    } : prev);
+                  }}
+                  className={`flex items-center justify-center space-x-1.5 py-2 px-2 rounded-lg text-xs font-semibold border transition-all ${
+                    schema?.settings?.visibility === 'private'
+                      ? 'bg-amber-500 text-white border-amber-500 shadow-xs'
+                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  <Lock size={13} />
+                  <span>Privado</span>
+                </button>
+              </div>
+
+              {schema?.settings?.visibility === 'private' && (
+                <div className="pt-2 border-t border-slate-200/80 space-y-2 animate-in fade-in duration-150">
+                  <div className="flex items-center justify-between text-[11px] font-medium text-slate-600">
+                    <span className="flex items-center gap-1 font-bold text-amber-900"><Key size={12} className="text-amber-600" /> Token de Acesso:</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newToken = generateAccessToken();
+                        setSchema(prev => prev ? {
+                          ...prev,
+                          settings: { ...(prev.settings || {}), access_token: newToken }
+                        } : prev);
+                      }}
+                      className="text-indigo-600 hover:text-indigo-800 text-[10px] font-bold flex items-center gap-0.5"
+                      title="Gerar outro código"
+                    >
+                      <RefreshCw size={10} />
+                      <span>Gerar outro</span>
+                    </button>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <input
+                      type="text"
+                      value={schema?.settings?.access_token || ''}
+                      onChange={(e) => {
+                        const val = e.target.value.toUpperCase();
+                        setSchema(prev => prev ? {
+                          ...prev,
+                          settings: { ...(prev.settings || {}), access_token: val }
+                        } : prev);
+                      }}
+                      placeholder="Ex: GT-4821"
+                      className="w-full text-xs font-mono font-bold tracking-wider uppercase text-slate-800 bg-white border border-amber-300 rounded px-2 py-1.5 outline-none focus:border-indigo-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (schema?.settings?.access_token) {
+                          navigator.clipboard.writeText(schema.settings.access_token);
+                          showToast("Token copiado para a área de transferência!", "success");
+                        }
+                      }}
+                      className="p-1.5 bg-white border border-slate-300 hover:bg-slate-100 rounded text-slate-600"
+                      title="Copiar token"
+                    >
+                      <Copy size={13} />
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-slate-500 leading-tight">
+                    Os respondentes deverão digitar este token para liberar o formulário.
+                  </p>
+                </div>
+              )}
+            </div>
+
             <label className="flex items-start space-x-3 cursor-pointer p-2 rounded hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-200">
               <input 
                 type="checkbox"
@@ -1697,11 +1803,72 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
             
             <div className="p-6 space-y-6 overflow-y-auto">
               
+              {/* Status de Privacidade Banner */}
+              {schema.settings?.visibility === 'private' ? (
+                <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2 text-amber-800 font-bold text-sm">
+                      <Lock size={18} className="text-amber-600" />
+                      <span>Formulário Privado (Protegido por Token)</span>
+                    </div>
+                    <span className="text-[10px] font-bold uppercase bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full">Bloqueado</span>
+                  </div>
+                  <p className="text-xs text-amber-900 leading-relaxed">
+                    Os respondentes precisarão digitar o código abaixo para ter acesso ao formulário.
+                  </p>
+                  <div className="flex items-center justify-between bg-white border border-amber-300 rounded-lg p-2.5">
+                    <div>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Código de Acesso</span>
+                      <span className="font-mono font-bold text-base text-slate-800 tracking-widest">{schema.settings?.access_token || 'N/A'}</span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        if (schema.settings?.access_token) {
+                          navigator.clipboard.writeText(schema.settings.access_token);
+                          setCopiedKey('token');
+                          setTimeout(() => setCopiedKey(null), 2000);
+                        }
+                      }}
+                      className="px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-900 font-semibold text-xs rounded-md transition-colors flex items-center gap-1"
+                    >
+                      {copiedKey === 'token' ? <CheckSquare size={14} /> : <Copy size={14} />}
+                      <span>{copiedKey === 'token' ? 'Copiado!' : 'Copiar Código'}</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center space-x-3 text-emerald-800">
+                  <div className="p-2 bg-emerald-100 rounded-lg shrink-0">
+                    <Globe size={18} className="text-emerald-700" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-xs sm:text-sm text-emerald-900">Formulário Público (Acesso Livre)</h4>
+                    <p className="text-xs text-emerald-700">Qualquer pessoa com o link pode abrir e responder diretamente sem digitar código.</p>
+                  </div>
+                </div>
+              )}
+
               {/* Opção 1: Respostas Públicas */}
               <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
-                <div className="flex items-center space-x-2 text-indigo-700 font-semibold text-sm">
-                  <Globe size={18} />
-                  <span>1. Link Público de Respostas</span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2 text-indigo-700 font-semibold text-sm">
+                    <Globe size={18} />
+                    <span>1. Link para Respondentes</span>
+                  </div>
+                  {schema.settings?.visibility === 'private' && (
+                    <button
+                      onClick={() => {
+                        const msg = `Acesse o questionário no link:\n${window.location.origin}/f/${schema.share_token}\n\nCódigo de Acesso: ${schema.settings?.access_token || ''}`;
+                        navigator.clipboard.writeText(msg);
+                        setCopiedKey('full_msg');
+                        setTimeout(() => setCopiedKey(null), 2000);
+                      }}
+                      className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 underline decoration-indigo-300 flex items-center gap-1"
+                      title="Copiar link formatado junto com o código de acesso"
+                    >
+                      <span>{copiedKey === 'full_msg' ? '✓ Link + Código Copiados!' : 'Copiar Link + Código'}</span>
+                    </button>
+                  )}
                 </div>
                 <p className="text-xs text-slate-500">Envie este link para as pessoas responderem e enviarem dados do questionário.</p>
                 <div className="flex">
@@ -1709,7 +1876,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                     type="text" 
                     readOnly
                     value={typeof window !== 'undefined' ? `${window.location.origin}/f/${schema.share_token}` : ''}
-                    className="flex-1 bg-white border border-slate-200 rounded-l-lg px-3 py-2 text-xs sm:text-sm text-slate-600 outline-none select-all"
+                    className="flex-1 bg-white border border-slate-200 rounded-l-lg px-3 py-2 text-xs sm:text-sm text-slate-600 outline-none select-all font-mono"
                   />
                   <button 
                     onClick={() => {
@@ -1720,7 +1887,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                     className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-white rounded-r-lg transition-colors flex items-center shrink-0 ${copiedKey === 'public' ? 'bg-green-600' : 'bg-indigo-600 hover:bg-indigo-700'}`}
                   >
                     {copiedKey === 'public' ? <CheckSquare size={16} className="mr-1" /> : <Copy size={16} className="mr-1" />}
-                    {copiedKey === 'public' ? 'Copiado!' : 'Copiar'}
+                    {copiedKey === 'public' ? 'Copiado!' : 'Copiar Link'}
                   </button>
                 </div>
               </div>

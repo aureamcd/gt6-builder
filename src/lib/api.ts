@@ -110,11 +110,26 @@ export async function getFormById(id: string): Promise<Form | null> {
   };
 }
 
-export async function createEmptyForm(title: string = "Novo Formulário"): Promise<Form> {
+export function generateAccessToken(prefix: string = "GT-"): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let result = "";
+  for (let i = 0; i < 4; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return `${prefix}${result}`;
+}
+
+export async function createEmptyForm(
+  title: string = "Novo Formulário",
+  settings?: import('../types/form').FormSettings
+): Promise<Form> {
   const { data: authData } = await supabase.auth.getUser();
   const userId = authData.user?.id || null;
 
   const newFormId = generateUUID();
+  const shareToken = generateUUID();
+  const defaultSettings: import('../types/form').FormSettings = settings || { visibility: 'public' };
+
   const form: Form = {
     id: newFormId,
     title,
@@ -122,6 +137,8 @@ export async function createEmptyForm(title: string = "Novo Formulário"): Promi
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     user_id: userId || "",
+    share_token: shareToken,
+    settings: defaultSettings,
     sections: []
   };
 
@@ -130,7 +147,9 @@ export async function createEmptyForm(title: string = "Novo Formulário"): Promi
     title: form.title,
     created_at: form.created_at,
     updated_at: form.updated_at,
-    user_id: userId
+    user_id: userId,
+    share_token: shareToken,
+    settings: defaultSettings
   });
   if (error) throw error;
   

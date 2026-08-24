@@ -14,6 +14,13 @@ export type QuestionType =
   | 'MEDIA_IMAGE'
   | 'TEXT_MARKDOWN';
 
+export interface FormSettings {
+  visibility?: 'public' | 'private';
+  access_token?: string | null;
+  show_estimated_time?: boolean;
+  [key: string]: any;
+}
+
 export interface Form {
   id: string;
   title: string;
@@ -23,7 +30,7 @@ export interface Form {
   updated_at?: string;
   user_id: string;
   share_token?: string;
-  settings?: any;
+  settings?: FormSettings | null;
   sections?: Section[];
   is_shared?: boolean;
 }

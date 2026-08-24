@@ -4,7 +4,7 @@ import React, { useState, useEffect, use } from "react";
 import { Form, Section, Question } from "../../../types/form";
 import { getFormByShareToken, submitFormResponse } from "../../../lib/api";
 import { supabase } from "../../../lib/supabase";
-import { Loader2, ChevronRight, ChevronLeft, Calendar, UploadCloud, FileText, Headphones, Video } from "lucide-react";
+import { Loader2, ChevronRight, ChevronLeft, Calendar, UploadCloud, FileText, Headphones, Video, Lock, Key, ArrowRight, ShieldCheck, AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function PublicFormPage({ params }: { params: Promise<{ token: string }> }) {
@@ -17,26 +17,33 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasSubmitted, setHasSubmitted] = useState(false);
 
+  // Private Form Passcode Lock State
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [inputPasscode, setInputPasscode] = useState("");
+  const [passcodeError, setPasscodeError] = useState<string | null>(null);
+
   const handleAnswerChange = (questionId: string, value: any) => {
     setAnswers(prev => ({ ...prev, [questionId]: value }));
   };
 
   useEffect(() => {
-    async function checkAuthAndLoadForm() {
+    async function loadForm() {
       try {
-        // 1. Check Authentication (Opcional - podemos manter fechado ou aberto)
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
-          router.push(`/login?redirectTo=/f/${token}`);
-          return;
-        }
-
-        // 2. Fetch from database using the token
+        // Fetch from database using the share token
         const dbData = await getFormByShareToken(token);
         if (dbData) {
           setSchema(dbData);
+          
+          // Verificar se o formulário é privado e requer código de acesso
+          const isPrivate = dbData.settings?.visibility === 'private' && Boolean(dbData.settings?.access_token);
+          if (isPrivate) {
+            const alreadyVerified = typeof window !== 'undefined' && sessionStorage.getItem(`gt6_form_unlocked_${dbData.id}`) === 'true';
+            setIsUnlocked(alreadyVerified);
+          } else {
+            // Formulário público tem acesso livre imediato
+            setIsUnlocked(true);
+          }
         } else {
-          // Token inválido
           setSchema(null);
         }
       } catch (error) {
@@ -45,12 +52,91 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
         setIsLoading(false);
       }
     }
-    checkAuthAndLoadForm();
+    loadForm();
+  }, [token]);
 
-  }, [token, router]);
+  const handleUnlockPrivateForm = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!schema || !schema.settings?.access_token) return;
+
+    const expectedToken = schema.settings.access_token.trim().toUpperCase();
+    const enteredToken = inputPasscode.trim().toUpperCase();
+
+    if (enteredToken === expectedToken) {
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem(`gt6_form_unlocked_${schema.id}`, 'true');
+      }
+      setIsUnlocked(true);
+      setPasscodeError(null);
+    } else {
+      setPasscodeError("Código de acesso incorreto. Verifique e tente novamente.");
+    }
+  };
 
   if (isLoading) return <div className="flex h-screen items-center justify-center bg-slate-50"><Loader2 className="animate-spin text-indigo-600" size={32} /></div>;
   if (!schema) return <div className="flex h-screen items-center justify-center bg-slate-50 text-slate-500">Formulário não encontrado ou link inválido.</div>;
+
+  // Se for formulário privado e ainda não foi desbloqueado com o token
+  if (!isUnlocked) {
+    return (
+      <div className="min-h-screen bg-slate-100 font-sans flex flex-col items-center justify-center p-4">
+        <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200 p-8 animate-in fade-in zoom-in-95 duration-200">
+          <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-6 ring-8 ring-amber-50/50 shadow-inner">
+            <Lock size={32} />
+          </div>
+
+          <div className="text-center mb-6">
+            <span className="inline-flex items-center space-x-1 text-[11px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800 px-2.5 py-1 rounded-full mb-3">
+              <Key size={12} className="mr-1" /> Formulário Privado
+            </span>
+            <h1 className="text-xl font-bold text-slate-800 tracking-tight leading-snug">
+              {schema.title || "Questionário Protegido"}
+            </h1>
+            <p className="text-sm text-slate-500 mt-2 leading-relaxed">
+              Este formulário requer um código de acesso para ser respondido. Digite o token fornecido pelo autor abaixo:
+            </p>
+          </div>
+
+          <form onSubmit={handleUnlockPrivateForm} className="space-y-4">
+            <div>
+              <input 
+                type="text"
+                autoFocus
+                value={inputPasscode}
+                onChange={(e) => {
+                  setInputPasscode(e.target.value.toUpperCase());
+                  if (passcodeError) setPasscodeError(null);
+                }}
+                placeholder="Ex: GT-4821"
+                className="w-full font-mono text-center font-bold tracking-widest text-lg text-slate-900 bg-slate-50 border border-slate-300 focus:border-indigo-600 focus:bg-white focus:ring-2 focus:ring-indigo-100 rounded-xl px-4 py-3 outline-none uppercase transition-all shadow-inner"
+              />
+              {passcodeError && (
+                <div className="flex items-center space-x-1.5 text-xs text-red-600 font-semibold mt-2 pl-1 animate-in fade-in">
+                  <AlertCircle size={14} className="shrink-0" />
+                  <span>{passcodeError}</span>
+                </div>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              disabled={!inputPasscode.trim()}
+              className="w-full py-3.5 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold text-sm transition-all shadow-md shadow-indigo-200 flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            >
+              <span>Acessar Questionário</span>
+              <ArrowRight size={16} />
+            </button>
+          </form>
+
+          <div className="mt-8 pt-4 border-t border-slate-100 text-center">
+            <p className="text-xs text-slate-400">
+              Ambiente Seguro • Plataforma de Maturidade GT6
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const sections = schema.sections || [];
   const currentSection = sections[activeSectionIndex];
