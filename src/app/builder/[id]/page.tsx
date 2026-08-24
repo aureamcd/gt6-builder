@@ -1,16 +1,18 @@
 "use client";
 
-import React, { useState, useEffect, use } from "react";
+import React, { useState, useEffect, use, useRef } from "react";
 import { 
   GripVertical, Plus, Settings, ChevronDown, CheckSquare, 
   Type, List, AlignLeft, Grid, Eye, Save, Play, Layers, Trash2, X, Loader2, Menu, Video, 
-  Calendar, UploadCloud, Headphones, Image as ImageIcon, FileText, ExternalLink, Share2, Copy, Undo2, Redo2, Users, Globe, FileCode
+  Calendar, UploadCloud, Headphones, Image as ImageIcon, FileText, ExternalLink, Share2, Copy, Undo2, Redo2, Users, Globe, FileCode,
+  ArrowLeft, BarChart3, Inbox, FileDown, CheckCircle2, AlertCircle
 } from "lucide-react";
 import { Form, Section, Question, QuestionType, Option, FormComment } from "../../../types/form";
-import { saveFormState, getFormById, generateShareToken, getComments } from "../../../lib/api";
+import { saveFormState, getFormById, generateShareToken, getComments, getFormResponses, deleteForm, registerAccessedForm } from "../../../lib/api";
 import CommentsPanel from "../../../components/CommentsPanel";
 import { MessageSquare } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
+import { useRouter } from "next/navigation";
 
 const generateId = () => crypto.randomUUID();
 
@@ -52,6 +54,13 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
   const [history, setHistory] = useState<Form[]>([]);
   const [future, setFuture] = useState<Form[]>([]);
 
+  const clientIdRef = useRef(generateId());
+  const channelRef = useRef<any>(null);
+  const isRemoteUpdateRef = useRef(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [onlineCollaborators, setOnlineCollaborators] = useState<Array<{ clientId: string, name: string, email: string, color: string }>>([]);
+  const [lastSyncedBy, setLastSyncedBy] = useState<string | null>(null);
+
   const setSchema = (newSchemaOrUpdater: React.SetStateAction<Form | null>) => {
     _setSchema(prev => {
       const nextSchema = typeof newSchemaOrUpdater === 'function' ? (newSchemaOrUpdater as any)(prev) : newSchemaOrUpdater;
@@ -59,6 +68,20 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
       if (prev && nextSchema && JSON.stringify(prev) !== JSON.stringify(nextSchema)) {
         setHistory(h => [...h, prev].slice(-50));
         setFuture([]);
+
+        // Broadcast alterações em tempo real para outros colaboradores conectados
+        if (channelRef.current && !isRemoteUpdateRef.current) {
+          channelRef.current.send({
+            type: 'broadcast',
+            event: 'form_schema_update',
+            payload: {
+              schema: nextSchema,
+              senderId: clientIdRef.current,
+              senderName: currentUser?.user_metadata?.name || currentUser?.email?.split('@')[0] || 'Colega',
+              timestamp: Date.now()
+            }
+          });
+        }
       }
       
       return nextSchema;
@@ -80,6 +103,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
     setFuture(f => f.slice(1));
     _setSchema(next);
   };
+  const router = useRouter();
   const [activeSectionId, setActiveSectionId] = useState<string>("");
   const [selectedQuestionId, setSelectedQuestionId] = useState<string | null>(null);
   const [selectedElementType, setSelectedElementType] = useState<'question' | 'section' | null>(null);
@@ -89,17 +113,150 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
   const [isLoading, setIsLoading] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeletingForm, setIsDeletingForm] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [isAutoSaveEnabled, setIsAutoSaveEnabled] = useState(true);
   const [lastSavedTime, setLastSavedTime] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'builder' | 'responses'>('builder');
+  const [responsesList, setResponsesList] = useState<any[]>([]);
+  const [isLoadingResponses, setIsLoadingResponses] = useState(false);
   const [formComments, setFormComments] = useState<FormComment[]>([]);
   const [activeCommentElement, setActiveCommentElement] = useState<{id: string, title: string} | null>(null);
   const [dragEnabledSubQId, setDragEnabledSubQId] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info'; title?: string } | null>(null);
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success', title?: string) => {
+    setToast({ message, type, title });
+  };
+
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => {
+        setToast(null);
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
 
   const fetchComments = async () => {
     const data = await getComments(id);
     setFormComments(data);
   };
+
+  const fetchResponses = async () => {
+    setIsLoadingResponses(true);
+    try {
+      const data = await getFormResponses(id);
+      setResponsesList(data);
+    } catch (err) {
+      console.error("Erro ao buscar respostas:", err);
+    } finally {
+      setIsLoadingResponses(false);
+    }
+  };
+
+  // Realtime Collaboration & Live Responses (Supabase Channels: Broadcast + Presence + Postgres Changes)
+  useEffect(() => {
+    let channel: any;
+
+    async function initRealtime() {
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
+      if (user) {
+        setCurrentUser(user);
+      }
+      const userName = user?.user_metadata?.name || user?.email?.split('@')[0] || 'Usuário';
+      const userEmail = user?.email || '';
+      const colors = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#3b82f6', '#14b8a6'];
+      const userColor = colors[Math.floor(Math.random() * colors.length)];
+
+      channel = supabase.channel(`form_builder_realtime_${id}`, {
+        config: {
+          broadcast: { self: false },
+          presence: { key: clientIdRef.current }
+        }
+      });
+
+      channelRef.current = channel;
+
+      // 1. Receber edições do formulário em tempo real
+      channel.on('broadcast', { event: 'form_schema_update' }, ({ payload }: any) => {
+        if (payload && payload.senderId !== clientIdRef.current && payload.schema) {
+          isRemoteUpdateRef.current = true;
+          _setSchema(payload.schema);
+          setLastSyncedBy(payload.senderName || 'Colaborador');
+          setTimeout(() => {
+            setLastSyncedBy(null);
+          }, 3000);
+          setTimeout(() => {
+            isRemoteUpdateRef.current = false;
+          }, 300);
+        }
+      });
+
+      // 2. Receber novas respostas em tempo real (via Broadcast)
+      channel.on('broadcast', { event: 'new_response_submitted' }, () => {
+        fetchResponses();
+        showToast("Uma nova resposta foi registrada no formulário!", "success", "Nova Resposta Recebida! 🎉");
+      });
+
+      // 3. Receber novas respostas em tempo real (via Postgres Changes se habilitado)
+      channel.on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'responses',
+        filter: `form_id=eq.${id}`
+      }, () => {
+        fetchResponses();
+        showToast("Uma nova resposta foi registrada no formulário!", "success", "Nova Resposta Recebida! 🎉");
+      });
+
+      // 4. Acompanhar colaboradores online (Presence)
+      channel
+        .on('presence', { event: 'sync' }, () => {
+          const state = channel.presenceState();
+          const users: any[] = [];
+          Object.values(state).forEach((presences: any) => {
+            presences.forEach((p: any) => {
+              if (p.clientId !== clientIdRef.current) {
+                users.push(p);
+              }
+            });
+          });
+          setOnlineCollaborators(users);
+        })
+        .on('presence', { event: 'join' }, ({ newPresences }: any) => {
+          newPresences.forEach((p: any) => {
+            if (p.clientId !== clientIdRef.current) {
+              showToast(`${p.name || 'Outro usuário'} entrou na edição simultânea.`, 'info', 'Colaborador Conectado');
+            }
+          });
+        });
+
+      channel.subscribe(async (status: string) => {
+        if (status === 'SUBSCRIBED') {
+          await channel.track({
+            clientId: clientIdRef.current,
+            name: userName,
+            email: userEmail,
+            color: userColor,
+            joinedAt: new Date().toISOString()
+          });
+        }
+      });
+    }
+
+    if (id) {
+      initRealtime();
+    }
+
+    return () => {
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
+    };
+  }, [id]);
 
   useEffect(() => {
     async function loadForm() {
@@ -112,6 +269,16 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
             setActiveSectionId(data.sections[0].id);
           }
           fetchComments();
+          fetchResponses();
+          registerAccessedForm(id);
+
+          // Check if URL has ?tab=responses
+          if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('tab') === 'responses') {
+              setActiveTab('responses');
+            }
+          }
         }
       } catch (error) {
         console.error("Erro ao carregar:", error);
@@ -159,9 +326,11 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
     setIsSaving(false);
     if (showNotification) {
       if (result.success) {
-        alert("Formulário salvo no banco de dados com sucesso!");
+        const time = new Date().toLocaleTimeString('pt-BR');
+        setLastSavedTime(time);
+        showToast("Todas as perguntas, seções e configurações foram salvas com sucesso!", "success", "Questionário Salvo!");
       } else {
-        alert("Erro ao salvar: " + (result.error as any)?.message || "Erro desconhecido");
+        showToast((result.error as any)?.message || "Ocorreu um erro ao salvar as alterações.", "error", "Falha ao salvar");
       }
     }
   };
@@ -509,95 +678,283 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                 <p className="text-xs text-slate-500 mt-0.5">Exibe para o usuário a estimativa de tempo (total e por seção) no formulário público.</p>
               </div>
             </label>
+
+            <div className="pt-4 border-t border-slate-200">
+              <button
+                onClick={() => setIsDeleteModalOpen(true)}
+                className="w-full flex items-center justify-center space-x-2 text-xs font-semibold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 py-2.5 rounded-lg transition-colors shadow-sm"
+              >
+                <Trash2 size={14} />
+                <span>Excluir este Questionário</span>
+              </button>
+            </div>
           </div>
         </div>
       </aside>
 
       {/* Main Workspace */}
-      <main className="flex-1 flex flex-col h-screen overflow-hidden w-full">
+      <main className="flex-1 flex flex-col h-screen overflow-hidden min-w-0">
         {/* Top Navbar */}
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 sm:px-6 shadow-sm shrink-0">
-          <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
-            <button 
-              onClick={handleUndo} 
-              disabled={history.length === 0}
-              title="Desfazer (Ctrl+Z)"
-              className="flex items-center justify-center p-2 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg disabled:opacity-30 disabled:hover:text-slate-500 disabled:hover:bg-transparent transition-colors shrink-0"
-            >
-              <Undo2 size={20} />
-            </button>
-            <button 
-              onClick={handleRedo} 
-              disabled={future.length === 0}
-              title="Refazer (Ctrl+Y)"
-              className="flex items-center justify-center p-2 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg disabled:opacity-30 disabled:hover:text-slate-500 disabled:hover:bg-transparent transition-colors shrink-0"
-            >
-              <Redo2 size={20} />
-            </button>
-            <button 
-              onClick={() => setIsMobileMenuOpen(true)}
-              className="md:hidden p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-md shrink-0"
-            >
-              <Menu size={20} />
-            </button>
-            <a href="/" className="hidden sm:inline-flex items-center text-xs sm:text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 px-3.5 py-1.5 rounded-full transition-colors whitespace-nowrap shrink-0">← Painel de Questionários</a>
-            <span className="hidden sm:inline-block text-sm font-medium text-slate-500 bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full whitespace-nowrap shrink-0">ID: {id.substring(0, 8)}</span>
-            <input 
-              value={schema.title}
-              onChange={(e) => setSchema(prev => prev ? {...prev, title: e.target.value} : prev)}
-              className="font-semibold text-slate-800 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-500 focus:outline-none px-1 w-full min-w-0 truncate"
-            />
-          </div>
-          <div className="flex items-center space-x-2 sm:space-x-3 shrink-0 ml-2">
-            <button 
-              onClick={() => setIsAutoSaveEnabled(!isAutoSaveEnabled)}
-              className={`flex items-center justify-center space-x-1 px-2 py-2 sm:px-3 text-xs sm:text-sm font-medium rounded-lg transition-colors ${isAutoSaveEnabled ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-slate-50 text-slate-500 border border-slate-200'}`}
-              title={isAutoSaveEnabled ? (lastSavedTime ? `Salvamento Automático Ativado (Último: ${lastSavedTime})` : "Salvamento Automático Ativado") : "Salvamento Automático Desativado"}
-            >
-              <div className={`w-2 h-2 rounded-full ${isAutoSaveEnabled ? (isSaving ? 'bg-amber-500 animate-ping' : 'bg-indigo-500 animate-pulse') : 'bg-slate-300'}`}></div>
-              <span className="hidden lg:inline">{isAutoSaveEnabled ? (isSaving ? 'Salvando...' : 'Auto-save ON') : 'Auto-save OFF'}</span>
-            </button>
-            <button 
-              onClick={async () => {
-                let token = schema.share_token;
-                if (!token) {
-                  token = await generateShareToken(id);
-                  setSchema(prev => prev ? { ...prev, share_token: token } : prev);
-                }
-                setIsShareModalOpen(true);
-              }}
-              className="flex items-center justify-center space-x-2 px-3 py-2 sm:px-4 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg shadow-sm hover:bg-slate-50 transition-colors"
-            >
-              <Share2 size={16} />
-              <span className="hidden sm:inline">Compartilhar</span>
-            </button>
-            <button 
-              onClick={() => window.open(`/preview/${id}`, '_blank')}
-              className="flex items-center justify-center space-x-2 px-3 py-2 sm:px-4 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg shadow-sm hover:bg-slate-50 transition-colors"
-            >
-              <ExternalLink size={16} />
-              <span className="hidden sm:inline">Pré-visualizar</span>
-            </button>
-            <button 
-              onClick={() => handleSave(true)}
-              disabled={isSaving}
-              className={`flex items-center justify-center space-x-2 px-3 py-2 sm:px-4 text-sm font-medium text-white rounded-lg shadow-sm transition-colors ${isSaving ? 'bg-indigo-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'}`}
-            >
-              {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-              <span className="hidden sm:inline">{isSaving ? 'Salvando...' : 'Salvar Formulário'}</span>
-              <span className="sm:hidden">{isSaving ? '...' : 'Salvar'}</span>
-            </button>
+        <header className="h-16 bg-white border-b border-slate-200 px-3 sm:px-5 shadow-sm shrink-0 overflow-x-auto">
+          <div className="flex items-center justify-between min-w-[780px] h-full gap-4">
+            <div className="flex items-center space-x-2 shrink-0">
+              <button 
+                onClick={handleUndo} 
+                disabled={history.length === 0}
+                title="Desfazer (Ctrl+Z)"
+                className="flex items-center justify-center p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg disabled:opacity-30 disabled:hover:text-slate-500 disabled:hover:bg-transparent transition-colors shrink-0"
+              >
+                <Undo2 size={18} />
+              </button>
+              <button 
+                onClick={handleRedo} 
+                disabled={future.length === 0}
+                title="Refazer (Ctrl+Y)"
+                className="flex items-center justify-center p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg disabled:opacity-30 disabled:hover:text-slate-500 disabled:hover:bg-transparent transition-colors shrink-0"
+              >
+                <Redo2 size={18} />
+              </button>
+              <button 
+                onClick={() => setIsMobileMenuOpen(true)}
+                className="md:hidden p-1.5 -ml-1 text-slate-600 hover:bg-slate-100 rounded-md shrink-0"
+              >
+                <Menu size={18} />
+              </button>
+              <a href="/" className="inline-flex items-center text-xs font-semibold text-slate-700 hover:text-indigo-600 bg-slate-100 hover:bg-indigo-50 px-2.5 py-1.5 rounded-lg transition-colors whitespace-nowrap shrink-0 gap-1">
+                <ArrowLeft size={14} />
+                <span>Questionários</span>
+              </a>
+              <input 
+                value={schema.title}
+                onChange={(e) => setSchema(prev => prev ? {...prev, title: e.target.value} : prev)}
+                className="font-bold text-slate-800 text-sm sm:text-base bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-500 focus:outline-none px-2 py-1 w-44 sm:w-56 truncate"
+                placeholder="Título do questionário..."
+              />
+            </div>
+
+            {/* Tab Switcher (Construtor / Respostas) */}
+            <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 shrink-0">
+              <button
+                onClick={() => setActiveTab('builder')}
+                className={`flex items-center space-x-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${activeTab === 'builder' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+              >
+                <span>Construtor</span>
+              </button>
+              <button
+                onClick={() => { setActiveTab('responses'); fetchResponses(); }}
+                className={`flex items-center space-x-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${activeTab === 'responses' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+              >
+                <BarChart3 size={13} />
+                <span>Respostas</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${activeTab === 'responses' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-200 text-slate-600'}`}>
+                  {responsesList.length}
+                </span>
+              </button>
+            </div>
+
+            <div className="flex items-center space-x-2 shrink-0">
+              {/* Online Collaborators Badge */}
+              {onlineCollaborators.length > 0 && (
+                <div className="hidden md:flex items-center space-x-1.5 bg-indigo-50/80 border border-indigo-100 px-2.5 py-1 rounded-lg">
+                  <div className="flex items-center -space-x-1.5">
+                    {onlineCollaborators.map((c, i) => (
+                      <div 
+                        key={c.clientId || i}
+                        title={`${c.name} (${c.email || 'Online'})`}
+                        style={{ backgroundColor: c.color || '#6366f1' }}
+                        className="inline-flex items-center justify-center w-6 h-6 rounded-full text-white text-[10px] font-bold ring-2 ring-white shadow-sm uppercase cursor-default"
+                      >
+                        {c.name ? c.name.slice(0, 2) : 'U'}
+                      </div>
+                    ))}
+                  </div>
+                  <span className="text-[11px] font-semibold text-indigo-700 pl-1 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    {onlineCollaborators.length} {onlineCollaborators.length === 1 ? 'colega online' : 'colegas online'}
+                  </span>
+                </div>
+              )}
+
+              <button 
+                onClick={() => setIsAutoSaveEnabled(!isAutoSaveEnabled)}
+                className={`flex items-center justify-center space-x-1 px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors whitespace-nowrap ${isAutoSaveEnabled ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-slate-50 text-slate-500 border border-slate-200'}`}
+                title={isAutoSaveEnabled ? (lastSavedTime ? `Salvamento Automático Ativado (Último: ${lastSavedTime})` : "Salvamento Automático Ativado") : "Salvamento Automático Desativado"}
+              >
+                <div className={`w-2 h-2 rounded-full ${isAutoSaveEnabled ? (isSaving ? 'bg-amber-500 animate-ping' : 'bg-indigo-500 animate-pulse') : 'bg-slate-300'}`}></div>
+                <span className="hidden xl:inline">{isAutoSaveEnabled ? (isSaving ? 'Salvando...' : 'Auto-save ON') : 'Auto-save OFF'}</span>
+              </button>
+              <button 
+                onClick={async () => {
+                  let token = schema.share_token;
+                  if (!token) {
+                    token = await generateShareToken(id);
+                    setSchema(prev => prev ? { ...prev, share_token: token } : prev);
+                  }
+                  setIsShareModalOpen(true);
+                }}
+                className="flex items-center justify-center space-x-1.5 px-3 py-2 text-xs sm:text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg shadow-sm hover:bg-slate-50 transition-colors shrink-0 whitespace-nowrap"
+              >
+                <Share2 size={15} />
+                <span>Compartilhar</span>
+              </button>
+              <button 
+                onClick={() => window.open(`/preview/${id}`, '_blank')}
+                className="flex items-center justify-center space-x-1.5 px-3 py-2 text-xs sm:text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg shadow-sm hover:bg-slate-50 transition-colors shrink-0 whitespace-nowrap"
+              >
+                <ExternalLink size={15} />
+                <span>Pré-visualizar</span>
+              </button>
+              <button 
+                onClick={() => handleSave(true)}
+                disabled={isSaving}
+                className={`flex items-center justify-center space-x-1.5 px-3.5 py-2 text-xs sm:text-sm font-medium text-white rounded-lg shadow-sm transition-colors shrink-0 whitespace-nowrap ${isSaving ? 'bg-indigo-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'}`}
+              >
+                {isSaving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
+                <span>{isSaving ? 'Salvando...' : 'Salvar'}</span>
+              </button>
+            </div>
           </div>
         </header>
 
-        {/* Canvas Area */}
-        <div 
-          className="flex-1 overflow-y-auto p-4 sm:p-8 bg-slate-50"
-          onDragOver={handleContainerDragOver}
-        >
-          <div className="max-w-4xl mx-auto space-y-8 pb-32">
-            
-            {schema.sections?.map((section, index) => (
+        {/* Canvas Area or Responses Area */}
+        {activeTab === 'responses' ? (
+          <div className="flex-1 overflow-y-auto p-4 sm:p-8 bg-slate-50">
+            <div className="max-w-4xl mx-auto space-y-6 pb-24">
+              
+              {/* Header de Respostas */}
+              <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                    <BarChart3 className="text-indigo-600" size={24} />
+                    <span>Respostas Recebidas</span>
+                  </h2>
+                  <p className="text-sm text-slate-500 mt-1">
+                    Total de <strong>{responsesList.length}</strong> envio(s) registrado(s) para este questionário.
+                  </p>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={fetchResponses}
+                    disabled={isLoadingResponses}
+                    className="flex items-center space-x-1.5 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 px-3 py-2 rounded-lg transition-colors"
+                  >
+                    {isLoadingResponses ? <Loader2 size={14} className="animate-spin" /> : null}
+                    <span>Atualizar</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(responsesList, null, 2));
+                      const downloadAnchor = document.createElement('a');
+                      downloadAnchor.setAttribute("href", dataStr);
+                      downloadAnchor.setAttribute("download", `respostas_${schema.title.replace(/\s+/g, '_')}.json`);
+                      document.body.appendChild(downloadAnchor);
+                      downloadAnchor.click();
+                      downloadAnchor.remove();
+                    }}
+                    disabled={responsesList.length === 0}
+                    className="flex items-center space-x-1.5 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 px-3 py-2 rounded-lg transition-colors shadow-sm"
+                  >
+                    <FileDown size={14} />
+                    <span>Exportar JSON</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Lista de Respostas */}
+              {isLoadingResponses ? (
+                <div className="py-20 flex flex-col items-center justify-center text-slate-400 space-y-3">
+                  <Loader2 size={32} className="animate-spin text-indigo-600" />
+                  <p className="text-sm">Carregando respostas do banco de dados...</p>
+                </div>
+              ) : responsesList.length === 0 ? (
+                <div className="bg-white rounded-2xl border-2 border-dashed border-slate-200 p-12 text-center flex flex-col items-center justify-center">
+                  <div className="w-16 h-16 bg-indigo-50 text-indigo-500 rounded-full flex items-center justify-center mb-4">
+                    <Inbox size={32} />
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-800">Nenhuma resposta recebida ainda</h3>
+                  <p className="text-sm text-slate-500 max-w-md mt-1 mb-6">
+                    Compartilhe o link público deste formulário para que as pessoas possam preencher e enviar suas respostas.
+                  </p>
+                  <button
+                    onClick={() => setIsShareModalOpen(true)}
+                    className="flex items-center space-x-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-2.5 rounded-lg shadow-sm transition-colors"
+                  >
+                    <Share2 size={16} />
+                    <span>Compartilhar Link Público</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {responsesList.map((resp, idx) => {
+                    const answersMap: Record<string, any> = {};
+                    resp.answers?.forEach((a: any) => {
+                      answersMap[a.question_id] = a.answer_text || a.answer_json;
+                    });
+
+                    return (
+                      <div key={resp.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div className="bg-slate-50/80 px-6 py-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center space-x-3">
+                            <span className="bg-indigo-600 text-white text-xs font-bold px-2.5 py-1 rounded-full">
+                              #{responsesList.length - idx}
+                            </span>
+                            <span className="font-bold text-slate-800 text-sm sm:text-base">Submissão</span>
+                          </div>
+                          <span className="text-xs font-medium text-slate-500 bg-white px-2.5 py-1 rounded-full border border-slate-200">
+                            {new Date(resp.submitted_at || resp.created_at).toLocaleString('pt-BR')}
+                          </span>
+                        </div>
+
+                        <div className="p-6 space-y-6">
+                          {schema.sections?.map((sec, sIdx) => (
+                            <div key={sec.id} className="space-y-3">
+                              <h4 className="text-xs font-bold text-indigo-600 uppercase tracking-wider">
+                                Seção {sIdx + 1}: {sec.title || "Sem título"}
+                              </h4>
+                              <div className="grid grid-cols-1 gap-3 bg-slate-50/50 p-4 rounded-xl border border-slate-100">
+                                {sec.questions?.map((q, qIdx) => {
+                                  const val = answersMap[q.id];
+                                  let formattedVal = val;
+                                  if (val === undefined || val === null || val === '') {
+                                    formattedVal = <span className="text-slate-400 italic text-xs">Não respondido</span>;
+                                  } else if (typeof val === 'object') {
+                                    formattedVal = <span className="font-mono text-xs bg-slate-100 p-1.5 rounded block text-slate-700 whitespace-pre-wrap">{JSON.stringify(val, null, 2)}</span>;
+                                  } else {
+                                    formattedVal = <span className="font-medium text-slate-800 text-sm">{String(val)}</span>;
+                                  }
+
+                                  return (
+                                    <div key={q.id} className="border-b border-slate-100 pb-2.5 last:border-0 last:pb-0">
+                                      <p className="text-xs text-slate-500 font-medium mb-1">
+                                        {qIdx + 1}. {q.label}
+                                      </p>
+                                      <div className="pl-3 border-l-2 border-indigo-400">
+                                        {formattedVal}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+            </div>
+          </div>
+        ) : (
+          /* Canvas Area */
+          <div 
+            className="flex-1 overflow-y-auto p-4 sm:p-8 bg-slate-50"
+            onDragOver={handleContainerDragOver}
+          >
+            <div className="max-w-4xl mx-auto space-y-8 pb-32">
+              
+              {schema.sections?.map((section, index) => (
               <div 
                 key={section.id}
                 onClick={() => setActiveSectionId(section.id)}
@@ -738,12 +1095,19 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
 
           </div>
         </div>
+        )}
       </main>
 
-      {/* Right Sidebar: Properties Panel */}
+      {/* Right Sidebar: Properties Panel (Responsive Drawer on mobile + sidebar on desktop) */}
       {(selectedElementType === 'question' && selectedQuestion) || (selectedElementType === 'section' && selectedSection) ? (
-        <aside className="w-80 bg-white border-l border-slate-200 flex flex-col shadow-xl z-20 shrink-0 hidden lg:flex">
-          <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+        <>
+          {/* Mobile Overlay for Right Sidebar */}
+          <div 
+            className="fixed inset-0 bg-slate-900/50 z-40 lg:hidden backdrop-blur-xs" 
+            onClick={() => setSelectedElementType(null)}
+          />
+          <aside className="fixed inset-y-0 right-0 z-50 w-full sm:w-96 bg-white border-l border-slate-200 flex flex-col shadow-2xl lg:shadow-xl lg:relative lg:w-80 lg:z-20 shrink-0 transition-transform">
+            <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
             <h2 className="font-bold text-slate-800">
               {selectedElementType === 'section' ? 'Propriedades da Seção' : 'Propriedades da Pergunta'}
             </h2>
@@ -1170,6 +1534,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
 
           </div>
         </aside>
+        </>
       ) : null}
 
       {/* Active Comment Panel */}
@@ -1184,6 +1549,51 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
             fetchComments();
           }}
         />
+      )}
+
+      {/* Modal Bonito de Confirmação de Exclusão no Builder */}
+      {isDeleteModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
+            <div className="w-12 h-12 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Trash2 size={24} />
+            </div>
+            <h3 className="text-lg font-bold text-slate-800 text-center">Excluir este Questionário?</h3>
+            <p className="text-sm text-slate-500 text-center mt-2 leading-relaxed">
+              Você tem certeza que deseja excluir o questionário <strong className="text-slate-800">"{schema?.title}"</strong>?
+            </p>
+            <div className="mt-2 p-3 bg-red-50 rounded-lg text-xs text-red-700 text-center border border-red-100">
+              Esta ação apagará permanentemente todas as seções, perguntas e respostas registradas.
+            </div>
+
+            <div className="mt-6 flex items-center justify-center space-x-3">
+              <button
+                onClick={() => setIsDeleteModalOpen(false)}
+                disabled={isDeletingForm}
+                className="flex-1 py-2.5 px-4 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-medium text-sm transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={async () => {
+                  setIsDeletingForm(true);
+                  try {
+                    await deleteForm(id);
+                    router.push('/');
+                  } catch (err: any) {
+                    alert("Erro ao excluir: " + (err.message || "Erro inesperado"));
+                    setIsDeletingForm(false);
+                  }
+                }}
+                disabled={isDeletingForm}
+                className="flex-1 py-2.5 px-4 rounded-xl bg-red-600 hover:bg-red-700 text-white font-medium text-sm transition-colors shadow-sm flex items-center justify-center space-x-1.5 disabled:opacity-70"
+              >
+                {isDeletingForm ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                <span>{isDeletingForm ? 'Excluindo...' : 'Sim, Excluir'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Share Modal */}
@@ -1295,11 +1705,62 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                     alt="QR Code"
                     className="w-20 h-20 rounded-lg border border-white shadow-sm shrink-0"
                   />
-                  <p className="text-xs text-slate-500">Aponte a câmera do celular para abrir e preencher o formulário diretamente.</p>
                 </div>
               </div>
 
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Live Sync Realtime Pill */}
+      {lastSyncedBy && (
+        <div className="fixed top-20 right-6 z-40 animate-in fade-in slide-in-from-top-2 duration-300 pointer-events-none">
+          <div className="bg-slate-900/90 backdrop-blur-md text-white text-xs font-medium px-3.5 py-2 rounded-xl shadow-xl border border-indigo-500/30 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+            <span>Atualizado em tempo real por <strong className="text-indigo-300">{lastSyncedBy}</strong></span>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Modern Toast Notification */}
+      {toast && (
+        <div className="fixed bottom-6 right-6 z-50 animate-in fade-in slide-in-from-bottom-5 duration-300">
+          <div className={`flex items-start p-4 rounded-2xl shadow-2xl border backdrop-blur-md max-w-sm transition-all ${
+            toast.type === 'success' 
+              ? 'bg-slate-900/95 text-white border-emerald-500/40 shadow-emerald-950/30' 
+              : toast.type === 'error'
+              ? 'bg-red-950/95 text-white border-red-500/40 shadow-red-950/30'
+              : 'bg-slate-900/95 text-white border-indigo-500/40 shadow-indigo-950/30'
+          }`}>
+            <div className={`p-2 rounded-xl shrink-0 mr-3.5 ${
+              toast.type === 'success' 
+                ? 'bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/30' 
+                : toast.type === 'error'
+                ? 'bg-red-500/20 text-red-400 ring-1 ring-red-500/30'
+                : 'bg-indigo-500/20 text-indigo-400 ring-1 ring-indigo-500/30'
+            }`}>
+              {toast.type === 'success' ? (
+                <CheckCircle2 className="w-5 h-5" />
+              ) : (
+                <AlertCircle className="w-5 h-5" />
+              )}
+            </div>
+            <div className="flex-1 pt-0.5">
+              <h4 className="text-sm font-semibold tracking-tight text-white flex items-center gap-1.5">
+                {toast.title || (toast.type === 'success' ? 'Sucesso!' : 'Aviso')}
+              </h4>
+              <p className="text-xs text-slate-300 mt-1 leading-relaxed">
+                {toast.message}
+              </p>
+            </div>
+            <button 
+              onClick={() => setToast(null)}
+              className="text-slate-400 hover:text-white p-1 ml-2 rounded-lg hover:bg-white/10 transition-colors shrink-0"
+              title="Fechar"
+            >
+              <X size={16} />
+            </button>
           </div>
         </div>
       )}

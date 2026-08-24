@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, use } from "react";
 import { Form, Section, Question } from "../../../types/form";
-import { getFormByShareToken } from "../../../lib/api";
+import { getFormByShareToken, submitFormResponse } from "../../../lib/api";
 import { supabase } from "../../../lib/supabase";
 import { Loader2, ChevronRight, ChevronLeft, Calendar, UploadCloud, FileText, Headphones, Video } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -110,7 +110,6 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
         return { question_id: questionId, answer_text, answer_json };
       });
       
-      const { submitFormResponse } = await import('@/lib/api');
       const res = await submitFormResponse(schema.id, answersData);
       
       if (res.success) {
@@ -205,37 +204,34 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
         )}
 
         {/* Navigation Buttons */}
-        <div className="mt-8 flex justify-between pb-12">
+        <div className="mt-6 sm:mt-8 flex flex-col-reverse sm:flex-row items-center justify-between gap-3 pb-12">
           <button 
             onClick={() => {
               setActiveSectionIndex(prev => prev - 1);
               window.scrollTo(0, 0);
             }}
             disabled={activeSectionIndex === 0}
-            className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-colors ${activeSectionIndex === 0 ? 'opacity-0 pointer-events-none' : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50'}`}
+            className={`w-full sm:w-auto flex items-center justify-center space-x-2 px-6 py-3 rounded-xl font-medium transition-colors ${activeSectionIndex === 0 ? 'hidden sm:flex opacity-0 pointer-events-none' : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50'}`}
           >
-            <ChevronLeft size={20} />
+            <ChevronLeft size={18} />
             <span>Voltar</span>
           </button>
           
           {activeSectionIndex < sections.length - 1 ? (
             <button 
               onClick={handleNextSection}
-              className="flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-colors bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm"
+              className="w-full sm:w-auto flex items-center justify-center space-x-2 px-8 py-3 rounded-xl font-semibold transition-colors bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm ml-auto"
             >
-              <span>Próxima</span>
-              <ChevronRight size={20} />
+              <span>Próxima Seção</span>
+              <ChevronRight size={18} />
             </button>
           ) : (
             <button 
               onClick={handleSubmitResponse}
               disabled={isSubmitting}
-              className={`flex items-center space-x-2 px-8 py-3 rounded-lg font-bold transition-colors ${isSubmitting ? 'bg-indigo-400 text-white cursor-wait' : 'bg-green-600 text-white hover:bg-green-700 shadow-md'}`}
+              className={`w-full sm:w-auto flex items-center justify-center space-x-2 px-8 py-3.5 rounded-xl font-bold transition-colors ml-auto ${isSubmitting ? 'bg-indigo-400 text-white cursor-wait' : 'bg-green-600 text-white hover:bg-green-700 shadow-md shadow-green-200'}`}
             >
-              <span>{isSubmitting ? 'Enviando...' : 'Enviar Respostas'}</span>
-              {!isSubmitting && <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-1" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-              </svg>}
+              <span>{isSubmitting ? 'Enviando...' : 'Finalizar e Enviar Respostas'}</span>
             </button>
           )}
         </div>

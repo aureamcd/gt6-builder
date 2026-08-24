@@ -25,6 +25,7 @@ export interface Form {
   share_token?: string;
   settings?: any;
   sections?: Section[];
+  is_shared?: boolean;
 }
 
 export interface FormComment {
