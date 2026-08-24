@@ -918,9 +918,90 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                               <div className="grid grid-cols-1 gap-3 bg-slate-50/50 p-4 rounded-xl border border-slate-100">
                                 {sec.questions?.map((q, qIdx) => {
                                   const val = answersMap[q.id];
-                                  let formattedVal = val;
+                                  
+                                  const getOptionLabel = (qId: string, optId: string) => {
+                                    if (optId.startsWith('other:')) return optId.replace('other:', 'Outro: ');
+                                    const opt = q.options?.find(o => o.id === optId);
+                                    if (opt) return opt.label;
+                                    
+                                    if (q.type === 'DYNAMIC_REPEATER' && q.sub_question_template?.sub_questions) {
+                                       for (const sq of q.sub_question_template.sub_questions) {
+                                         const sOpt = sq.options?.find((o: any) => o.id === optId || o === optId);
+                                         if (sOpt) return typeof sOpt === 'string' ? sOpt : sOpt.label;
+                                       }
+                                    }
+                                    return optId;
+                                  };
+
+                                  let formattedVal: React.ReactNode = val;
+
                                   if (val === undefined || val === null || val === '') {
                                     formattedVal = <span className="text-slate-400 italic text-xs">Não respondido</span>;
+                                  } else if (q.type === 'RADIO_SINGLE' || q.type === 'DROPDOWN') {
+                                    formattedVal = <span className="font-medium text-slate-800 text-sm">{getOptionLabel(q.id, String(val))}</span>;
+                                  } else if (q.type === 'CHECKBOX_MULTIPLE' && Array.isArray(val)) {
+                                    if (val.length === 0) formattedVal = <span className="text-slate-400 italic text-xs">Não respondido</span>;
+                                    else formattedVal = (
+                                      <ul className="list-disc pl-4 space-y-1">
+                                        {val.map((v, i) => <li key={i} className="font-medium text-slate-800 text-sm">{getOptionLabel(q.id, String(v))}</li>)}
+                                      </ul>
+                                    );
+                                  } else if (q.type === 'DYNAMIC_REPEATER' && typeof val === 'object') {
+                                    const selectedLabels = (val.selected || []).map((id: string) => getOptionLabel(q.id, id));
+                                    formattedVal = (
+                                      <div className="space-y-3">
+                                        <div>
+                                          <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider block mb-1">Itens Selecionados</span>
+                                          {selectedLabels.length > 0 ? (
+                                            <ul className="list-disc pl-4">
+                                              {selectedLabels.map((l: string, i: number) => <li key={i} className="font-medium text-slate-800 text-sm">{l}</li>)}
+                                            </ul>
+                                          ) : <span className="text-slate-400 italic text-xs">Nenhum selecionado</span>}
+                                        </div>
+                                        
+                                        {val.answers && Object.keys(val.answers).length > 0 && (
+                                          <div>
+                                            <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider block mb-1 mt-3">Detalhes</span>
+                                            <div className="space-y-3">
+                                              {Object.entries(val.answers).map(([optId, subAnswers]: [string, any]) => {
+                                                const optLabel = getOptionLabel(q.id, optId);
+                                                return (
+                                                  <div key={optId} className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
+                                                    <p className="font-bold text-indigo-700 text-xs mb-2">{optLabel}</p>
+                                                    <div className="space-y-2 pl-2 border-l-2 border-indigo-100">
+                                                      {Object.entries(subAnswers).map(([sqId, sqVal]) => {
+                                                        const sq = q.sub_question_template?.sub_questions?.find((s: any) => s.id === sqId);
+                                                        const sqLabel = sq ? sq.label : sqId;
+                                                        
+                                                        let sqValFormatted = sqVal;
+                                                        if (sq && (sq.type === 'RADIO_SINGLE' || sq.type === 'CHECKBOX_MULTIPLE' || sq.type === 'DROPDOWN')) {
+                                                          if (Array.isArray(sqVal)) {
+                                                            sqValFormatted = sqVal.map(v => {
+                                                              const o = sq.options?.find((o: any) => o.id === v || o === v);
+                                                              return o ? (typeof o === 'string' ? o : o.label) : v;
+                                                            }).join(', ');
+                                                          } else {
+                                                            const o = sq.options?.find((o: any) => o.id === sqVal || o === sqVal);
+                                                            sqValFormatted = o ? (typeof o === 'string' ? o : o.label) : sqVal;
+                                                          }
+                                                        }
+                                                        
+                                                        return (
+                                                          <div key={sqId}>
+                                                            <p className="text-[11px] text-slate-500 font-semibold">{sqLabel}</p>
+                                                            <p className="text-sm font-medium text-slate-800">{String(sqValFormatted)}</p>
+                                                          </div>
+                                                        );
+                                                      })}
+                                                    </div>
+                                                  </div>
+                                                );
+                                              })}
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
                                   } else if (typeof val === 'object') {
                                     formattedVal = <span className="font-mono text-xs bg-slate-100 p-1.5 rounded block text-slate-700 whitespace-pre-wrap">{JSON.stringify(val, null, 2)}</span>;
                                   } else {
@@ -928,11 +1009,11 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                                   }
 
                                   return (
-                                    <div key={q.id} className="border-b border-slate-100 pb-2.5 last:border-0 last:pb-0">
-                                      <p className="text-xs text-slate-500 font-medium mb-1">
+                                    <div key={q.id} className="border-b border-slate-100 pb-3 last:border-0 last:pb-0">
+                                      <p className="text-xs text-slate-500 font-medium mb-1.5">
                                         {qIdx + 1}. {q.label}
                                       </p>
-                                      <div className="pl-3 border-l-2 border-indigo-400">
+                                      <div className="pl-3 border-l-[3px] border-indigo-400">
                                         {formattedVal}
                                       </div>
                                     </div>
