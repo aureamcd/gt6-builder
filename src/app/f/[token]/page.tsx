@@ -365,6 +365,124 @@ function QuestionRenderer({ question, number, value, onChange }: { question: Que
           </div>
         )}
 
+        {question.type === 'DYNAMIC_REPEATER' && (
+          <div className="space-y-4">
+            {question.options?.map((opt: any) => {
+              const isSelected = (value?.selected || []).includes(opt.id);
+              return (
+                <div key={opt.id} className={`border rounded-xl overflow-hidden transition-all ${isSelected ? 'border-indigo-300 ring-1 ring-indigo-300 shadow-sm' : 'border-slate-200'}`}>
+                  <label className={`flex items-start sm:items-center space-x-3 p-4 cursor-pointer hover:bg-slate-50 ${isSelected ? 'bg-indigo-50/50' : 'bg-white'}`}>
+                    <input 
+                      type="checkbox" 
+                      className="w-5 h-5 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer mt-0.5 sm:mt-0" 
+                      checked={isSelected}
+                      onChange={(e) => {
+                        const current = value?.selected || [];
+                        let newSelected;
+                        if (e.target.checked) newSelected = [...current, opt.id];
+                        else newSelected = current.filter((v: string) => v !== opt.id);
+                        onChange({ ...value, selected: newSelected });
+                      }}
+                    />
+                    <span className="text-slate-700 font-medium leading-snug">{opt.label}</span>
+                  </label>
+                  
+                  {isSelected && question.sub_question_template?.sub_questions && (
+                    <div className="p-4 sm:p-6 bg-white border-t border-slate-100 space-y-6">
+                      {question.sub_question_template.sub_questions.map((subQ: any) => (
+                        <div key={subQ.id}>
+                          <label className="block font-semibold text-slate-800 text-sm mb-3">
+                            {subQ.label}
+                            {subQ.required && <span className="text-red-500 ml-1">*</span>}
+                          </label>
+                          
+                          {subQ.type === 'RADIO_SINGLE' && (
+                            <div className="space-y-2">
+                              {subQ.options?.map((subOpt: string) => (
+                                <label key={subOpt} className="flex items-start sm:items-center space-x-3 cursor-pointer">
+                                  <input 
+                                    type="radio" 
+                                    name={`sq_${opt.id}_${subQ.id}`} 
+                                    className="w-4 h-4 text-indigo-600 border-slate-300 focus:ring-indigo-500 cursor-pointer mt-0.5 sm:mt-0" 
+                                    checked={value?.answers?.[opt.id]?.[subQ.id] === subOpt}
+                                    onChange={() => {
+                                      const answers = value?.answers || {};
+                                      const optAnswers = answers[opt.id] || {};
+                                      onChange({
+                                        ...value,
+                                        answers: {
+                                          ...answers,
+                                          [opt.id]: {
+                                            ...optAnswers,
+                                            [subQ.id]: subOpt
+                                          }
+                                        }
+                                      });
+                                    }}
+                                  />
+                                  <span className="text-slate-600 text-sm leading-snug">{subOpt}</span>
+                                </label>
+                              ))}
+                            </div>
+                          )}
+                          
+                          {subQ.type === 'TEXT_SHORT' && (
+                            <input 
+                              type="text" 
+                              className="w-full sm:w-2/3 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-slate-900"
+                              value={value?.answers?.[opt.id]?.[subQ.id] || ''}
+                              onChange={(e) => {
+                                const answers = value?.answers || {};
+                                const optAnswers = answers[opt.id] || {};
+                                onChange({
+                                  ...value,
+                                  answers: {
+                                    ...answers,
+                                    [opt.id]: {
+                                      ...optAnswers,
+                                      [subQ.id]: e.target.value
+                                    }
+                                  }
+                                });
+                              }}
+                            />
+                          )}
+                          
+                          {subQ.type === 'DROPDOWN' && (
+                            <select 
+                              className="w-full sm:w-2/3 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-white text-slate-800"
+                              value={value?.answers?.[opt.id]?.[subQ.id] || ''}
+                              onChange={(e) => {
+                                const answers = value?.answers || {};
+                                const optAnswers = answers[opt.id] || {};
+                                onChange({
+                                  ...value,
+                                  answers: {
+                                    ...answers,
+                                    [opt.id]: {
+                                      ...optAnswers,
+                                      [subQ.id]: e.target.value
+                                    }
+                                  }
+                                });
+                              }}
+                            >
+                              <option value="">Selecione...</option>
+                              {subQ.options?.map((subOpt: string) => (
+                                <option key={subOpt} value={subOpt}>{subOpt}</option>
+                              ))}
+                            </select>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         {question.type === 'DROPDOWN' && (
           <select 
             className="w-full sm:w-2/3 border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-shadow bg-white text-slate-800 font-medium" 
