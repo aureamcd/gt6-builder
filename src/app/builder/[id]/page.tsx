@@ -1961,7 +1961,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                     <span className="text-[10px] font-bold uppercase bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full">Bloqueado</span>
                   </div>
                   <p className="text-xs text-amber-900 leading-relaxed">
-                    Os respondentes precisarão digitar o código abaixo para ter acesso ao formulário.
+                    Este questionário é <strong>privado</strong>. O código abaixo é obrigatório para todas as opções de compartilhamento: <strong>responder</strong>, <strong>importar como template</strong> e <strong>trabalhar em conjunto (edição)</strong>.
                   </p>
                   <div className="flex items-center justify-between bg-white border border-amber-300 rounded-lg p-2.5">
                     <div>
