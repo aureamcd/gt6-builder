@@ -5,7 +5,7 @@ import {
   GripVertical, Plus, Settings, ChevronDown, CheckSquare, 
   Type, List, AlignLeft, Grid, Eye, Save, Play, Layers, Trash2, X, Loader2, Menu, Video, 
   Calendar, UploadCloud, Headphones, Image as ImageIcon, FileText, ExternalLink, Share2, Copy, Undo2, Redo2, Users, Globe, FileCode,
-  ArrowLeft, BarChart3, Inbox, FileDown, CheckCircle2, AlertCircle, Lock, Key, RefreshCw
+  ArrowLeft, ArrowRight, BarChart3, Inbox, FileDown, CheckCircle2, AlertCircle, Lock, Key, RefreshCw
 } from "lucide-react";
 import { Form, Section, Question, QuestionType, Option, FormComment } from "../../../types/form";
 import { saveFormState, getFormById, generateShareToken, getComments, getFormResponses, deleteForm, registerAccessedForm, generateAccessToken } from "../../../lib/api";
@@ -125,6 +125,30 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
   const [activeCommentElement, setActiveCommentElement] = useState<{id: string, title: string} | null>(null);
   const [dragEnabledSubQId, setDragEnabledSubQId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info'; title?: string } | null>(null);
+
+  // Private Form Passcode Lock State for Builder Collaborators
+  const [isUnlocked, setIsUnlocked] = useState(true);
+  const [inputPasscode, setInputPasscode] = useState("");
+  const [passcodeError, setPasscodeError] = useState<string | null>(null);
+
+  const handleUnlockPrivateBuilder = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!schema || !schema.settings?.access_token) return;
+
+    const expectedToken = schema.settings.access_token.trim().toUpperCase();
+    const enteredToken = inputPasscode.trim().toUpperCase();
+
+    if (enteredToken === expectedToken) {
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem(`gt6_builder_unlocked_${schema.id}`, 'true');
+      }
+      setIsUnlocked(true);
+      setPasscodeError(null);
+      registerAccessedForm(schema.id);
+    } else {
+      setPasscodeError("Código de acesso incorreto. Verifique e tente novamente.");
+    }
+  };
 
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success', title?: string) => {
     setToast({ message, type, title });
@@ -261,6 +285,12 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
   useEffect(() => {
     async function loadForm() {
       try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const user = session?.user;
+        if (user) {
+          setCurrentUser(user);
+        }
+
         const data = await getFormById(id);
         if (data) {
           // When loading from DB, initialize _setSchema silently to not affect history
@@ -270,7 +300,29 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
           }
           fetchComments();
           fetchResponses();
-          registerAccessedForm(id);
+
+          // Verificar se o formulário é privado e requer código para colaboradores
+          const isOwner = user && user.id === data.user_id;
+          const isPrivate = data.settings?.visibility === 'private' && Boolean(data.settings?.access_token);
+
+          if (isPrivate && !isOwner) {
+            const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+            const urlAccessToken = urlParams?.get('access_token');
+            const sessionUnlocked = typeof window !== 'undefined' && sessionStorage.getItem(`gt6_builder_unlocked_${data.id}`) === 'true';
+
+            if (sessionUnlocked || (urlAccessToken && urlAccessToken.trim().toUpperCase() === data.settings?.access_token?.trim().toUpperCase())) {
+              if (typeof window !== 'undefined') {
+                sessionStorage.setItem(`gt6_builder_unlocked_${data.id}`, 'true');
+              }
+              setIsUnlocked(true);
+              registerAccessedForm(id);
+            } else {
+              setIsUnlocked(false);
+            }
+          } else {
+            setIsUnlocked(true);
+            registerAccessedForm(id);
+          }
 
           // Check if URL has ?tab=responses
           if (typeof window !== 'undefined') {
@@ -606,6 +658,91 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
         break;
       }
     }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-slate-50">
+        <Loader2 className="animate-spin text-indigo-600" size={32} />
+      </div>
+    );
+  }
+
+  if (!schema) {
+    return (
+      <div className="flex flex-col h-screen items-center justify-center bg-slate-50 p-4 text-center">
+        <h2 className="text-xl font-bold text-slate-800 mb-2">Formulário não encontrado</h2>
+        <p className="text-sm text-slate-500 mb-4">O formulário que você está tentando acessar não existe ou foi excluído.</p>
+        <a href="/" className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg shadow transition-colors">
+          Voltar ao Início
+        </a>
+      </div>
+    );
+  }
+
+  if (!isUnlocked) {
+    return (
+      <div className="min-h-screen bg-slate-100 font-sans flex flex-col items-center justify-center p-4">
+        <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200 p-8 animate-in fade-in zoom-in-95 duration-200">
+          <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-6 ring-8 ring-amber-50/50 shadow-inner">
+            <Lock size={32} />
+          </div>
+
+          <div className="text-center mb-6">
+            <span className="inline-flex items-center space-x-1 text-[11px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800 px-2.5 py-1 rounded-full mb-3">
+              <Key size={12} className="mr-1" /> Edição Colaborativa Privada
+            </span>
+            <h1 className="text-xl font-bold text-slate-800 tracking-tight leading-snug">
+              {schema.title || "Questionário Protegido"}
+            </h1>
+            <p className="text-sm text-slate-500 mt-2 leading-relaxed">
+              Este formulário é privado. Para participar da edição simultânea e visualizar as perguntas, insira o código de acesso fornecido pelo proprietário:
+            </p>
+          </div>
+
+          <form onSubmit={handleUnlockPrivateBuilder} className="space-y-4">
+            <div>
+              <div className="relative">
+                <input
+                  type="text"
+                  autoFocus
+                  placeholder="Ex: GT-A1B2"
+                  value={inputPasscode}
+                  onChange={(e) => {
+                    setInputPasscode(e.target.value.toUpperCase());
+                    if (passcodeError) setPasscodeError(null);
+                  }}
+                  className="w-full uppercase font-mono tracking-widest text-center text-lg font-bold text-slate-800 bg-slate-50 border-2 border-slate-200 focus:border-amber-500 focus:bg-white rounded-xl py-3 px-4 outline-none transition-all shadow-inner placeholder:font-normal placeholder:tracking-normal placeholder:text-sm placeholder:text-slate-400"
+                />
+              </div>
+              {passcodeError && (
+                <div className="flex items-center space-x-1.5 text-xs text-red-600 font-medium mt-2 pl-1">
+                  <AlertCircle size={14} className="shrink-0" />
+                  <span>{passcodeError}</span>
+                </div>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-3 px-4 bg-amber-600 hover:bg-amber-700 text-white font-bold text-sm rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center space-x-2"
+            >
+              <span>Desbloquear Edição</span>
+              <ArrowRight size={16} />
+            </button>
+          </form>
+
+          <div className="mt-6 pt-4 border-t border-slate-100 text-center">
+            <a
+              href="/"
+              className="text-xs font-semibold text-slate-500 hover:text-slate-700 transition-colors"
+            >
+              ← Voltar para Meus Formulários
+            </a>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -1894,9 +2031,25 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
 
               {/* Opção 2: Compartilhar Template (Clonar cópia) */}
               <div className="p-4 bg-purple-50/60 rounded-xl border border-purple-200/80 space-y-3">
-                <div className="flex items-center space-x-2 text-purple-700 font-semibold text-sm">
-                  <FileCode size={18} />
-                  <span>2. Enviar como Template (Cópia Independente)</span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2 text-purple-700 font-semibold text-sm">
+                    <FileCode size={18} />
+                    <span>2. Enviar como Template (Cópia Independente)</span>
+                  </div>
+                  {schema.settings?.visibility === 'private' && (
+                    <button
+                      onClick={() => {
+                        const msg = `Clone este questionário como template no link:\n${window.location.origin}/?import_token=${schema.share_token}\n\nCódigo de Acesso: ${schema.settings?.access_token || ''}`;
+                        navigator.clipboard.writeText(msg);
+                        setCopiedKey('template_full_msg');
+                        setTimeout(() => setCopiedKey(null), 2000);
+                      }}
+                      className="text-[11px] font-semibold text-purple-600 hover:text-purple-800 underline decoration-purple-300 flex items-center gap-1"
+                      title="Copiar link do template formatado junto com o código de acesso"
+                    >
+                      <span>{copiedKey === 'template_full_msg' ? '✓ Link + Código Copiados!' : 'Copiar Link + Código'}</span>
+                    </button>
+                  )}
                 </div>
                 <p className="text-xs text-slate-600">A outra pessoa receberá uma cópia idêntica deste questionário na conta dela para editar sem alterar o seu original.</p>
                 <div className="flex">
@@ -1904,7 +2057,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                     type="text" 
                     readOnly
                     value={typeof window !== 'undefined' ? `${window.location.origin}/?import_token=${schema.share_token}` : ''}
-                    className="flex-1 bg-white border border-purple-200 rounded-l-lg px-3 py-2 text-xs sm:text-sm text-slate-600 outline-none select-all"
+                    className="flex-1 bg-white border border-purple-200 rounded-l-lg px-3 py-2 text-xs sm:text-sm text-slate-600 outline-none select-all font-mono"
                   />
                   <button 
                     onClick={() => {
@@ -1922,9 +2075,25 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
 
               {/* Opção 3: Edição Colaborativa no Mesmo Arquivo */}
               <div className="p-4 bg-amber-50/60 rounded-xl border border-amber-200/80 space-y-3">
-                <div className="flex items-center space-x-2 text-amber-800 font-semibold text-sm">
-                  <Users size={18} />
-                  <span>3. Edição Direta (Colaboração em Tempo Real)</span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2 text-amber-800 font-semibold text-sm">
+                    <Users size={18} />
+                    <span>3. Edição Direta (Colaboração em Tempo Real)</span>
+                  </div>
+                  {schema.settings?.visibility === 'private' && (
+                    <button
+                      onClick={() => {
+                        const msg = `Acesse a edição colaborativa no link:\n${window.location.origin}/builder/${id}\n\nCódigo de Acesso: ${schema.settings?.access_token || ''}`;
+                        navigator.clipboard.writeText(msg);
+                        setCopiedKey('collab_full_msg');
+                        setTimeout(() => setCopiedKey(null), 2000);
+                      }}
+                      className="text-[11px] font-semibold text-amber-700 hover:text-amber-900 underline decoration-amber-400 flex items-center gap-1"
+                      title="Copiar link de edição formatado junto com o código de acesso"
+                    >
+                      <span>{copiedKey === 'collab_full_msg' ? '✓ Link + Código Copiados!' : 'Copiar Link + Código'}</span>
+                    </button>
+                  )}
                 </div>
                 <p className="text-xs text-slate-600">Compartilhe o link do editor com sua equipe para que ambos trabalhem e editem este mesmo arquivo com salvamento automático.</p>
                 <div className="flex">
@@ -1932,7 +2101,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                     type="text" 
                     readOnly
                     value={typeof window !== 'undefined' ? `${window.location.origin}/builder/${id}` : ''}
-                    className="flex-1 bg-white border border-amber-200 rounded-l-lg px-3 py-2 text-xs sm:text-sm text-slate-600 outline-none select-all"
+                    className="flex-1 bg-white border border-amber-200 rounded-l-lg px-3 py-2 text-xs sm:text-sm text-slate-600 outline-none select-all font-mono"
                   />
                   <button 
                     onClick={() => {

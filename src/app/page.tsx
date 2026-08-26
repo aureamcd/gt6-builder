@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { getForms, createEmptyForm, cloneFormByToken, deleteForm, generateAccessToken } from "../lib/api";
+import { getForms, createEmptyForm, cloneFormByToken, getFormByShareToken, deleteForm, generateAccessToken } from "../lib/api";
 import { Form, FormSettings } from "../types/form";
-import { Plus, FileText, Loader2, ArrowRight, Save, Download, FileCode, LogOut, BarChart3, Trash2, Users, Globe, Lock, RefreshCw, Key, ShieldCheck } from "lucide-react";
+import { Plus, FileText, Loader2, ArrowRight, Save, Download, FileCode, LogOut, BarChart3, Trash2, Users, Globe, Lock, RefreshCw, Key, ShieldCheck, AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase";
 
@@ -17,6 +17,9 @@ export default function Dashboard() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [importTokenInput, setImportTokenInput] = useState("");
+  const [importPasscodeInput, setImportPasscodeInput] = useState("");
+  const [isPasscodeRequired, setIsPasscodeRequired] = useState(false);
+  const [targetTemplateTitle, setTargetTemplateTitle] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
 
   // Modal de Criação de Formulário (Público vs Privado)
@@ -40,13 +43,28 @@ export default function Dashboard() {
         if (typeof window !== 'undefined') {
           const params = new URLSearchParams(window.location.search);
           const importToken = params.get('import_token');
+          const accessTokenFromUrl = params.get('access_token');
           if (importToken) {
-            setIsImporting(true);
             try {
-              const newForm = await cloneFormByToken(importToken);
-              if (newForm) {
-                router.push(`/builder/${newForm.id}`);
-                return;
+              const sourceForm = await getFormByShareToken(importToken);
+              if (sourceForm) {
+                const isPrivate = sourceForm.settings?.visibility === 'private' && Boolean(sourceForm.settings?.access_token);
+                const isOwner = session.user?.id === sourceForm.user_id;
+
+                if (isPrivate && !isOwner && (!accessTokenFromUrl || accessTokenFromUrl.trim().toUpperCase() !== sourceForm.settings?.access_token?.trim().toUpperCase())) {
+                  // Requer código de acesso do template privado
+                  setImportTokenInput(importToken);
+                  setTargetTemplateTitle(sourceForm.title);
+                  setIsPasscodeRequired(true);
+                  setIsImportModalOpen(true);
+                } else {
+                  setIsImporting(true);
+                  const newForm = await cloneFormByToken(importToken, accessTokenFromUrl || undefined);
+                  if (newForm) {
+                    router.push(`/builder/${newForm.id}`);
+                    return;
+                  }
+                }
               }
             } catch (err: any) {
               console.error("Erro ao clonar template:", err);
@@ -98,6 +116,9 @@ export default function Dashboard() {
   const handleOpenImportModal = () => {
     setIsImportModalOpen(true);
     setImportTokenInput("");
+    setImportPasscodeInput("");
+    setIsPasscodeRequired(false);
+    setTargetTemplateTitle(null);
     setImportError(null);
   };
 
@@ -123,14 +144,20 @@ export default function Dashboard() {
     setIsImporting(true);
     setImportError(null);
     try {
-      const newForm = await cloneFormByToken(cleanToken);
+      const newForm = await cloneFormByToken(cleanToken, importPasscodeInput.trim() || undefined);
       if (newForm) {
         setIsImportModalOpen(false);
         router.push(`/builder/${newForm.id}`);
       }
     } catch (error: any) {
       console.error("Erro ao importar:", error);
-      setImportError(error.message || "Token ou link inválido. Verifique e tente novamente.");
+      const errMsg = error.message || "";
+      if (errMsg.toLowerCase().includes("código") || errMsg.toLowerCase().includes("privado") || errMsg.toLowerCase().includes("passcode")) {
+        setIsPasscodeRequired(true);
+        setImportError(errMsg);
+      } else {
+        setImportError(errMsg || "Token ou link inválido. Verifique e tente novamente.");
+      }
     } finally {
       setIsImporting(false);
     }
@@ -486,38 +513,69 @@ export default function Dashboard() {
         {isImportModalOpen && (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
-              <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Download size={24} />
+              <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 ${isPasscodeRequired ? 'bg-amber-50 text-amber-600 ring-4 ring-amber-50' : 'bg-indigo-50 text-indigo-600'}`}>
+                {isPasscodeRequired ? <Lock size={24} /> : <Download size={24} />}
               </div>
-              <h3 className="text-lg font-bold text-slate-800 text-center">Importar Template</h3>
+              <h3 className="text-lg font-bold text-slate-800 text-center">
+                {isPasscodeRequired ? "Template Privado Protegido" : "Importar Template"}
+              </h3>
               <p className="text-sm text-slate-500 text-center mt-1.5 leading-relaxed">
-                Cole o token ou o link completo do questionário que você recebeu para criar uma cópia na sua conta.
+                {isPasscodeRequired 
+                  ? targetTemplateTitle 
+                    ? `O questionário "${targetTemplateTitle}" é privado e exige um código de acesso para clonagem:` 
+                    : "Este template é privado e exige o código de acesso para clonagem:"
+                  : "Cole o token ou o link completo do questionário que você recebeu para criar uma cópia na sua conta."}
               </p>
 
               <form onSubmit={handleExecuteImport} className="mt-5 space-y-4">
                 <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wide mb-1">
+                    Token ou Link do Template
+                  </label>
                   <input
                     type="text"
-                    autoFocus
+                    autoFocus={!isPasscodeRequired}
                     placeholder="Cole aqui o token ou link..."
                     value={importTokenInput}
                     onChange={(e) => {
                       setImportTokenInput(e.target.value);
                       if (importError) setImportError(null);
                     }}
-                    className="w-full text-sm text-slate-900 bg-slate-50 border border-slate-300 focus:border-indigo-500 focus:bg-white rounded-xl px-3.5 py-2.5 outline-none transition-all shadow-inner"
+                    className="w-full text-sm text-slate-900 bg-slate-50 border border-slate-300 focus:border-indigo-500 focus:bg-white rounded-xl px-3.5 py-2.5 outline-none transition-all shadow-inner font-mono"
                   />
-                  {importError && (
-                    <p className="text-xs text-red-600 font-medium mt-1.5 pl-1">
-                      {importError}
-                    </p>
-                  )}
                 </div>
+
+                {isPasscodeRequired && (
+                  <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+                    <label className="block text-xs font-bold text-amber-800 uppercase tracking-wide mb-1 flex items-center gap-1">
+                      <Key size={12} />
+                      <span>Código de Acesso (Token de Proteção)</span>
+                    </label>
+                    <input
+                      type="text"
+                      autoFocus
+                      placeholder="Ex: GT-A1B2"
+                      value={importPasscodeInput}
+                      onChange={(e) => {
+                        setImportPasscodeInput(e.target.value.toUpperCase());
+                        if (importError) setImportError(null);
+                      }}
+                      className="w-full uppercase font-mono tracking-widest text-center text-base font-bold text-slate-800 bg-amber-50/50 border-2 border-amber-300 focus:border-amber-500 focus:bg-white rounded-xl py-2.5 px-3.5 outline-none transition-all shadow-inner placeholder:font-normal placeholder:tracking-normal placeholder:text-sm placeholder:text-slate-400"
+                    />
+                  </div>
+                )}
+
+                {importError && (
+                  <p className="text-xs text-red-600 font-medium pl-1 flex items-center gap-1">
+                    <AlertCircle size={14} className="shrink-0" />
+                    <span>{importError}</span>
+                  </p>
+                )}
 
                 <div className="flex items-center justify-center space-x-3 pt-2">
                   <button
                     type="button"
-                    onClick={() => { setIsImportModalOpen(false); setImportError(null); }}
+                    onClick={() => { setIsImportModalOpen(false); setImportError(null); setIsPasscodeRequired(false); }}
                     disabled={isImporting}
                     className="flex-1 py-2.5 px-4 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-medium text-sm transition-colors"
                   >

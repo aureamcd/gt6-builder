@@ -290,12 +290,22 @@ export async function getFormByShareToken(token: string): Promise<Form | null> {
   return getFormById(sourceForm.id);
 }
 
-export async function cloneFormByToken(token: string): Promise<Form | null> {
+export async function cloneFormByToken(token: string, passcode?: string): Promise<Form | null> {
   const sourceForm = await getFormByShareToken(token);
   if (!sourceForm) throw new Error("Formulário não encontrado para este token");
 
   const { data: authData } = await supabase.auth.getUser();
   const userId = authData.user?.id || "";
+
+  // Se o formulário for privado e o usuário não for o dono original, exigir e validar o código de acesso
+  const isPrivate = sourceForm.settings?.visibility === 'private' && Boolean(sourceForm.settings?.access_token);
+  const isOwner = userId && userId === sourceForm.user_id;
+
+  if (isPrivate && !isOwner) {
+    if (!passcode || passcode.trim().toUpperCase() !== sourceForm.settings?.access_token?.trim().toUpperCase()) {
+      throw new Error("Código de acesso incorreto ou obrigatório para clonar este template privado.");
+    }
+  }
 
   const newFormId = generateUUID();
   const clonedForm: Form = {
