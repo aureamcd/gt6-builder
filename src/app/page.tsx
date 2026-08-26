@@ -49,9 +49,7 @@ export default function Dashboard() {
               const sourceForm = await getFormByShareToken(importToken);
               if (sourceForm) {
                 const isPrivate = sourceForm.settings?.visibility === 'private' && Boolean(sourceForm.settings?.access_token);
-                const isOwner = session.user?.id === sourceForm.user_id;
-
-                if (isPrivate && !isOwner && (!accessTokenFromUrl || accessTokenFromUrl.trim().toUpperCase() !== sourceForm.settings?.access_token?.trim().toUpperCase())) {
+                if (isPrivate && (!accessTokenFromUrl || accessTokenFromUrl.trim().toUpperCase() !== sourceForm.settings?.access_token?.trim().toUpperCase())) {
                   // Requer código de acesso do template privado
                   setImportTokenInput(importToken);
                   setTargetTemplateTitle(sourceForm.title);

@@ -301,11 +301,10 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
           fetchComments();
           fetchResponses();
 
-          // Verificar se o formulário é privado e requer código para colaboradores
-          const isOwner = user && user.id === data.user_id;
+          // Verificar se o formulário é privado e requer código de acesso
           const isPrivate = data.settings?.visibility === 'private' && Boolean(data.settings?.access_token);
 
-          if (isPrivate && !isOwner) {
+          if (isPrivate) {
             const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
             const urlAccessToken = urlParams?.get('access_token');
             const sessionUnlocked = typeof window !== 'undefined' && sessionStorage.getItem(`gt6_builder_unlocked_${data.id}`) === 'true';
