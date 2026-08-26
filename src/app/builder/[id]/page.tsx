@@ -2013,25 +2013,9 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
 
               {/* Opção 1: Respostas Públicas */}
               <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2 text-indigo-700 font-semibold text-sm">
-                    <Globe size={18} />
-                    <span>1. Link para Respondentes</span>
-                  </div>
-                  {schema.settings?.visibility === 'private' && (
-                    <button
-                      onClick={() => {
-                        const msg = `Acesse o questionário no link:\n${window.location.origin}/f/${schema.share_token}\n\nCódigo de Acesso: ${schema.settings?.access_token || ''}`;
-                        navigator.clipboard.writeText(msg);
-                        setCopiedKey('full_msg');
-                        setTimeout(() => setCopiedKey(null), 2000);
-                      }}
-                      className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 underline decoration-indigo-300 flex items-center gap-1"
-                      title="Copiar link formatado junto com o código de acesso"
-                    >
-                      <span>{copiedKey === 'full_msg' ? '✓ Link + Código Copiados!' : 'Copiar Link + Código'}</span>
-                    </button>
-                  )}
+                <div className="flex items-center space-x-2 text-indigo-700 font-semibold text-sm">
+                  <Globe size={18} />
+                  <span>1. Link para Respondentes</span>
                 </div>
                 <p className="text-xs text-slate-500">Envie este link para as pessoas responderem e enviarem dados do questionário.</p>
                 <div className="flex">
@@ -2057,25 +2041,9 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
 
               {/* Opção 2: Compartilhar Template (Clonar cópia) */}
               <div className="p-4 bg-purple-50/60 rounded-xl border border-purple-200/80 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2 text-purple-700 font-semibold text-sm">
-                    <FileCode size={18} />
-                    <span>2. Enviar como Template (Cópia Independente)</span>
-                  </div>
-                  {schema.settings?.visibility === 'private' && (
-                    <button
-                      onClick={() => {
-                        const msg = `Clone este questionário como template no link:\n${window.location.origin}/?import_token=${schema.share_token}\n\nCódigo de Acesso: ${schema.settings?.access_token || ''}`;
-                        navigator.clipboard.writeText(msg);
-                        setCopiedKey('template_full_msg');
-                        setTimeout(() => setCopiedKey(null), 2000);
-                      }}
-                      className="text-[11px] font-semibold text-purple-600 hover:text-purple-800 underline decoration-purple-300 flex items-center gap-1"
-                      title="Copiar link do template formatado junto com o código de acesso"
-                    >
-                      <span>{copiedKey === 'template_full_msg' ? '✓ Link + Código Copiados!' : 'Copiar Link + Código'}</span>
-                    </button>
-                  )}
+                <div className="flex items-center space-x-2 text-purple-700 font-semibold text-sm">
+                  <FileCode size={18} />
+                  <span>2. Enviar como Template (Cópia Independente)</span>
                 </div>
                 <p className="text-xs text-slate-600">A outra pessoa receberá uma cópia idêntica deste questionário na conta dela para editar sem alterar o seu original.</p>
                 <div className="flex">
@@ -2101,25 +2069,9 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
 
               {/* Opção 3: Edição Colaborativa no Mesmo Arquivo */}
               <div className="p-4 bg-amber-50/60 rounded-xl border border-amber-200/80 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2 text-amber-800 font-semibold text-sm">
-                    <Users size={18} />
-                    <span>3. Edição Direta (Colaboração em Tempo Real)</span>
-                  </div>
-                  {schema.settings?.visibility === 'private' && (
-                    <button
-                      onClick={() => {
-                        const msg = `Acesse a edição colaborativa no link:\n${window.location.origin}/builder/${id}\n\nCódigo de Acesso: ${schema.settings?.access_token || ''}`;
-                        navigator.clipboard.writeText(msg);
-                        setCopiedKey('collab_full_msg');
-                        setTimeout(() => setCopiedKey(null), 2000);
-                      }}
-                      className="text-[11px] font-semibold text-amber-700 hover:text-amber-900 underline decoration-amber-400 flex items-center gap-1"
-                      title="Copiar link de edição formatado junto com o código de acesso"
-                    >
-                      <span>{copiedKey === 'collab_full_msg' ? '✓ Link + Código Copiados!' : 'Copiar Link + Código'}</span>
-                    </button>
-                  )}
+                <div className="flex items-center space-x-2 text-amber-800 font-semibold text-sm">
+                  <Users size={18} />
+                  <span>3. Edição Direta (Colaboração em Tempo Real)</span>
                 </div>
                 <p className="text-xs text-slate-600">Compartilhe o link do editor com sua equipe para que ambos trabalhem e editem este mesmo arquivo com salvamento automático.</p>
                 <div className="flex">
