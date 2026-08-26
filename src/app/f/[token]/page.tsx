@@ -43,8 +43,8 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
           if (isPrivate && !isOwner) {
             const expectedToken = dbData.settings?.access_token?.trim().toUpperCase();
             const storedToken = typeof window !== 'undefined' ? (
-              localStorage.getItem(`gt6_form_token_${dbData.id}`) ||
-              sessionStorage.getItem(`gt6_form_token_${dbData.id}`)
+              localStorage.getItem(`gt6_respondent_token_${dbData.id}`) ||
+              sessionStorage.getItem(`gt6_respondent_token_${dbData.id}`)
             ) : null;
             const alreadyVerified = Boolean(storedToken && storedToken === expectedToken);
             setIsUnlocked(alreadyVerified);
@@ -73,8 +73,8 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
 
     if (enteredToken === expectedToken) {
       if (typeof window !== 'undefined') {
-        localStorage.setItem(`gt6_form_token_${schema.id}`, expectedToken);
-        sessionStorage.setItem(`gt6_form_token_${schema.id}`, expectedToken);
+        localStorage.setItem(`gt6_respondent_token_${schema.id}`, expectedToken);
+        sessionStorage.setItem(`gt6_respondent_token_${schema.id}`, expectedToken);
       }
       setIsUnlocked(true);
       setPasscodeError(null);

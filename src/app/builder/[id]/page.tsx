@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useEffect, use, useRef } from "react";
-import { 
-  GripVertical, Plus, Settings, ChevronDown, CheckSquare, 
-  Type, List, AlignLeft, Grid, Eye, Save, Play, Layers, Trash2, X, Loader2, Menu, Video, 
+import {
+  GripVertical, Plus, Settings, ChevronDown, CheckSquare,
+  Type, List, AlignLeft, Grid, Eye, Save, Play, Layers, Trash2, X, Loader2, Menu, Video,
   Calendar, UploadCloud, Headphones, Image as ImageIcon, FileText, ExternalLink, Share2, Copy, Undo2, Redo2, Users, Globe, FileCode,
   ArrowLeft, ArrowRight, BarChart3, Inbox, FileDown, CheckCircle2, AlertCircle, Lock, Key, RefreshCw
 } from "lucide-react";
@@ -18,14 +18,14 @@ const generateId = () => crypto.randomUUID();
 
 const calculateSectionTime = (section: Section) => {
   let seconds = 0;
-  
+
   // Inclui tempo do vídeo da seção, se houver
   if (section.video_url) {
     seconds += (section.unlock_at_seconds !== undefined && section.unlock_at_seconds !== null ? section.unlock_at_seconds : 60);
   }
 
   section.questions?.forEach(q => {
-    switch(q.type) {
+    switch (q.type) {
       case 'TEXT_SHORT': seconds += 15; break;
       case 'TEXT_LONG': seconds += 45; break;
       case 'RADIO_SINGLE': seconds += 10; break;
@@ -64,7 +64,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
   const setSchema = (newSchemaOrUpdater: React.SetStateAction<Form | null>) => {
     _setSchema(prev => {
       const nextSchema = typeof newSchemaOrUpdater === 'function' ? (newSchemaOrUpdater as any)(prev) : newSchemaOrUpdater;
-      
+
       if (prev && nextSchema && JSON.stringify(prev) !== JSON.stringify(nextSchema)) {
         setHistory(h => [...h, prev].slice(-50));
         setFuture([]);
@@ -83,7 +83,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
           });
         }
       }
-      
+
       return nextSchema;
     });
   };
@@ -107,8 +107,8 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
   const [activeSectionId, setActiveSectionId] = useState<string>("");
   const [selectedQuestionId, setSelectedQuestionId] = useState<string | null>(null);
   const [selectedElementType, setSelectedElementType] = useState<'question' | 'section' | null>(null);
-  const [draggedItem, setDraggedItem] = useState<{sectionId: string, index: number} | null>(null);
-  const [dragOverItem, setDragOverItem] = useState<{sectionId: string, index: number} | null>(null);
+  const [draggedItem, setDraggedItem] = useState<{ sectionId: string, index: number } | null>(null);
+  const [dragOverItem, setDragOverItem] = useState<{ sectionId: string, index: number } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -122,7 +122,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
   const [responsesList, setResponsesList] = useState<any[]>([]);
   const [isLoadingResponses, setIsLoadingResponses] = useState(false);
   const [formComments, setFormComments] = useState<FormComment[]>([]);
-  const [activeCommentElement, setActiveCommentElement] = useState<{id: string, title: string} | null>(null);
+  const [activeCommentElement, setActiveCommentElement] = useState<{ id: string, title: string } | null>(null);
   const [dragEnabledSubQId, setDragEnabledSubQId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info'; title?: string } | null>(null);
 
@@ -141,9 +141,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
     if (enteredToken === expectedToken) {
       if (typeof window !== 'undefined') {
         localStorage.setItem(`gt6_builder_token_${schema.id}`, expectedToken);
-        localStorage.setItem(`gt6_form_token_${schema.id}`, expectedToken);
         sessionStorage.setItem(`gt6_builder_token_${schema.id}`, expectedToken);
-        sessionStorage.setItem(`gt6_form_token_${schema.id}`, expectedToken);
       }
       setIsUnlocked(true);
       setPasscodeError(null);
@@ -320,18 +318,14 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
             const urlAccessToken = urlParams?.get('access_token');
             const storedToken = typeof window !== 'undefined' ? (
               localStorage.getItem(`gt6_builder_token_${data.id}`) ||
-              localStorage.getItem(`gt6_form_token_${data.id}`) ||
-              sessionStorage.getItem(`gt6_builder_token_${data.id}`) ||
-              sessionStorage.getItem(`gt6_form_token_${data.id}`)
+              sessionStorage.getItem(`gt6_builder_token_${data.id}`)
             ) : null;
             const alreadyUnlocked = Boolean(storedToken && expectedToken && storedToken === expectedToken);
 
             if (alreadyUnlocked || (urlAccessToken && expectedToken && urlAccessToken.trim().toUpperCase() === expectedToken)) {
               if (typeof window !== 'undefined' && expectedToken) {
                 localStorage.setItem(`gt6_builder_token_${data.id}`, expectedToken);
-                localStorage.setItem(`gt6_form_token_${data.id}`, expectedToken);
                 sessionStorage.setItem(`gt6_builder_token_${data.id}`, expectedToken);
-                sessionStorage.setItem(`gt6_form_token_${data.id}`, expectedToken);
               }
               setIsUnlocked(true);
               registerAccessedForm(id);
@@ -370,7 +364,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
   // Salvar automaticamente no banco de dados (Auto-Save)
   useEffect(() => {
     if (!schema || isLoading || !isAutoSaveEnabled) return;
-    
+
     // Aguarda 1.8 segundos de inatividade para salvar no banco
     const timer = setTimeout(() => {
       setIsSaving(true);
@@ -423,14 +417,14 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
       allow_add_item: false,
       order_index: schema.sections?.find(s => s.id === activeSectionId)?.questions?.length || 0,
       created_at: new Date().toISOString(),
-      options: type === 'RADIO_SINGLE' || type === 'CHECKBOX_MULTIPLE' 
-        ? [{ 
-            id: generateId(), 
-            question_id: newQuestionId,
-            label: "Opção 1",
-            order_index: 0,
-            created_at: new Date().toISOString()
-          }] 
+      options: type === 'RADIO_SINGLE' || type === 'CHECKBOX_MULTIPLE'
+        ? [{
+          id: generateId(),
+          question_id: newQuestionId,
+          label: "Opção 1",
+          order_index: 0,
+          created_at: new Date().toISOString()
+        }]
         : undefined
     };
 
@@ -466,12 +460,12 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
   const updateQuestionLabel = (sectionId: string, questionId: string, newLabel: string) => {
     setSchema(prev => prev ? ({
       ...prev,
-      sections: prev.sections?.map(sec => 
-        sec.id === sectionId 
+      sections: prev.sections?.map(sec =>
+        sec.id === sectionId
           ? {
-              ...sec,
-              questions: sec.questions?.map(q => q.id === questionId ? { ...q, label: newLabel } : q)
-            }
+            ...sec,
+            questions: sec.questions?.map(q => q.id === questionId ? { ...q, label: newLabel } : q)
+          }
           : sec
       )
     }) : prev);
@@ -480,12 +474,12 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
   const updateQuestionVideoUrl = (sectionId: string, questionId: string, newUrl: string) => {
     setSchema(prev => prev ? ({
       ...prev,
-      sections: prev.sections?.map(sec => 
-        sec.id === sectionId 
+      sections: prev.sections?.map(sec =>
+        sec.id === sectionId
           ? {
-              ...sec,
-              questions: sec.questions?.map(q => q.id === questionId ? { ...q, video_url: newUrl } : q)
-            }
+            ...sec,
+            questions: sec.questions?.map(q => q.id === questionId ? { ...q, video_url: newUrl } : q)
+          }
           : sec
       )
     }) : prev);
@@ -494,8 +488,8 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
   const deleteQuestion = (sectionId: string, questionId: string) => {
     setSchema(prev => prev ? ({
       ...prev,
-      sections: prev.sections?.map(sec => 
-        sec.id === sectionId 
+      sections: prev.sections?.map(sec =>
+        sec.id === sectionId
           ? { ...sec, questions: sec.questions?.filter(q => q.id !== questionId) }
           : sec
       )
@@ -525,10 +519,10 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
     const container = e.currentTarget;
     const { top, bottom } = container.getBoundingClientRect();
     const { clientY } = e;
-    
+
     const THRESHOLD = 100;
     const SCROLL_SPEED = 15;
-    
+
     if (clientY - top < THRESHOLD) {
       container.scrollTop -= SCROLL_SPEED; // Scroll up
     } else if (bottom - clientY < THRESHOLD) {
@@ -539,24 +533,24 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
   const addOption = (sectionId: string, questionId: string) => {
     setSchema(prev => prev ? ({
       ...prev,
-      sections: prev.sections?.map(sec => 
-        sec.id === sectionId 
+      sections: prev.sections?.map(sec =>
+        sec.id === sectionId
           ? {
-              ...sec,
-              questions: sec.questions?.map(q => {
-                if (q.id === questionId) {
-                  const newOption: Option = {
-                    id: generateId(),
-                    question_id: q.id,
-                    label: `Opção ${(q.options?.length || 0) + 1}`,
-                    order_index: q.options?.length || 0,
-                    created_at: new Date().toISOString()
-                  };
-                  return { ...q, options: [...(q.options || []), newOption] };
-                }
-                return q;
-              })
-            }
+            ...sec,
+            questions: sec.questions?.map(q => {
+              if (q.id === questionId) {
+                const newOption: Option = {
+                  id: generateId(),
+                  question_id: q.id,
+                  label: `Opção ${(q.options?.length || 0) + 1}`,
+                  order_index: q.options?.length || 0,
+                  created_at: new Date().toISOString()
+                };
+                return { ...q, options: [...(q.options || []), newOption] };
+              }
+              return q;
+            })
+          }
           : sec
       )
     }) : prev);
@@ -565,20 +559,20 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
   const updateOptionLabel = (sectionId: string, questionId: string, optionId: string, newLabel: string) => {
     setSchema(prev => prev ? ({
       ...prev,
-      sections: prev.sections?.map(sec => 
-        sec.id === sectionId 
+      sections: prev.sections?.map(sec =>
+        sec.id === sectionId
           ? {
-              ...sec,
-              questions: sec.questions?.map(q => {
-                if (q.id === questionId) {
-                  return {
-                    ...q,
-                    options: q.options?.map(opt => opt.id === optionId ? { ...opt, label: newLabel } : opt)
-                  };
-                }
-                return q;
-              })
-            }
+            ...sec,
+            questions: sec.questions?.map(q => {
+              if (q.id === questionId) {
+                return {
+                  ...q,
+                  options: q.options?.map(opt => opt.id === optionId ? { ...opt, label: newLabel } : opt)
+                };
+              }
+              return q;
+            })
+          }
           : sec
       )
     }) : prev);
@@ -587,20 +581,20 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
   const deleteOption = (sectionId: string, questionId: string, optionId: string) => {
     setSchema(prev => prev ? ({
       ...prev,
-      sections: prev.sections?.map(sec => 
-        sec.id === sectionId 
+      sections: prev.sections?.map(sec =>
+        sec.id === sectionId
           ? {
-              ...sec,
-              questions: sec.questions?.map(q => {
-                if (q.id === questionId) {
-                  return {
-                    ...q,
-                    options: q.options?.filter(opt => opt.id !== optionId)
-                  };
-                }
-                return q;
-              })
-            }
+            ...sec,
+            questions: sec.questions?.map(q => {
+              if (q.id === questionId) {
+                return {
+                  ...q,
+                  options: q.options?.filter(opt => opt.id !== optionId)
+                };
+              }
+              return q;
+            })
+          }
           : sec
       )
     }) : prev);
@@ -626,28 +620,28 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
   const updateQuestionProperty = (sectionId: string, questionId: string, key: keyof Question, value: any) => {
     setSchema(prev => prev ? ({
       ...prev,
-      sections: prev.sections?.map(sec => 
-        sec.id === sectionId 
+      sections: prev.sections?.map(sec =>
+        sec.id === sectionId
           ? { ...sec, questions: sec.questions?.map(q => q.id === questionId ? { ...q, [key]: value } : q) }
           : sec
       )
     }) : prev);
   };
-  
+
   const updateOptionWeight = (sectionId: string, questionId: string, optionId: string, weight: number | null) => {
     setSchema(prev => prev ? ({
       ...prev,
-      sections: prev.sections?.map(sec => 
-        sec.id === sectionId 
+      sections: prev.sections?.map(sec =>
+        sec.id === sectionId
           ? {
-              ...sec,
-              questions: sec.questions?.map(q => {
-                if (q.id === questionId) {
-                  return { ...q, options: q.options?.map(opt => opt.id === optionId ? { ...opt, weight } : opt) };
-                }
-                return q;
-              })
-            }
+            ...sec,
+            questions: sec.questions?.map(q => {
+              if (q.id === questionId) {
+                return { ...q, options: q.options?.map(opt => opt.id === optionId ? { ...opt, weight } : opt) };
+              }
+              return q;
+            })
+          }
           : sec
       )
     }) : prev);
@@ -656,7 +650,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
   const updateSectionProperty = (sectionId: string, key: keyof Section, value: any) => {
     setSchema(prev => prev ? ({
       ...prev,
-      sections: prev.sections?.map(sec => 
+      sections: prev.sections?.map(sec =>
         sec.id === sectionId ? { ...sec, [key]: value } : sec
       )
     }) : prev);
@@ -664,11 +658,11 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
 
   let selectedQuestion = null;
   let selectedSection = null;
-  
+
   if (schema && activeSectionId) {
     selectedSection = schema.sections?.find(s => s.id === activeSectionId) || null;
   }
-  
+
   if (schema && selectedQuestionId && selectedElementType === 'question') {
     for (const sec of schema.sections || []) {
       const q = sec.questions?.find(q => q.id === selectedQuestionId);
@@ -768,8 +762,8 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
     <div className="flex h-screen bg-slate-50 text-slate-900 font-sans overflow-hidden">
       {/* Mobile Sidebar Overlay */}
       {isMobileMenuOpen && (
-        <div 
-          className="fixed inset-0 bg-slate-900/50 z-20 md:hidden" 
+        <div
+          className="fixed inset-0 bg-slate-900/50 z-20 md:hidden"
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}
@@ -787,7 +781,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
         </div>
         <div className="p-4 flex-1 overflow-y-auto">
           <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">Entradas de Dados</h2>
-          
+
           <div className="space-y-2">
             <SidebarItem icon={<Type size={18} />} label="Texto Curto" onClick={() => addQuestion('TEXT_SHORT')} />
             <SidebarItem icon={<AlignLeft size={18} />} label="Texto Longo" onClick={() => addQuestion('TEXT_LONG')} />
@@ -831,11 +825,10 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                       }
                     } : prev);
                   }}
-                  className={`flex items-center justify-center space-x-1.5 py-2 px-2 rounded-lg text-xs font-semibold border transition-all ${
-                    (schema?.settings?.visibility || 'public') === 'public'
-                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
-                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                  }`}
+                  className={`flex items-center justify-center space-x-1.5 py-2 px-2 rounded-lg text-xs font-semibold border transition-all ${(schema?.settings?.visibility || 'public') === 'public'
+                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                    }`}
                 >
                   <Globe size={13} />
                   <span>Público</span>
@@ -854,11 +847,10 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                       }
                     } : prev);
                   }}
-                  className={`flex items-center justify-center space-x-1.5 py-2 px-2 rounded-lg text-xs font-semibold border transition-all ${
-                    schema?.settings?.visibility === 'private'
-                      ? 'bg-amber-500 text-white border-amber-500 shadow-xs'
-                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                  }`}
+                  className={`flex items-center justify-center space-x-1.5 py-2 px-2 rounded-lg text-xs font-semibold border transition-all ${schema?.settings?.visibility === 'private'
+                    ? 'bg-amber-500 text-white border-amber-500 shadow-xs'
+                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                    }`}
                 >
                   <Lock size={13} />
                   <span>Privado</span>
@@ -921,7 +913,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
             </div>
 
             <label className="flex items-start space-x-3 cursor-pointer p-2 rounded hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-200">
-              <input 
+              <input
                 type="checkbox"
                 checked={schema?.settings?.show_estimated_time || false}
                 onChange={(e) => {
@@ -958,136 +950,136 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
       <main className="flex-1 flex flex-col h-screen overflow-hidden min-w-0">
         {/* Top Navbar */}
         <header className="h-16 bg-white border-b border-slate-200 px-2 sm:px-4 shadow-sm shrink-0 flex items-center justify-between gap-1 sm:gap-2 lg:gap-3 overflow-hidden">
-            <div className="flex items-center space-x-1 sm:space-x-1.5 shrink min-w-0">
-              <button 
-                onClick={handleUndo} 
-                disabled={history.length === 0}
-                title="Desfazer (Ctrl+Z)"
-                className="flex items-center justify-center p-1 sm:p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg disabled:opacity-30 disabled:hover:text-slate-500 disabled:hover:bg-transparent transition-colors shrink-0"
-              >
-                <Undo2 size={17} />
-              </button>
-              <button 
-                onClick={handleRedo} 
-                disabled={future.length === 0}
-                title="Refazer (Ctrl+Y)"
-                className="flex items-center justify-center p-1 sm:p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg disabled:opacity-30 disabled:hover:text-slate-500 disabled:hover:bg-transparent transition-colors shrink-0"
-              >
-                <Redo2 size={17} />
-              </button>
-              <button 
-                onClick={() => setIsMobileMenuOpen(true)}
-                className="md:hidden p-1.5 text-slate-600 hover:bg-slate-100 rounded-md shrink-0"
-                title="Menu"
-              >
-                <Menu size={17} />
-              </button>
-              <a href="/" className="inline-flex items-center text-xs font-semibold text-slate-700 hover:text-indigo-600 bg-slate-100 hover:bg-indigo-50 px-2 py-1.5 rounded-lg transition-colors whitespace-nowrap shrink-0 gap-1" title="Voltar para Questionários">
-                <ArrowLeft size={14} />
-                <span className="hidden 2xl:inline">Questionários</span>
-              </a>
-              <input 
-                value={schema.title}
-                onChange={(e) => setSchema(prev => prev ? {...prev, title: e.target.value} : prev)}
-                className="font-bold text-slate-800 text-xs sm:text-sm md:text-base bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-500 focus:outline-none px-1 py-1 w-20 sm:w-28 md:w-36 lg:w-44 truncate min-w-[60px]"
-                placeholder="Título..."
-              />
-            </div>
+          <div className="flex items-center space-x-1 sm:space-x-1.5 shrink min-w-0">
+            <button
+              onClick={handleUndo}
+              disabled={history.length === 0}
+              title="Desfazer (Ctrl+Z)"
+              className="flex items-center justify-center p-1 sm:p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg disabled:opacity-30 disabled:hover:text-slate-500 disabled:hover:bg-transparent transition-colors shrink-0"
+            >
+              <Undo2 size={17} />
+            </button>
+            <button
+              onClick={handleRedo}
+              disabled={future.length === 0}
+              title="Refazer (Ctrl+Y)"
+              className="flex items-center justify-center p-1 sm:p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg disabled:opacity-30 disabled:hover:text-slate-500 disabled:hover:bg-transparent transition-colors shrink-0"
+            >
+              <Redo2 size={17} />
+            </button>
+            <button
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="md:hidden p-1.5 text-slate-600 hover:bg-slate-100 rounded-md shrink-0"
+              title="Menu"
+            >
+              <Menu size={17} />
+            </button>
+            <a href="/" className="inline-flex items-center text-xs font-semibold text-slate-700 hover:text-indigo-600 bg-slate-100 hover:bg-indigo-50 px-2 py-1.5 rounded-lg transition-colors whitespace-nowrap shrink-0 gap-1" title="Voltar para Questionários">
+              <ArrowLeft size={14} />
+              <span className="hidden 2xl:inline">Questionários</span>
+            </a>
+            <input
+              value={schema.title}
+              onChange={(e) => setSchema(prev => prev ? { ...prev, title: e.target.value } : prev)}
+              className="font-bold text-slate-800 text-xs sm:text-sm md:text-base bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-500 focus:outline-none px-1 py-1 w-20 sm:w-28 md:w-36 lg:w-44 truncate min-w-[60px]"
+              placeholder="Título..."
+            />
+          </div>
 
-            {/* Tab Switcher (Construtor / Respostas) */}
-            <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 shrink-0">
-              <button
-                onClick={() => setActiveTab('builder')}
-                className={`flex items-center space-x-1 px-2 sm:px-2.5 py-1.5 text-xs font-semibold rounded-md transition-all ${activeTab === 'builder' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
-                title="Construtor"
-              >
-                <span className="hidden sm:inline">Construtor</span>
-                <span className="sm:hidden"><Menu size={13} /></span>
-              </button>
-              <button
-                onClick={() => { setActiveTab('responses'); fetchResponses(); }}
-                className={`flex items-center space-x-1 px-2 sm:px-2.5 py-1.5 text-xs font-semibold rounded-md transition-all ${activeTab === 'responses' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
-                title="Respostas"
-              >
-                <BarChart3 size={13} />
-                <span className="hidden sm:inline">Respostas</span>
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${activeTab === 'responses' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-200 text-slate-600'}`}>
-                  {responsesList.length}
-                </span>
-              </button>
-            </div>
+          {/* Tab Switcher (Construtor / Respostas) */}
+          <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 shrink-0">
+            <button
+              onClick={() => setActiveTab('builder')}
+              className={`flex items-center space-x-1 px-2 sm:px-2.5 py-1.5 text-xs font-semibold rounded-md transition-all ${activeTab === 'builder' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+              title="Construtor"
+            >
+              <span className="hidden sm:inline">Construtor</span>
+              <span className="sm:hidden"><Menu size={13} /></span>
+            </button>
+            <button
+              onClick={() => { setActiveTab('responses'); fetchResponses(); }}
+              className={`flex items-center space-x-1 px-2 sm:px-2.5 py-1.5 text-xs font-semibold rounded-md transition-all ${activeTab === 'responses' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+              title="Respostas"
+            >
+              <BarChart3 size={13} />
+              <span className="hidden sm:inline">Respostas</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${activeTab === 'responses' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-200 text-slate-600'}`}>
+                {responsesList.length}
+              </span>
+            </button>
+          </div>
 
-            <div className="flex items-center space-x-1 sm:space-x-1.5 shrink-0">
-              {/* Online Collaborators Badge */}
-              {onlineCollaborators.length > 0 && (
-                <div className="hidden 2xl:flex items-center space-x-1.5 bg-indigo-50/80 border border-indigo-100 px-2 py-1 rounded-lg shrink-0">
-                  <div className="flex items-center -space-x-1.5">
-                    {onlineCollaborators.map((c, i) => (
-                      <div 
-                        key={c.clientId || i}
-                        title={`${c.name} (${c.email || 'Online'})`}
-                        style={{ backgroundColor: c.color || '#6366f1' }}
-                        className="inline-flex items-center justify-center w-5 h-5 rounded-full text-white text-[9px] font-bold ring-2 ring-white shadow-sm uppercase cursor-default"
-                      >
-                        {c.name ? c.name.slice(0, 2) : 'U'}
-                      </div>
-                    ))}
-                  </div>
-                  <span className="text-[10px] font-semibold text-indigo-700 pl-1 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    {onlineCollaborators.length}
-                  </span>
+          <div className="flex items-center space-x-1 sm:space-x-1.5 shrink-0">
+            {/* Online Collaborators Badge */}
+            {onlineCollaborators.length > 0 && (
+              <div className="hidden 2xl:flex items-center space-x-1.5 bg-indigo-50/80 border border-indigo-100 px-2 py-1 rounded-lg shrink-0">
+                <div className="flex items-center -space-x-1.5">
+                  {onlineCollaborators.map((c, i) => (
+                    <div
+                      key={c.clientId || i}
+                      title={`${c.name} (${c.email || 'Online'})`}
+                      style={{ backgroundColor: c.color || '#6366f1' }}
+                      className="inline-flex items-center justify-center w-5 h-5 rounded-full text-white text-[9px] font-bold ring-2 ring-white shadow-sm uppercase cursor-default"
+                    >
+                      {c.name ? c.name.slice(0, 2) : 'U'}
+                    </div>
+                  ))}
                 </div>
-              )}
+                <span className="text-[10px] font-semibold text-indigo-700 pl-1 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  {onlineCollaborators.length}
+                </span>
+              </div>
+            )}
 
-              <button 
-                onClick={() => setIsAutoSaveEnabled(!isAutoSaveEnabled)}
-                className={`flex items-center justify-center space-x-1 px-2 py-1.5 text-xs font-medium rounded-lg transition-colors whitespace-nowrap shrink-0 ${isAutoSaveEnabled ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-slate-50 text-slate-500 border border-slate-200'}`}
-                title={isAutoSaveEnabled ? (lastSavedTime ? `Salvamento Automático Ativado (Último: ${lastSavedTime})` : "Salvamento Automático Ativado") : "Salvamento Automático Desativado"}
-              >
-                <div className={`w-2 h-2 rounded-full ${isAutoSaveEnabled ? (isSaving ? 'bg-amber-500 animate-ping' : 'bg-indigo-500 animate-pulse') : 'bg-slate-300'}`}></div>
-                <span className="hidden 2xl:inline">{isAutoSaveEnabled ? (isSaving ? 'Salvando...' : 'Auto-save ON') : 'Auto-save OFF'}</span>
-              </button>
-              <button 
-                onClick={async () => {
-                  let token = schema.share_token;
-                  if (!token) {
-                    token = await generateShareToken(id);
-                    setSchema(prev => prev ? { ...prev, share_token: token } : prev);
-                  }
-                  setIsShareModalOpen(true);
-                }}
-                className="flex items-center justify-center space-x-1 px-2 sm:px-2.5 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg shadow-sm hover:bg-slate-50 transition-colors shrink-0 whitespace-nowrap"
-                title="Compartilhar"
-              >
-                <Share2 size={14} />
-                <span className="hidden xl:inline">Compartilhar</span>
-              </button>
-              <button 
-                onClick={() => window.open(`/preview/${id}`, '_blank')}
-                className="flex items-center justify-center space-x-1 px-2 sm:px-2.5 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg shadow-sm hover:bg-slate-50 transition-colors shrink-0 whitespace-nowrap"
-                title="Pré-visualizar"
-              >
-                <ExternalLink size={14} />
-                <span className="hidden xl:inline">Pré-visualizar</span>
-              </button>
-              <button 
-                onClick={() => handleSave(true)}
-                disabled={isSaving}
-                className={`flex items-center justify-center space-x-1.5 px-2.5 sm:px-3 py-1.5 text-xs sm:text-sm font-medium text-white rounded-lg shadow-sm transition-colors shrink-0 whitespace-nowrap ${isSaving ? 'bg-indigo-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'}`}
-                title="Salvar Formulário"
-              >
-                {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                <span>{isSaving ? 'Salvando...' : 'Salvar'}</span>
-              </button>
-            </div>
+            <button
+              onClick={() => setIsAutoSaveEnabled(!isAutoSaveEnabled)}
+              className={`flex items-center justify-center space-x-1 px-2 py-1.5 text-xs font-medium rounded-lg transition-colors whitespace-nowrap shrink-0 ${isAutoSaveEnabled ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-slate-50 text-slate-500 border border-slate-200'}`}
+              title={isAutoSaveEnabled ? (lastSavedTime ? `Salvamento Automático Ativado (Último: ${lastSavedTime})` : "Salvamento Automático Ativado") : "Salvamento Automático Desativado"}
+            >
+              <div className={`w-2 h-2 rounded-full ${isAutoSaveEnabled ? (isSaving ? 'bg-amber-500 animate-ping' : 'bg-indigo-500 animate-pulse') : 'bg-slate-300'}`}></div>
+              <span className="hidden 2xl:inline">{isAutoSaveEnabled ? (isSaving ? 'Salvando...' : 'Auto-save ON') : 'Auto-save OFF'}</span>
+            </button>
+            <button
+              onClick={async () => {
+                let token = schema.share_token;
+                if (!token) {
+                  token = await generateShareToken(id);
+                  setSchema(prev => prev ? { ...prev, share_token: token } : prev);
+                }
+                setIsShareModalOpen(true);
+              }}
+              className="flex items-center justify-center space-x-1 px-2 sm:px-2.5 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg shadow-sm hover:bg-slate-50 transition-colors shrink-0 whitespace-nowrap"
+              title="Compartilhar"
+            >
+              <Share2 size={14} />
+              <span className="hidden xl:inline">Compartilhar</span>
+            </button>
+            <button
+              onClick={() => window.open(`/preview/${id}`, '_blank')}
+              className="flex items-center justify-center space-x-1 px-2 sm:px-2.5 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg shadow-sm hover:bg-slate-50 transition-colors shrink-0 whitespace-nowrap"
+              title="Pré-visualizar"
+            >
+              <ExternalLink size={14} />
+              <span className="hidden xl:inline">Pré-visualizar</span>
+            </button>
+            <button
+              onClick={() => handleSave(true)}
+              disabled={isSaving}
+              className={`flex items-center justify-center space-x-1.5 px-2.5 sm:px-3 py-1.5 text-xs sm:text-sm font-medium text-white rounded-lg shadow-sm transition-colors shrink-0 whitespace-nowrap ${isSaving ? 'bg-indigo-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'}`}
+              title="Salvar Formulário"
+            >
+              {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+              <span>{isSaving ? 'Salvando...' : 'Salvar'}</span>
+            </button>
+          </div>
         </header>
 
         {/* Canvas Area or Responses Area */}
         {activeTab === 'responses' ? (
           <div className="flex-1 overflow-y-auto p-4 sm:p-8 bg-slate-50">
             <div className="max-w-4xl mx-auto space-y-6 pb-24">
-              
+
               {/* Header de Respostas */}
               <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
@@ -1181,17 +1173,17 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                               <div className="grid grid-cols-1 gap-3 bg-slate-50/50 p-4 rounded-xl border border-slate-100">
                                 {sec.questions?.map((q, qIdx) => {
                                   const val = answersMap[q.id];
-                                  
+
                                   const getOptionLabel = (qId: string, optId: string) => {
                                     if (optId.startsWith('other:')) return optId.replace('other:', 'Outro: ');
                                     const opt = q.options?.find(o => o.id === optId);
                                     if (opt) return opt.label;
-                                    
+
                                     if (q.type === 'DYNAMIC_REPEATER' && q.sub_question_template?.sub_questions) {
-                                       for (const sq of q.sub_question_template.sub_questions) {
-                                         const sOpt = sq.options?.find((o: any) => o.id === optId || o === optId);
-                                         if (sOpt) return typeof sOpt === 'string' ? sOpt : sOpt.label;
-                                       }
+                                      for (const sq of q.sub_question_template.sub_questions) {
+                                        const sOpt = sq.options?.find((o: any) => o.id === optId || o === optId);
+                                        if (sOpt) return typeof sOpt === 'string' ? sOpt : sOpt.label;
+                                      }
                                     }
                                     return optId;
                                   };
@@ -1221,7 +1213,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                                             </ul>
                                           ) : <span className="text-slate-400 italic text-xs">Nenhum selecionado</span>}
                                         </div>
-                                        
+
                                         {val.answers && Object.keys(val.answers).length > 0 && (
                                           <div>
                                             <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider block mb-1 mt-3">Detalhes</span>
@@ -1235,7 +1227,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                                                       {Object.entries(subAnswers).map(([sqId, sqVal]) => {
                                                         const sq = q.sub_question_template?.sub_questions?.find((s: any) => s.id === sqId);
                                                         const sqLabel = sq ? sq.label : sqId;
-                                                        
+
                                                         let sqValFormatted = sqVal;
                                                         if (sq && (sq.type === 'RADIO_SINGLE' || sq.type === 'CHECKBOX_MULTIPLE' || sq.type === 'DROPDOWN')) {
                                                           if (Array.isArray(sqVal)) {
@@ -1248,7 +1240,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                                                             sqValFormatted = o ? (typeof o === 'string' ? o : o.label) : sqVal;
                                                           }
                                                         }
-                                                        
+
                                                         return (
                                                           <div key={sqId}>
                                                             <p className="text-[11px] text-slate-500 font-semibold">{sqLabel}</p>
@@ -1296,90 +1288,90 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
           </div>
         ) : (
           /* Canvas Area */
-          <div 
+          <div
             className="flex-1 overflow-y-auto p-4 sm:p-8 bg-slate-50"
             onDragOver={handleContainerDragOver}
           >
             <div className="max-w-4xl mx-auto space-y-8 pb-32">
-              
-              {schema.sections?.map((section, index) => (
-              <div 
-                key={section.id}
-                onClick={() => setActiveSectionId(section.id)}
-                className={`bg-white rounded-xl shadow-sm border transition-all overflow-hidden ${activeSectionId === section.id ? 'border-indigo-400 ring-1 ring-indigo-400' : 'border-slate-200 opacity-80 hover:opacity-100'}`}
-              >
-                <div 
-                  onClick={(e) => { e.stopPropagation(); setActiveSectionId(section.id); setSelectedElementType('section'); }}
-                  onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    if (draggedItem && draggedItem.sectionId === section.id) {
-                      reorderQuestion(section.id, draggedItem.index, 0);
-                    }
-                    setDraggedItem(null);
-                    setDragOverItem(null);
-                  }}
-                  className={`bg-slate-50 px-4 py-4 sm:px-6 border-b border-slate-200 flex flex-col group cursor-pointer transition-colors ${selectedElementType === 'section' && activeSectionId === section.id ? 'bg-indigo-50/50' : 'hover:bg-slate-100'}`}
-                >
-                  <div className="flex-1 w-full">
-                    <p className="text-[10px] sm:text-xs font-semibold text-indigo-600 uppercase tracking-wide flex items-center justify-between">
-                      <span className="flex items-center space-x-2">
-                        <span>Seção {index + 1} {activeSectionId === section.id && "(Ativa)"}</span>
-                        <span className="text-slate-400 font-normal normal-case flex items-center" title="Tempo estimado para responder esta seção">
-                          ⏱️ ~{calculateSectionTime(section)}
-                        </span>
-                      </span>
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); setActiveCommentElement({ id: section.id, title: section.title || `Seção ${index + 1}` }); }}
-                        className="flex items-center space-x-1 text-slate-400 hover:text-indigo-600 bg-white border border-slate-200 px-2 py-0.5 rounded-full transition-colors"
-                        title="Comentários desta seção"
-                      >
-                        <MessageSquare size={12} />
-                        {formComments.filter(c => c.element_id === section.id && c.status === 'open').length > 0 && (
-                          <span className="text-[10px] bg-red-500 text-white rounded-full px-1.5 font-bold leading-tight">
-                            {formComments.filter(c => c.element_id === section.id && c.status === 'open').length}
-                          </span>
-                        )}
-                      </button>
-                    </p>
-                    <input 
-                      value={section.title}
-                      onChange={(e) => {
-                        const newTitle = e.target.value;
-                        updateSectionProperty(section.id, 'title', newTitle);
-                      }}
-                      className="text-lg font-bold text-slate-800 mt-1 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-500 focus:outline-none w-full cursor-text"
-                      onClick={(e) => e.stopPropagation()} // Prevent selecting section when typing
-                      onFocus={() => { setActiveSectionId(section.id); setSelectedElementType('section'); }}
-                    />
-                  </div>
-                  {section.description && (
-                    <p className="text-sm text-slate-500 mt-2 whitespace-pre-wrap">{section.description}</p>
-                  )}
-                </div>
-                
-                <div 
-                  className="p-4 sm:p-6 space-y-4 min-h-[100px]"
-                  onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    if (draggedItem && draggedItem.sectionId === section.id) {
-                      reorderQuestion(section.id, draggedItem.index, section.questions?.length || 0);
-                    }
-                    setDraggedItem(null);
-                    setDragOverItem(null);
-                  }}
-                >
-                  {(!section.questions || section.questions.length === 0) && (
-                    <div className="text-center py-8 text-slate-400 border-2 border-dashed border-slate-200 rounded-lg">
-                      Nenhuma pergunta nesta seção. Clique nos componentes na barra lateral para adicionar.
-                    </div>
-                  )}
 
-                  {section.questions?.map((q, qIndex) => (
-                      <QuestionCard 
+              {schema.sections?.map((section, index) => (
+                <div
+                  key={section.id}
+                  onClick={() => setActiveSectionId(section.id)}
+                  className={`bg-white rounded-xl shadow-sm border transition-all overflow-hidden ${activeSectionId === section.id ? 'border-indigo-400 ring-1 ring-indigo-400' : 'border-slate-200 opacity-80 hover:opacity-100'}`}
+                >
+                  <div
+                    onClick={(e) => { e.stopPropagation(); setActiveSectionId(section.id); setSelectedElementType('section'); }}
+                    onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (draggedItem && draggedItem.sectionId === section.id) {
+                        reorderQuestion(section.id, draggedItem.index, 0);
+                      }
+                      setDraggedItem(null);
+                      setDragOverItem(null);
+                    }}
+                    className={`bg-slate-50 px-4 py-4 sm:px-6 border-b border-slate-200 flex flex-col group cursor-pointer transition-colors ${selectedElementType === 'section' && activeSectionId === section.id ? 'bg-indigo-50/50' : 'hover:bg-slate-100'}`}
+                  >
+                    <div className="flex-1 w-full">
+                      <p className="text-[10px] sm:text-xs font-semibold text-indigo-600 uppercase tracking-wide flex items-center justify-between">
+                        <span className="flex items-center space-x-2">
+                          <span>Seção {index + 1} {activeSectionId === section.id && "(Ativa)"}</span>
+                          <span className="text-slate-400 font-normal normal-case flex items-center" title="Tempo estimado para responder esta seção">
+                            ⏱️ ~{calculateSectionTime(section)}
+                          </span>
+                        </span>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setActiveCommentElement({ id: section.id, title: section.title || `Seção ${index + 1}` }); }}
+                          className="flex items-center space-x-1 text-slate-400 hover:text-indigo-600 bg-white border border-slate-200 px-2 py-0.5 rounded-full transition-colors"
+                          title="Comentários desta seção"
+                        >
+                          <MessageSquare size={12} />
+                          {formComments.filter(c => c.element_id === section.id && c.status === 'open').length > 0 && (
+                            <span className="text-[10px] bg-red-500 text-white rounded-full px-1.5 font-bold leading-tight">
+                              {formComments.filter(c => c.element_id === section.id && c.status === 'open').length}
+                            </span>
+                          )}
+                        </button>
+                      </p>
+                      <input
+                        value={section.title}
+                        onChange={(e) => {
+                          const newTitle = e.target.value;
+                          updateSectionProperty(section.id, 'title', newTitle);
+                        }}
+                        className="text-lg font-bold text-slate-800 mt-1 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-500 focus:outline-none w-full cursor-text"
+                        onClick={(e) => e.stopPropagation()} // Prevent selecting section when typing
+                        onFocus={() => { setActiveSectionId(section.id); setSelectedElementType('section'); }}
+                      />
+                    </div>
+                    {section.description && (
+                      <p className="text-sm text-slate-500 mt-2 whitespace-pre-wrap">{section.description}</p>
+                    )}
+                  </div>
+
+                  <div
+                    className="p-4 sm:p-6 space-y-4 min-h-[100px]"
+                    onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (draggedItem && draggedItem.sectionId === section.id) {
+                        reorderQuestion(section.id, draggedItem.index, section.questions?.length || 0);
+                      }
+                      setDraggedItem(null);
+                      setDragOverItem(null);
+                    }}
+                  >
+                    {(!section.questions || section.questions.length === 0) && (
+                      <div className="text-center py-8 text-slate-400 border-2 border-dashed border-slate-200 rounded-lg">
+                        Nenhuma pergunta nesta seção. Clique nos componentes na barra lateral para adicionar.
+                      </div>
+                    )}
+
+                    {section.questions?.map((q, qIndex) => (
+                      <QuestionCard
                         key={q.id}
                         question={q}
                         number={qIndex + 1}
@@ -1427,22 +1419,22 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                           setDragOverItem(null);
                         }}
                       />
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
-            
-            {/* Add Section Button */}
-            <button 
-              onClick={addSection}
-              className="w-full py-4 border-2 border-dashed border-slate-300 rounded-xl text-slate-500 font-medium hover:border-indigo-400 hover:text-indigo-600 transition-colors flex flex-col items-center justify-center space-y-2 bg-slate-50/50"
-            >
-              <Plus size={24} />
-              <span>Adicionar Nova Seção</span>
-            </button>
+              ))}
 
+              {/* Add Section Button */}
+              <button
+                onClick={addSection}
+                className="w-full py-4 border-2 border-dashed border-slate-300 rounded-xl text-slate-500 font-medium hover:border-indigo-400 hover:text-indigo-600 transition-colors flex flex-col items-center justify-center space-y-2 bg-slate-50/50"
+              >
+                <Plus size={24} />
+                <span>Adicionar Nova Seção</span>
+              </button>
+
+            </div>
           </div>
-        </div>
         )}
       </main>
 
@@ -1450,444 +1442,444 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
       {(selectedElementType === 'question' && selectedQuestion) || (selectedElementType === 'section' && selectedSection) ? (
         <>
           {/* Mobile Overlay for Right Sidebar */}
-          <div 
-            className="fixed inset-0 bg-slate-900/50 z-40 lg:hidden backdrop-blur-xs" 
+          <div
+            className="fixed inset-0 bg-slate-900/50 z-40 lg:hidden backdrop-blur-xs"
             onClick={() => setSelectedElementType(null)}
           />
           <aside className="fixed inset-y-0 right-0 z-50 w-full sm:w-96 bg-white border-l border-slate-200 flex flex-col shadow-2xl lg:shadow-xl lg:relative lg:w-80 lg:z-20 shrink-0 transition-transform">
             <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
-            <h2 className="font-bold text-slate-800">
-              {selectedElementType === 'section' ? 'Propriedades da Seção' : 'Propriedades da Pergunta'}
-            </h2>
-            <button onClick={() => setSelectedElementType(null)} className="text-slate-500 hover:text-slate-700">
-              <X size={18} />
-            </button>
-          </div>
-          
-          <div className="p-4 flex-1 overflow-y-auto space-y-6">
-            
-            {/* --- SECTION PROPERTIES --- */}
-            {selectedElementType === 'section' && selectedSection && (
-              <>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">Título da Seção</label>
-                  <input 
-                    type="text"
-                    value={selectedSection.title}
-                    onChange={(e) => updateSectionProperty(selectedSection.id, 'title', e.target.value)}
-                    className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-md px-3 py-2 outline-none"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">Descrição / Contexto</label>
-                  <p className="text-xs text-slate-500">Aparecerá como um bloco de texto explicativo no topo da seção (Cards de contexto).</p>
-                  <textarea 
-                    value={selectedSection.description || ''}
-                    onChange={(e) => updateSectionProperty(selectedSection.id, 'description', e.target.value)}
-                    rows={4}
-                    className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-md px-3 py-2 outline-none resize-none"
-                    placeholder="Ex: O objetivo desta seção é avaliar..."
-                  />
-                </div>
+              <h2 className="font-bold text-slate-800">
+                {selectedElementType === 'section' ? 'Propriedades da Seção' : 'Propriedades da Pergunta'}
+              </h2>
+              <button onClick={() => setSelectedElementType(null)} className="text-slate-500 hover:text-slate-700">
+                <X size={18} />
+              </button>
+            </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">Vídeo Explicativo</label>
-                  <p className="text-xs text-slate-500">Adicione um vídeo no cabeçalho desta seção.</p>
-                  <SectionVideoUploader 
-                    videoUrl={selectedSection.video_url || ''} 
-                    onUpdate={(url) => updateSectionProperty(selectedSection.id, 'video_url', url)} 
-                  />
-                </div>
+            <div className="p-4 flex-1 overflow-y-auto space-y-6">
 
-                <div className="space-y-2 pt-4 border-t border-slate-100">
-                  <label className="text-sm font-medium text-slate-700">Bloquear Perguntas (Segundos)</label>
-                  <p className="text-xs text-slate-500">Oculta as perguntas desta seção até que o vídeo acima atinja o tempo definido (apenas vídeos nativos). Deixe 0 para não ocultar.</p>
-                  <input 
-                    type="number"
-                    placeholder="Ex: 30"
-                    min="0"
-                    value={selectedSection.unlock_at_seconds ?? ''}
-                    onChange={(e) => {
-                      const val = parseInt(e.target.value);
-                      updateSectionProperty(selectedSection.id, 'unlock_at_seconds', isNaN(val) ? undefined : val);
-                    }}
-                    className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-md px-3 py-2 outline-none"
-                  />
-                </div>
-
-                <div className="space-y-2 pt-4 border-t border-slate-100">
-                  <label className="text-sm font-medium text-slate-700">Tag de Camada (IMAPS)</label>
-                  <p className="text-xs text-slate-500">Ex: TIMAPS, SIMAPS, OIMAPS, LIMAPS</p>
-                  <input 
-                    type="text"
-                    placeholder="Adicionar tags separadas por vírgula..."
-                    value={selectedSection.tags?.join(', ') || ''}
-                    onChange={(e) => {
-                      const tags = e.target.value.split(',').map(t => t.trim()).filter(Boolean);
-                      updateSectionProperty(selectedSection.id, 'tags', tags.length > 0 ? tags : undefined);
-                    }}
-                    className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-md px-3 py-2 outline-none"
-                  />
-                </div>
-              </>
-            )}
-
-            {/* --- QUESTION PROPERTIES --- */}
-            {selectedElementType === 'question' && selectedQuestion && (
-              <>
-                {/* Question Type Changer */}
-                <div className="space-y-2 pb-4 border-b border-slate-100">
-                  <label className="text-sm font-medium text-slate-700">Tipo de Pergunta</label>
-                  <select 
-                    value={selectedQuestion.type}
-                    onChange={(e) => {
-                      const newType = e.target.value as QuestionType;
-                      const needsOptions = ['RADIO_SINGLE', 'CHECKBOX_MULTIPLE', 'DROPDOWN'].includes(newType);
-                      
-                      const updates: Partial<Question> = { type: newType };
-                      
-                      // Auto-add options if switching to a choice type and none exist
-                      if (needsOptions && (!selectedQuestion.options || selectedQuestion.options.length === 0)) {
-                        updates.options = [
-                          { id: generateId(), label: "Opção 1" } as any,
-                          { id: generateId(), label: "Opção 2" } as any
-                        ];
-                      }
-                      
-                      // Use a batched update by finding the section and question
-                      setSchema(prev => {
-                        if (!prev) return prev;
-                        return {
-                          ...prev,
-                          sections: prev.sections?.map(sec => 
-                            sec.id === activeSectionId
-                              ? {
-                                  ...sec,
-                                  questions: sec.questions?.map(q => 
-                                    q.id === selectedQuestion.id ? { ...q, ...updates } : q
-                                  )
-                                }
-                              : sec
-                          )
-                        };
-                      });
-                    }}
-                    className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-md px-3 py-2 outline-none"
-                  >
-                    <optgroup label="Texto">
-                      <option value="TEXT_SHORT">Resposta Curta</option>
-                      <option value="TEXT_LONG">Parágrafo</option>
-                    </optgroup>
-                    <optgroup label="Múltipla Escolha">
-                      <option value="RADIO_SINGLE">Múltipla Escolha (1 Opção)</option>
-                      <option value="CHECKBOX_MULTIPLE">Caixas de Seleção</option>
-                      <option value="DROPDOWN">Menu Suspenso (Dropdown)</option>
-                    </optgroup>
-                    <optgroup label="Upload & Data">
-                      <option value="FILE_UPLOAD">Upload de Arquivo</option>
-                      <option value="DATE_TIME">Data e Hora</option>
-                    </optgroup>
-                    <optgroup label="Mídia & Visual">
-                      <option value="TEXT_MARKDOWN">Bloco de Texto Formato (Aviso)</option>
-                      <option value="MEDIA_VIDEO">Vídeo (YouTube/Upload)</option>
-                      <option value="MEDIA_IMAGE">Imagem</option>
-                      <option value="MEDIA_AUDIO">Áudio</option>
-                    </optgroup>
-                  </select>
-                </div>
-
-                {/* Required Toggle */}
-                <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium text-slate-700">Obrigatória</label>
-                  <div 
-                    onClick={() => updateQuestionProperty(activeSectionId, selectedQuestion.id, 'required', !selectedQuestion.required)}
-                    className={`w-10 h-5 flex items-center rounded-full p-1 cursor-pointer transition-colors ${selectedQuestion.required ? 'bg-indigo-600' : 'bg-slate-300'}`}
-                  >
-                    <div className={`bg-white w-3 h-3 rounded-full shadow-md transform transition-transform ${selectedQuestion.required ? 'translate-x-5' : 'translate-x-0'}`} />
+              {/* --- SECTION PROPERTIES --- */}
+              {selectedElementType === 'section' && selectedSection && (
+                <>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-700">Título da Seção</label>
+                    <input
+                      type="text"
+                      value={selectedSection.title}
+                      onChange={(e) => updateSectionProperty(selectedSection.id, 'title', e.target.value)}
+                      className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-md px-3 py-2 outline-none"
+                    />
                   </div>
-                </div>
 
-                {/* Tags / Metadata */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">Tag de Camada (IMAPS)</label>
-                  {selectedSection?.tags && selectedSection.tags.length > 0 ? (
-                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-md text-xs text-amber-700 leading-relaxed">
-                      <strong>Tags desativadas:</strong> A seção atual já possui tags configuradas ({selectedSection.tags.join(', ')}). Todas as perguntas desta seção herdarão automaticamente as tags da seção.
-                    </div>
-                  ) : (
-                    <>
-                      <p className="text-xs text-slate-500">Ex: TIMAPS, SIMAPS, OIMAPS, LIMAPS</p>
-                      <input 
-                        type="text"
-                        placeholder="Adicionar tags separadas por vírgula..."
-                        value={selectedQuestion.tags?.join(', ') || ''}
-                        onChange={(e) => {
-                          const tags = e.target.value.split(',').map(t => t.trim()).filter(Boolean);
-                          updateQuestionProperty(activeSectionId, selectedQuestion.id, 'tags', tags.length > 0 ? tags : undefined);
-                        }}
-                        className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-md px-3 py-2 outline-none"
-                      />
-                    </>
-                  )}
-                </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-700">Descrição / Contexto</label>
+                    <p className="text-xs text-slate-500">Aparecerá como um bloco de texto explicativo no topo da seção (Cards de contexto).</p>
+                    <textarea
+                      value={selectedSection.description || ''}
+                      onChange={(e) => updateSectionProperty(selectedSection.id, 'description', e.target.value)}
+                      rows={4}
+                      className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-md px-3 py-2 outline-none resize-none"
+                      placeholder="Ex: O objetivo desta seção é avaliar..."
+                    />
+                  </div>
 
-                {/* Video Unlock Settings */}
-                {selectedQuestion.type === 'MEDIA_VIDEO' && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-700">Vídeo Explicativo</label>
+                    <p className="text-xs text-slate-500">Adicione um vídeo no cabeçalho desta seção.</p>
+                    <SectionVideoUploader
+                      videoUrl={selectedSection.video_url || ''}
+                      onUpdate={(url) => updateSectionProperty(selectedSection.id, 'video_url', url)}
+                    />
+                  </div>
+
                   <div className="space-y-2 pt-4 border-t border-slate-100">
-                    <label className="text-sm font-medium text-slate-700">Bloquear Respostas (Segundos)</label>
-                    <p className="text-xs text-slate-500">Impedir respostas até que o vídeo atinja o tempo definido abaixo. (Deixe 0 para não bloquear).</p>
-                    <input 
+                    <label className="text-sm font-medium text-slate-700">Bloquear Perguntas (Segundos)</label>
+                    <p className="text-xs text-slate-500">Oculta as perguntas desta seção até que o vídeo acima atinja o tempo definido (apenas vídeos nativos). Deixe 0 para não ocultar.</p>
+                    <input
                       type="number"
                       placeholder="Ex: 30"
                       min="0"
-                      value={selectedQuestion.sub_question_template?.unlock_at_seconds || ''}
+                      value={selectedSection.unlock_at_seconds ?? ''}
                       onChange={(e) => {
                         const val = parseInt(e.target.value);
-                        updateQuestionProperty(activeSectionId, selectedQuestion.id, 'sub_question_template', {
-                          ...selectedQuestion.sub_question_template,
-                          unlock_at_seconds: isNaN(val) ? undefined : val
-                        });
+                        updateSectionProperty(selectedSection.id, 'unlock_at_seconds', isNaN(val) ? undefined : val);
                       }}
                       className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-md px-3 py-2 outline-none"
                     />
                   </div>
-                )}
 
-                {/* Allow Add Item (for Checkbox/Radio) */}
-                {(selectedQuestion.type === 'RADIO_SINGLE' || selectedQuestion.type === 'CHECKBOX_MULTIPLE') && (
-                  <div className="flex items-center justify-between pt-4 border-t border-slate-100">
-                    <div className="flex flex-col">
-                      <label className="text-sm font-medium text-slate-700">Opção "Outros"</label>
-                      <span className="text-xs text-slate-500">Permite texto livre</span>
-                    </div>
-                    <div 
-                      onClick={() => updateQuestionProperty(activeSectionId, selectedQuestion.id, 'allow_add_item', !selectedQuestion.allow_add_item)}
-                      className={`w-10 h-5 flex items-center rounded-full p-1 cursor-pointer transition-colors ${selectedQuestion.allow_add_item ? 'bg-indigo-600' : 'bg-slate-300'}`}
-                    >
-                      <div className={`bg-white w-3 h-3 rounded-full shadow-md transform transition-transform ${selectedQuestion.allow_add_item ? 'translate-x-5' : 'translate-x-0'}`} />
-                    </div>
-                  </div>
-                )}
-
-                {/* Option Weights */}
-                {(selectedQuestion.type === 'RADIO_SINGLE' || selectedQuestion.type === 'CHECKBOX_MULTIPLE' || selectedQuestion.type === 'DROPDOWN') && selectedQuestion.options && (
                   <div className="space-y-2 pt-4 border-t border-slate-100">
-                    <label className="text-sm font-medium text-slate-700">Pesos Analíticos (Scores)</label>
-                    <p className="text-xs text-slate-500 mb-3">Atribua valores numéricos de 1 a 5 para cálculo de maturidade.</p>
-                    {selectedQuestion.options.map(opt => (
-                      <div key={opt.id} className="flex items-center space-x-2">
-                        <span className="flex-1 text-xs text-slate-600 truncate">{opt.label || 'Sem rótulo'}</span>
-                        <input 
-                          type="number"
-                          placeholder="Peso"
-                          value={opt.weight ?? ''}
-                          onChange={(e) => {
-                            const val = e.target.value === '' ? null : Number(e.target.value);
-                            updateOptionWeight(activeSectionId, selectedQuestion.id, opt.id, val);
-                          }}
-                          className="w-16 text-xs bg-slate-50 border border-slate-200 rounded px-2 py-1 text-center outline-none focus:border-indigo-500"
-                        />
-                      </div>
-                    ))}
+                    <label className="text-sm font-medium text-slate-700">Tag de Camada (IMAPS)</label>
+                    <p className="text-xs text-slate-500">Ex: TIMAPS, SIMAPS, OIMAPS, LIMAPS</p>
+                    <input
+                      type="text"
+                      placeholder="Adicionar tags separadas por vírgula..."
+                      value={selectedSection.tags?.join(', ') || ''}
+                      onChange={(e) => {
+                        const tags = e.target.value.split(',').map(t => t.trim()).filter(Boolean);
+                        updateSectionProperty(selectedSection.id, 'tags', tags.length > 0 ? tags : undefined);
+                      }}
+                      className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-md px-3 py-2 outline-none"
+                    />
                   </div>
-                )}
+                </>
+              )}
 
-                {/* DYNAMIC REPEATER PROPERTIES */}
-                {selectedQuestion.type === 'DYNAMIC_REPEATER' && (
-                  <div className="space-y-4 pt-4 border-t border-slate-100">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-slate-700">Pergunta Base (Gatilho)</label>
-                      <p className="text-xs text-slate-500">Selecione a pergunta de múltipla escolha que irá gerar os blocos de repetição.</p>
-                      <select 
-                        value={selectedQuestion.trigger_source_question_id || ''}
-                        onChange={(e) => updateQuestionProperty(activeSectionId, selectedQuestion.id, 'trigger_source_question_id', e.target.value)}
-                        className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-md px-3 py-2 outline-none"
-                      >
-                        <option value="">Selecione uma pergunta...</option>
-                        {schema?.sections?.flatMap(s => s.questions || [])
-                          .filter(q => (q.type === 'CHECKBOX_MULTIPLE' || q.type === 'RADIO_SINGLE' || q.type === 'DROPDOWN') && q.id !== selectedQuestion.id)
-                          .map(q => (
-                            <option key={q.id} value={q.id}>{q.label || 'Sem título'}</option>
-                          ))
+              {/* --- QUESTION PROPERTIES --- */}
+              {selectedElementType === 'question' && selectedQuestion && (
+                <>
+                  {/* Question Type Changer */}
+                  <div className="space-y-2 pb-4 border-b border-slate-100">
+                    <label className="text-sm font-medium text-slate-700">Tipo de Pergunta</label>
+                    <select
+                      value={selectedQuestion.type}
+                      onChange={(e) => {
+                        const newType = e.target.value as QuestionType;
+                        const needsOptions = ['RADIO_SINGLE', 'CHECKBOX_MULTIPLE', 'DROPDOWN'].includes(newType);
+
+                        const updates: Partial<Question> = { type: newType };
+
+                        // Auto-add options if switching to a choice type and none exist
+                        if (needsOptions && (!selectedQuestion.options || selectedQuestion.options.length === 0)) {
+                          updates.options = [
+                            { id: generateId(), label: "Opção 1" } as any,
+                            { id: generateId(), label: "Opção 2" } as any
+                          ];
                         }
-                      </select>
-                    </div>
 
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-slate-700">Sub-perguntas (Bloco)</label>
-                      <p className="text-xs text-slate-500">Estas perguntas serão repetidas para cada opção selecionada na Pergunta Base.</p>
-                      
-                      <div className="space-y-2 bg-slate-50 p-2 rounded border border-slate-200">
-                        {selectedQuestion.sub_question_template?.sub_questions?.map((subQ: any, index: number) => (
-                          <div 
-                            key={subQ.id} 
-                            className="bg-white border border-slate-200 p-2 pl-7 rounded text-sm relative group/sub"
-                            draggable={dragEnabledSubQId === subQ.id}
-                            onDragStart={(e) => {
-                              e.dataTransfer.setData('text/plain', index.toString());
-                              e.dataTransfer.effectAllowed = 'move';
+                        // Use a batched update by finding the section and question
+                        setSchema(prev => {
+                          if (!prev) return prev;
+                          return {
+                            ...prev,
+                            sections: prev.sections?.map(sec =>
+                              sec.id === activeSectionId
+                                ? {
+                                  ...sec,
+                                  questions: sec.questions?.map(q =>
+                                    q.id === selectedQuestion.id ? { ...q, ...updates } : q
+                                  )
+                                }
+                                : sec
+                            )
+                          };
+                        });
+                      }}
+                      className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-md px-3 py-2 outline-none"
+                    >
+                      <optgroup label="Texto">
+                        <option value="TEXT_SHORT">Resposta Curta</option>
+                        <option value="TEXT_LONG">Parágrafo</option>
+                      </optgroup>
+                      <optgroup label="Múltipla Escolha">
+                        <option value="RADIO_SINGLE">Múltipla Escolha (1 Opção)</option>
+                        <option value="CHECKBOX_MULTIPLE">Caixas de Seleção</option>
+                        <option value="DROPDOWN">Menu Suspenso (Dropdown)</option>
+                      </optgroup>
+                      <optgroup label="Upload & Data">
+                        <option value="FILE_UPLOAD">Upload de Arquivo</option>
+                        <option value="DATE_TIME">Data e Hora</option>
+                      </optgroup>
+                      <optgroup label="Mídia & Visual">
+                        <option value="TEXT_MARKDOWN">Bloco de Texto Formato (Aviso)</option>
+                        <option value="MEDIA_VIDEO">Vídeo (YouTube/Upload)</option>
+                        <option value="MEDIA_IMAGE">Imagem</option>
+                        <option value="MEDIA_AUDIO">Áudio</option>
+                      </optgroup>
+                    </select>
+                  </div>
+
+                  {/* Required Toggle */}
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-medium text-slate-700">Obrigatória</label>
+                    <div
+                      onClick={() => updateQuestionProperty(activeSectionId, selectedQuestion.id, 'required', !selectedQuestion.required)}
+                      className={`w-10 h-5 flex items-center rounded-full p-1 cursor-pointer transition-colors ${selectedQuestion.required ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                    >
+                      <div className={`bg-white w-3 h-3 rounded-full shadow-md transform transition-transform ${selectedQuestion.required ? 'translate-x-5' : 'translate-x-0'}`} />
+                    </div>
+                  </div>
+
+                  {/* Tags / Metadata */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-700">Tag de Camada (IMAPS)</label>
+                    {selectedSection?.tags && selectedSection.tags.length > 0 ? (
+                      <div className="p-3 bg-amber-50 border border-amber-200 rounded-md text-xs text-amber-700 leading-relaxed">
+                        <strong>Tags desativadas:</strong> A seção atual já possui tags configuradas ({selectedSection.tags.join(', ')}). Todas as perguntas desta seção herdarão automaticamente as tags da seção.
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-xs text-slate-500">Ex: TIMAPS, SIMAPS, OIMAPS, LIMAPS</p>
+                        <input
+                          type="text"
+                          placeholder="Adicionar tags separadas por vírgula..."
+                          value={selectedQuestion.tags?.join(', ') || ''}
+                          onChange={(e) => {
+                            const tags = e.target.value.split(',').map(t => t.trim()).filter(Boolean);
+                            updateQuestionProperty(activeSectionId, selectedQuestion.id, 'tags', tags.length > 0 ? tags : undefined);
+                          }}
+                          className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-md px-3 py-2 outline-none"
+                        />
+                      </>
+                    )}
+                  </div>
+
+                  {/* Video Unlock Settings */}
+                  {selectedQuestion.type === 'MEDIA_VIDEO' && (
+                    <div className="space-y-2 pt-4 border-t border-slate-100">
+                      <label className="text-sm font-medium text-slate-700">Bloquear Respostas (Segundos)</label>
+                      <p className="text-xs text-slate-500">Impedir respostas até que o vídeo atinja o tempo definido abaixo. (Deixe 0 para não bloquear).</p>
+                      <input
+                        type="number"
+                        placeholder="Ex: 30"
+                        min="0"
+                        value={selectedQuestion.sub_question_template?.unlock_at_seconds || ''}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value);
+                          updateQuestionProperty(activeSectionId, selectedQuestion.id, 'sub_question_template', {
+                            ...selectedQuestion.sub_question_template,
+                            unlock_at_seconds: isNaN(val) ? undefined : val
+                          });
+                        }}
+                        className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-md px-3 py-2 outline-none"
+                      />
+                    </div>
+                  )}
+
+                  {/* Allow Add Item (for Checkbox/Radio) */}
+                  {(selectedQuestion.type === 'RADIO_SINGLE' || selectedQuestion.type === 'CHECKBOX_MULTIPLE') && (
+                    <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+                      <div className="flex flex-col">
+                        <label className="text-sm font-medium text-slate-700">Opção "Outros"</label>
+                        <span className="text-xs text-slate-500">Permite texto livre</span>
+                      </div>
+                      <div
+                        onClick={() => updateQuestionProperty(activeSectionId, selectedQuestion.id, 'allow_add_item', !selectedQuestion.allow_add_item)}
+                        className={`w-10 h-5 flex items-center rounded-full p-1 cursor-pointer transition-colors ${selectedQuestion.allow_add_item ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                      >
+                        <div className={`bg-white w-3 h-3 rounded-full shadow-md transform transition-transform ${selectedQuestion.allow_add_item ? 'translate-x-5' : 'translate-x-0'}`} />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Option Weights */}
+                  {(selectedQuestion.type === 'RADIO_SINGLE' || selectedQuestion.type === 'CHECKBOX_MULTIPLE' || selectedQuestion.type === 'DROPDOWN') && selectedQuestion.options && (
+                    <div className="space-y-2 pt-4 border-t border-slate-100">
+                      <label className="text-sm font-medium text-slate-700">Pesos Analíticos (Scores)</label>
+                      <p className="text-xs text-slate-500 mb-3">Atribua valores numéricos de 1 a 5 para cálculo de maturidade.</p>
+                      {selectedQuestion.options.map(opt => (
+                        <div key={opt.id} className="flex items-center space-x-2">
+                          <span className="flex-1 text-xs text-slate-600 truncate">{opt.label || 'Sem rótulo'}</span>
+                          <input
+                            type="number"
+                            placeholder="Peso"
+                            value={opt.weight ?? ''}
+                            onChange={(e) => {
+                              const val = e.target.value === '' ? null : Number(e.target.value);
+                              updateOptionWeight(activeSectionId, selectedQuestion.id, opt.id, val);
                             }}
-                            onDragOver={(e) => {
-                              e.preventDefault();
-                              e.dataTransfer.dropEffect = 'move';
-                            }}
-                            onDrop={(e) => {
-                              e.preventDefault();
-                              const draggedIndexStr = e.dataTransfer.getData('text/plain');
-                              if (!draggedIndexStr) return;
-                              const draggedIndex = parseInt(draggedIndexStr, 10);
-                              if (isNaN(draggedIndex) || draggedIndex === index) return;
-                              
-                              const newSubQs = [...(selectedQuestion.sub_question_template.sub_questions || [])];
-                              const item = newSubQs.splice(draggedIndex, 1)[0];
-                              newSubQs.splice(index, 0, item);
-                              updateQuestionProperty(activeSectionId, selectedQuestion.id, 'sub_question_template', { ...selectedQuestion.sub_question_template, sub_questions: newSubQs });
-                            }}
-                          >
-                            <div 
-                              className="absolute left-1 top-1/2 -translate-y-1/2 text-slate-300 cursor-grab hover:text-slate-500 active:cursor-grabbing"
-                              onMouseEnter={() => setDragEnabledSubQId(subQ.id)}
-                              onMouseLeave={() => setDragEnabledSubQId(null)}
-                              onTouchStart={() => setDragEnabledSubQId(subQ.id)}
-                              onTouchEnd={() => setDragEnabledSubQId(null)}
-                            >
-                              <GripVertical size={16} />
-                            </div>
-                            <input 
-                              type="text" 
-                              value={subQ.label}
-                              onChange={(e) => {
+                            className="w-16 text-xs bg-slate-50 border border-slate-200 rounded px-2 py-1 text-center outline-none focus:border-indigo-500"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* DYNAMIC REPEATER PROPERTIES */}
+                  {selectedQuestion.type === 'DYNAMIC_REPEATER' && (
+                    <div className="space-y-4 pt-4 border-t border-slate-100">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-slate-700">Pergunta Base (Gatilho)</label>
+                        <p className="text-xs text-slate-500">Selecione a pergunta de múltipla escolha que irá gerar os blocos de repetição.</p>
+                        <select
+                          value={selectedQuestion.trigger_source_question_id || ''}
+                          onChange={(e) => updateQuestionProperty(activeSectionId, selectedQuestion.id, 'trigger_source_question_id', e.target.value)}
+                          className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-md px-3 py-2 outline-none"
+                        >
+                          <option value="">Selecione uma pergunta...</option>
+                          {schema?.sections?.flatMap(s => s.questions || [])
+                            .filter(q => (q.type === 'CHECKBOX_MULTIPLE' || q.type === 'RADIO_SINGLE' || q.type === 'DROPDOWN') && q.id !== selectedQuestion.id)
+                            .map(q => (
+                              <option key={q.id} value={q.id}>{q.label || 'Sem título'}</option>
+                            ))
+                          }
+                        </select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-slate-700">Sub-perguntas (Bloco)</label>
+                        <p className="text-xs text-slate-500">Estas perguntas serão repetidas para cada opção selecionada na Pergunta Base.</p>
+
+                        <div className="space-y-2 bg-slate-50 p-2 rounded border border-slate-200">
+                          {selectedQuestion.sub_question_template?.sub_questions?.map((subQ: any, index: number) => (
+                            <div
+                              key={subQ.id}
+                              className="bg-white border border-slate-200 p-2 pl-7 rounded text-sm relative group/sub"
+                              draggable={dragEnabledSubQId === subQ.id}
+                              onDragStart={(e) => {
+                                e.dataTransfer.setData('text/plain', index.toString());
+                                e.dataTransfer.effectAllowed = 'move';
+                              }}
+                              onDragOver={(e) => {
+                                e.preventDefault();
+                                e.dataTransfer.dropEffect = 'move';
+                              }}
+                              onDrop={(e) => {
+                                e.preventDefault();
+                                const draggedIndexStr = e.dataTransfer.getData('text/plain');
+                                if (!draggedIndexStr) return;
+                                const draggedIndex = parseInt(draggedIndexStr, 10);
+                                if (isNaN(draggedIndex) || draggedIndex === index) return;
+
                                 const newSubQs = [...(selectedQuestion.sub_question_template.sub_questions || [])];
-                                newSubQs[index] = { ...newSubQs[index], label: e.target.value };
+                                const item = newSubQs.splice(draggedIndex, 1)[0];
+                                newSubQs.splice(index, 0, item);
                                 updateQuestionProperty(activeSectionId, selectedQuestion.id, 'sub_question_template', { ...selectedQuestion.sub_question_template, sub_questions: newSubQs });
                               }}
-                              className="w-full border-none bg-transparent font-medium focus:ring-0 p-0 text-slate-800"
-                              placeholder="Título da sub-pergunta"
-                            />
-                            <div className="flex flex-col gap-2 mt-2">
-                              <select 
-                                value={subQ.type}
+                            >
+                              <div
+                                className="absolute left-1 top-1/2 -translate-y-1/2 text-slate-300 cursor-grab hover:text-slate-500 active:cursor-grabbing"
+                                onMouseEnter={() => setDragEnabledSubQId(subQ.id)}
+                                onMouseLeave={() => setDragEnabledSubQId(null)}
+                                onTouchStart={() => setDragEnabledSubQId(subQ.id)}
+                                onTouchEnd={() => setDragEnabledSubQId(null)}
+                              >
+                                <GripVertical size={16} />
+                              </div>
+                              <input
+                                type="text"
+                                value={subQ.label}
                                 onChange={(e) => {
                                   const newSubQs = [...(selectedQuestion.sub_question_template.sub_questions || [])];
-                                  newSubQs[index] = { ...newSubQs[index], type: e.target.value };
+                                  newSubQs[index] = { ...newSubQs[index], label: e.target.value };
                                   updateQuestionProperty(activeSectionId, selectedQuestion.id, 'sub_question_template', { ...selectedQuestion.sub_question_template, sub_questions: newSubQs });
                                 }}
-                                className="w-full text-xs bg-slate-50 border border-slate-200 rounded px-2 py-1 outline-none"
-                              >
-                                <option value="TEXT_SHORT">Texto Curto</option>
-                                <option value="TEXT_LONG">Texto Longo</option>
-                                <option value="RADIO_SINGLE">Única Escolha</option>
-                                <option value="CHECKBOX_MULTIPLE">Múltipla Escolha</option>
-                              </select>
-                              
-                              {(subQ.type === 'RADIO_SINGLE' || subQ.type === 'CHECKBOX_MULTIPLE') && (
-                                <div className="space-y-2">
-                                  <input 
-                                    type="text"
-                                    placeholder="Digite as opções separadas por vírgula..."
-                                    value={subQ._rawOptionsText !== undefined ? subQ._rawOptionsText : (subQ.options?.map((o: any) => o.label).join(', ') || '')}
-                                    onChange={(e) => {
-                                      const rawText = e.target.value;
-                                      const opts = rawText.split(',').map(t => ({ id: crypto.randomUUID(), label: t.trim() })).filter(o => o.label);
-                                      const newSubQs = [...(selectedQuestion.sub_question_template.sub_questions || [])];
-                                      newSubQs[index] = { ...newSubQs[index], options: opts, _rawOptionsText: rawText };
-                                      updateQuestionProperty(activeSectionId, selectedQuestion.id, 'sub_question_template', { ...selectedQuestion.sub_question_template, sub_questions: newSubQs });
-                                    }}
-                                    className="w-full text-xs bg-white border border-slate-200 rounded px-2 py-1.5 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
-                                  />
-                                  <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-600">
-                                    <input 
-                                      type="checkbox" 
-                                      className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                                      checked={subQ.allow_add_item || false}
-                                      onChange={(e) => {
-                                        const newSubQs = [...(selectedQuestion.sub_question_template.sub_questions || [])];
-                                        newSubQs[index] = { ...newSubQs[index], allow_add_item: e.target.checked };
-                                        updateQuestionProperty(activeSectionId, selectedQuestion.id, 'sub_question_template', { ...selectedQuestion.sub_question_template, sub_questions: newSubQs });
-                                      }}
-                                    />
-                                    Adicionar opção "Outros" (Permite texto livre)
-                                  </label>
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Condition UI */}
-                            {index > 0 && (
-                              <div className="mt-3 pt-3 border-t border-slate-100 flex flex-col gap-2">
-                                <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Condição de Exibição (Opcional)</label>
-                                <select 
-                                  value={subQ.depends_on_id || ''}
+                                className="w-full border-none bg-transparent font-medium focus:ring-0 p-0 text-slate-800"
+                                placeholder="Título da sub-pergunta"
+                              />
+                              <div className="flex flex-col gap-2 mt-2">
+                                <select
+                                  value={subQ.type}
                                   onChange={(e) => {
                                     const newSubQs = [...(selectedQuestion.sub_question_template.sub_questions || [])];
-                                    newSubQs[index] = { ...newSubQs[index], depends_on_id: e.target.value || undefined, depends_on_label: undefined };
+                                    newSubQs[index] = { ...newSubQs[index], type: e.target.value };
                                     updateQuestionProperty(activeSectionId, selectedQuestion.id, 'sub_question_template', { ...selectedQuestion.sub_question_template, sub_questions: newSubQs });
                                   }}
-                                  className="w-full text-xs bg-slate-50 border border-slate-200 rounded px-2 py-1 outline-none text-slate-700"
+                                  className="w-full text-xs bg-slate-50 border border-slate-200 rounded px-2 py-1 outline-none"
                                 >
-                                  <option value="">Sempre exibir</option>
-                                  {selectedQuestion.sub_question_template.sub_questions.slice(0, index).filter((sq: any) => sq.type === 'RADIO_SINGLE' || sq.type === 'CHECKBOX_MULTIPLE').map((sq: any) => (
-                                    <option key={sq.id} value={sq.id}>Se a resposta de "{sq.label || 'Sem título'}" for...</option>
-                                  ))}
+                                  <option value="TEXT_SHORT">Texto Curto</option>
+                                  <option value="TEXT_LONG">Texto Longo</option>
+                                  <option value="RADIO_SINGLE">Única Escolha</option>
+                                  <option value="CHECKBOX_MULTIPLE">Múltipla Escolha</option>
                                 </select>
-                                
-                                {subQ.depends_on_id && (
-                                  <input 
-                                    type="text"
-                                    placeholder="Resposta exata (ex: Sim)"
-                                    value={subQ.depends_on_label || ''}
-                                    onChange={(e) => {
-                                      const newSubQs = [...(selectedQuestion.sub_question_template.sub_questions || [])];
-                                      newSubQs[index] = { ...newSubQs[index], depends_on_label: e.target.value };
-                                      updateQuestionProperty(activeSectionId, selectedQuestion.id, 'sub_question_template', { ...selectedQuestion.sub_question_template, sub_questions: newSubQs });
-                                    }}
-                                    className="w-full text-xs bg-white border border-slate-200 rounded px-2 py-1.5 focus:border-indigo-500 outline-none"
-                                  />
+
+                                {(subQ.type === 'RADIO_SINGLE' || subQ.type === 'CHECKBOX_MULTIPLE') && (
+                                  <div className="space-y-2">
+                                    <input
+                                      type="text"
+                                      placeholder="Digite as opções separadas por vírgula..."
+                                      value={subQ._rawOptionsText !== undefined ? subQ._rawOptionsText : (subQ.options?.map((o: any) => o.label).join(', ') || '')}
+                                      onChange={(e) => {
+                                        const rawText = e.target.value;
+                                        const opts = rawText.split(',').map(t => ({ id: crypto.randomUUID(), label: t.trim() })).filter(o => o.label);
+                                        const newSubQs = [...(selectedQuestion.sub_question_template.sub_questions || [])];
+                                        newSubQs[index] = { ...newSubQs[index], options: opts, _rawOptionsText: rawText };
+                                        updateQuestionProperty(activeSectionId, selectedQuestion.id, 'sub_question_template', { ...selectedQuestion.sub_question_template, sub_questions: newSubQs });
+                                      }}
+                                      className="w-full text-xs bg-white border border-slate-200 rounded px-2 py-1.5 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
+                                    />
+                                    <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-600">
+                                      <input
+                                        type="checkbox"
+                                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                        checked={subQ.allow_add_item || false}
+                                        onChange={(e) => {
+                                          const newSubQs = [...(selectedQuestion.sub_question_template.sub_questions || [])];
+                                          newSubQs[index] = { ...newSubQs[index], allow_add_item: e.target.checked };
+                                          updateQuestionProperty(activeSectionId, selectedQuestion.id, 'sub_question_template', { ...selectedQuestion.sub_question_template, sub_questions: newSubQs });
+                                        }}
+                                      />
+                                      Adicionar opção "Outros" (Permite texto livre)
+                                    </label>
+                                  </div>
                                 )}
                               </div>
-                            )}
-                            
-                            <button 
-                              onClick={() => {
-                                const newSubQs = selectedQuestion.sub_question_template.sub_questions.filter((_: any, i: number) => i !== index);
-                                updateQuestionProperty(activeSectionId, selectedQuestion.id, 'sub_question_template', { ...selectedQuestion.sub_question_template, sub_questions: newSubQs });
-                              }}
-                              className="absolute right-1 top-1 text-slate-300 hover:text-red-500 opacity-0 group-hover/sub:opacity-100 p-1"
-                            >
-                              <X size={14} />
-                            </button>
-                          </div>
-                        ))}
-                        
-                        <button 
-                          onClick={() => {
-                            const newSub = { id: generateId(), type: 'TEXT_SHORT', label: 'Nova sub-pergunta', options: [] };
-                            const currentSubs = selectedQuestion.sub_question_template?.sub_questions || [];
-                            updateQuestionProperty(activeSectionId, selectedQuestion.id, 'sub_question_template', { 
-                              ...selectedQuestion.sub_question_template, 
-                              sub_questions: [...currentSubs, newSub] 
-                            });
-                          }}
-                          className="w-full py-2 text-xs font-medium text-indigo-600 bg-indigo-50 border border-indigo-100 border-dashed rounded flex justify-center items-center gap-1 hover:bg-indigo-100 transition-colors"
-                        >
-                          <Plus size={14} /> Adicionar Sub-pergunta
-                        </button>
+
+                              {/* Condition UI */}
+                              {index > 0 && (
+                                <div className="mt-3 pt-3 border-t border-slate-100 flex flex-col gap-2">
+                                  <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Condição de Exibição (Opcional)</label>
+                                  <select
+                                    value={subQ.depends_on_id || ''}
+                                    onChange={(e) => {
+                                      const newSubQs = [...(selectedQuestion.sub_question_template.sub_questions || [])];
+                                      newSubQs[index] = { ...newSubQs[index], depends_on_id: e.target.value || undefined, depends_on_label: undefined };
+                                      updateQuestionProperty(activeSectionId, selectedQuestion.id, 'sub_question_template', { ...selectedQuestion.sub_question_template, sub_questions: newSubQs });
+                                    }}
+                                    className="w-full text-xs bg-slate-50 border border-slate-200 rounded px-2 py-1 outline-none text-slate-700"
+                                  >
+                                    <option value="">Sempre exibir</option>
+                                    {selectedQuestion.sub_question_template.sub_questions.slice(0, index).filter((sq: any) => sq.type === 'RADIO_SINGLE' || sq.type === 'CHECKBOX_MULTIPLE').map((sq: any) => (
+                                      <option key={sq.id} value={sq.id}>Se a resposta de "{sq.label || 'Sem título'}" for...</option>
+                                    ))}
+                                  </select>
+
+                                  {subQ.depends_on_id && (
+                                    <input
+                                      type="text"
+                                      placeholder="Resposta exata (ex: Sim)"
+                                      value={subQ.depends_on_label || ''}
+                                      onChange={(e) => {
+                                        const newSubQs = [...(selectedQuestion.sub_question_template.sub_questions || [])];
+                                        newSubQs[index] = { ...newSubQs[index], depends_on_label: e.target.value };
+                                        updateQuestionProperty(activeSectionId, selectedQuestion.id, 'sub_question_template', { ...selectedQuestion.sub_question_template, sub_questions: newSubQs });
+                                      }}
+                                      className="w-full text-xs bg-white border border-slate-200 rounded px-2 py-1.5 focus:border-indigo-500 outline-none"
+                                    />
+                                  )}
+                                </div>
+                              )}
+
+                              <button
+                                onClick={() => {
+                                  const newSubQs = selectedQuestion.sub_question_template.sub_questions.filter((_: any, i: number) => i !== index);
+                                  updateQuestionProperty(activeSectionId, selectedQuestion.id, 'sub_question_template', { ...selectedQuestion.sub_question_template, sub_questions: newSubQs });
+                                }}
+                                className="absolute right-1 top-1 text-slate-300 hover:text-red-500 opacity-0 group-hover/sub:opacity-100 p-1"
+                              >
+                                <X size={14} />
+                              </button>
+                            </div>
+                          ))}
+
+                          <button
+                            onClick={() => {
+                              const newSub = { id: generateId(), type: 'TEXT_SHORT', label: 'Nova sub-pergunta', options: [] };
+                              const currentSubs = selectedQuestion.sub_question_template?.sub_questions || [];
+                              updateQuestionProperty(activeSectionId, selectedQuestion.id, 'sub_question_template', {
+                                ...selectedQuestion.sub_question_template,
+                                sub_questions: [...currentSubs, newSub]
+                              });
+                            }}
+                            className="w-full py-2 text-xs font-medium text-indigo-600 bg-indigo-50 border border-indigo-100 border-dashed rounded flex justify-center items-center gap-1 hover:bg-indigo-100 transition-colors"
+                          >
+                            <Plus size={14} /> Adicionar Sub-pergunta
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
-              </>
-            )}
+                  )}
+                </>
+              )}
 
-          </div>
-        </aside>
+            </div>
+          </aside>
         </>
       ) : null}
 
       {/* Active Comment Panel */}
       {activeCommentElement && (
-        <CommentsPanel 
+        <CommentsPanel
           formId={schema.id}
           elementId={activeCommentElement.id}
           elementTitle={activeCommentElement.title}
@@ -1957,9 +1949,9 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                 <X size={20} />
               </button>
             </div>
-            
+
             <div className="p-6 space-y-6 overflow-y-auto">
-              
+
               {/* Status de Privacidade Banner */}
               {schema.settings?.visibility === 'private' ? (
                 <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl space-y-3">
@@ -2043,13 +2035,13 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                 </div>
                 <p className="text-xs text-slate-500">Envie este link para as pessoas responderem e enviarem dados do questionário.</p>
                 <div className="flex">
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     readOnly
                     value={typeof window !== 'undefined' ? `${window.location.origin}/f/${schema.share_token}` : ''}
                     className="flex-1 bg-white border border-slate-200 rounded-l-lg px-3 py-2 text-xs sm:text-sm text-slate-600 outline-none select-all font-mono"
                   />
-                  <button 
+                  <button
                     onClick={() => {
                       navigator.clipboard.writeText(`${window.location.origin}/f/${schema.share_token}`);
                       setCopiedKey('public');
@@ -2087,13 +2079,13 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                 </div>
                 <p className="text-xs text-slate-600">A outra pessoa receberá uma cópia idêntica deste questionário na conta dela para editar sem alterar o seu original.</p>
                 <div className="flex">
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     readOnly
                     value={typeof window !== 'undefined' ? `${window.location.origin}/?import_token=${schema.share_token}` : ''}
                     className="flex-1 bg-white border border-purple-200 rounded-l-lg px-3 py-2 text-xs sm:text-sm text-slate-600 outline-none select-all font-mono"
                   />
-                  <button 
+                  <button
                     onClick={() => {
                       navigator.clipboard.writeText(`${window.location.origin}/?import_token=${schema.share_token}`);
                       setCopiedKey('template');
@@ -2131,13 +2123,13 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                 </div>
                 <p className="text-xs text-slate-600">Compartilhe o link do editor com sua equipe para que ambos trabalhem e editem este mesmo arquivo com salvamento automático.</p>
                 <div className="flex">
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     readOnly
                     value={typeof window !== 'undefined' ? `${window.location.origin}/builder/${id}` : ''}
                     className="flex-1 bg-white border border-amber-200 rounded-l-lg px-3 py-2 text-xs sm:text-sm text-slate-600 outline-none select-all font-mono"
                   />
-                  <button 
+                  <button
                     onClick={() => {
                       navigator.clipboard.writeText(`${window.location.origin}/builder/${id}`);
                       setCopiedKey('collab');
@@ -2155,8 +2147,8 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
               <div className="space-y-2 pt-2 border-t border-slate-100">
                 <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Código QR (Link Público)</label>
                 <div className="flex items-center space-x-4 bg-slate-50 rounded-xl p-3 border border-slate-200">
-                  <img 
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(typeof window !== 'undefined' ? `${window.location.origin}/f/${schema.share_token}` : '')}`} 
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(typeof window !== 'undefined' ? `${window.location.origin}/f/${schema.share_token}` : '')}`}
                     alt="QR Code"
                     className="w-20 h-20 rounded-lg border border-white shadow-sm shrink-0"
                   />
@@ -2181,20 +2173,18 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
       {/* Floating Modern Toast Notification */}
       {toast && (
         <div className="fixed bottom-6 right-6 z-50 animate-in fade-in slide-in-from-bottom-5 duration-300">
-          <div className={`flex items-start p-4 rounded-2xl shadow-2xl border backdrop-blur-md max-w-sm transition-all ${
-            toast.type === 'success' 
-              ? 'bg-slate-900/95 text-white border-emerald-500/40 shadow-emerald-950/30' 
-              : toast.type === 'error'
+          <div className={`flex items-start p-4 rounded-2xl shadow-2xl border backdrop-blur-md max-w-sm transition-all ${toast.type === 'success'
+            ? 'bg-slate-900/95 text-white border-emerald-500/40 shadow-emerald-950/30'
+            : toast.type === 'error'
               ? 'bg-red-950/95 text-white border-red-500/40 shadow-red-950/30'
               : 'bg-slate-900/95 text-white border-indigo-500/40 shadow-indigo-950/30'
-          }`}>
-            <div className={`p-2 rounded-xl shrink-0 mr-3.5 ${
-              toast.type === 'success' 
-                ? 'bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/30' 
-                : toast.type === 'error'
+            }`}>
+            <div className={`p-2 rounded-xl shrink-0 mr-3.5 ${toast.type === 'success'
+              ? 'bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/30'
+              : toast.type === 'error'
                 ? 'bg-red-500/20 text-red-400 ring-1 ring-red-500/30'
                 : 'bg-indigo-500/20 text-indigo-400 ring-1 ring-indigo-500/30'
-            }`}>
+              }`}>
               {toast.type === 'success' ? (
                 <CheckCircle2 className="w-5 h-5" />
               ) : (
@@ -2209,7 +2199,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                 {toast.message}
               </p>
             </div>
-            <button 
+            <button
               onClick={() => setToast(null)}
               className="text-slate-400 hover:text-white p-1 ml-2 rounded-lg hover:bg-white/10 transition-colors shrink-0"
               title="Fechar"
@@ -2228,7 +2218,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
 
 function SidebarItem({ icon, label, onClick, className = "" }: { icon: React.ReactNode, label: string, onClick: () => void, className?: string }) {
   return (
-    <div 
+    <div
       onClick={onClick}
       className={`flex items-center space-x-3 p-3 bg-white border border-slate-200 rounded-lg cursor-pointer hover:shadow-md transition-all group ${className}`}
     >
@@ -2241,12 +2231,12 @@ function SidebarItem({ icon, label, onClick, className = "" }: { icon: React.Rea
   );
 }
 
-function QuestionCard({ 
-  question, 
+function QuestionCard({
+  question,
   number,
   isSelected,
   onClick,
-  onUpdateLabel, 
+  onUpdateLabel,
   onUpdateVideoUrl,
   onDelete,
   onAddOption,
@@ -2262,8 +2252,8 @@ function QuestionCard({
   openCommentsCount,
   onCommentClick,
   onUpdateSubQuestionTemplate
-}: { 
-  question: Question, 
+}: {
+  question: Question,
   number: number,
   isSelected?: boolean,
   onClick?: () => void,
@@ -2305,18 +2295,18 @@ function QuestionCard({
         .replace(/[\u0300-\u036f]/g, "") // Remove accents
         .replace(/[^a-zA-Z0-9.\-_]/g, "_") // Replace invalid chars with underscore
         .toLowerCase();
-        
+
       const fileName = `${Date.now()}_${safeName}`;
       const { data, error } = await supabase.storage
         .from('form-media')
         .upload(fileName, file, { upsert: false });
-        
+
       if (error) throw error;
-      
+
       const { data: publicData } = supabase.storage
         .from('form-media')
         .getPublicUrl(fileName);
-        
+
       onUpdateVideoUrl(publicData.publicUrl);
     } catch (err: any) {
       console.error(err);
@@ -2327,7 +2317,7 @@ function QuestionCard({
   };
 
   return (
-    <div 
+    <div
       onClick={onClick}
       draggable={draggable && isDragEnabled}
       onDragStart={onDragStart}
@@ -2345,7 +2335,7 @@ function QuestionCard({
           Obrigatório
         </div>
       )}
-      <div 
+      <div
         className="absolute left-0 top-0 bottom-0 w-6 sm:w-8 flex items-center justify-center cursor-grab text-slate-300 hover:text-indigo-500"
         onMouseEnter={() => setIsDragEnabled(true)}
         onMouseLeave={() => setIsDragEnabled(false)}
@@ -2354,12 +2344,12 @@ function QuestionCard({
       >
         <GripVertical size={16} />
       </div>
-      
+
       <div className="pl-4 sm:pl-6">
         <div className="flex flex-col sm:flex-row justify-between items-start mb-2 gap-2 sm:gap-0">
           <div className="flex items-start space-x-2 flex-1 w-full">
             <span className="font-bold text-slate-400 mt-1 text-sm sm:text-base">{number}.</span>
-            <input 
+            <input
               value={question.label}
               onChange={(e) => onUpdateLabel(e.target.value)}
               className="font-semibold text-slate-800 text-sm sm:text-base bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-500 focus:outline-none w-full py-1"
@@ -2368,7 +2358,7 @@ function QuestionCard({
           </div>
           <div className="flex items-center space-x-2 sm:ml-4 shrink-0 self-end sm:self-auto">
             {onCommentClick && (
-              <button 
+              <button
                 onClick={(e) => { e.stopPropagation(); onCommentClick(); }}
                 className="flex items-center space-x-1 text-slate-400 hover:text-indigo-600 bg-white border border-slate-200 px-2 py-1 rounded-full transition-colors"
                 title="Comentários"
@@ -2387,7 +2377,7 @@ function QuestionCard({
             </button>
           </div>
         </div>
-        
+
         <div className="mt-4 text-sm text-slate-500">
           {question.type === 'TEXT_SHORT' && (
             <div className="h-10 bg-slate-50 border border-slate-200 rounded-md flex items-center px-3">
@@ -2404,7 +2394,7 @@ function QuestionCard({
               {question.options?.map((opt, i) => (
                 <div key={opt.id} className="flex items-center space-x-2 group/opt">
                   <div className={`w-4 h-4 border border-slate-300 flex items-center justify-center shrink-0 ${question.type === 'RADIO_SINGLE' || question.type === 'DROPDOWN' ? 'rounded-full' : 'rounded'}`}></div>
-                  <input 
+                  <input
                     value={opt.label}
                     onChange={(e) => onUpdateOptionLabel && onUpdateOptionLabel(opt.id, e.target.value)}
                     className="text-slate-700 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-500 focus:outline-none w-full py-1"
@@ -2427,38 +2417,38 @@ function QuestionCard({
             </div>
           )}
           {question.type === 'DATE_TIME' && (
-             <div className="h-10 w-48 bg-slate-50 border border-slate-200 rounded-md flex items-center px-3 text-slate-400">
-             <Calendar size={16} className="mr-2" /> Selecione a data/hora
-           </div>
+            <div className="h-10 w-48 bg-slate-50 border border-slate-200 rounded-md flex items-center px-3 text-slate-400">
+              <Calendar size={16} className="mr-2" /> Selecione a data/hora
+            </div>
           )}
           {question.type === 'FILE_UPLOAD' && (
-             <div className="h-24 bg-slate-50 border border-slate-200 rounded-md flex flex-col items-center justify-center text-slate-400 border-dashed">
-             <UploadCloud size={24} className="mb-2" /> Arraste e solte arquivos aqui
-           </div>
+            <div className="h-24 bg-slate-50 border border-slate-200 rounded-md flex flex-col items-center justify-center text-slate-400 border-dashed">
+              <UploadCloud size={24} className="mb-2" /> Arraste e solte arquivos aqui
+            </div>
           )}
           {question.type === 'TEXT_MARKDOWN' && (
-             <div className="space-y-2">
-               <textarea 
-                  placeholder="Digite o conteúdo do seu texto de aviso ou instrução aqui..."
-                  value={question.sub_question_template?.markdown_content || ''}
-                  onChange={(e) => onUpdateSubQuestionTemplate && onUpdateSubQuestionTemplate({ ...question.sub_question_template, markdown_content: e.target.value })}
-                  rows={4}
-                  className="w-full text-sm bg-white border border-slate-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-md px-3 py-2 outline-none resize-y"
-               />
-             </div>
+            <div className="space-y-2">
+              <textarea
+                placeholder="Digite o conteúdo do seu texto de aviso ou instrução aqui..."
+                value={question.sub_question_template?.markdown_content || ''}
+                onChange={(e) => onUpdateSubQuestionTemplate && onUpdateSubQuestionTemplate({ ...question.sub_question_template, markdown_content: e.target.value })}
+                rows={4}
+                className="w-full text-sm bg-white border border-slate-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-md px-3 py-2 outline-none resize-y"
+              />
+            </div>
           )}
           {question.type === 'MEDIA_IMAGE' && (
             <div className="space-y-4">
-              <input 
-                  type="text"
-                  placeholder="Cole o link da imagem aqui (ex: https://site.com/imagem.png)"
-                  value={question.sub_question_template?.image_url || ''}
-                  onChange={(e) => onUpdateSubQuestionTemplate && onUpdateSubQuestionTemplate({ ...question.sub_question_template, image_url: e.target.value })}
-                  className="w-full text-sm bg-white border border-slate-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-md px-3 py-2 outline-none"
+              <input
+                type="text"
+                placeholder="Cole o link da imagem aqui (ex: https://site.com/imagem.png)"
+                value={question.sub_question_template?.image_url || ''}
+                onChange={(e) => onUpdateSubQuestionTemplate && onUpdateSubQuestionTemplate({ ...question.sub_question_template, image_url: e.target.value })}
+                className="w-full text-sm bg-white border border-slate-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-md px-3 py-2 outline-none"
               />
               {question.sub_question_template?.image_url ? (
                 <div className="flex justify-center border border-slate-200 rounded-lg p-2 bg-slate-50">
-                   <img src={question.sub_question_template.image_url} alt="Preview" className="max-h-64 object-contain rounded-md" />
+                  <img src={question.sub_question_template.image_url} alt="Preview" className="max-h-64 object-contain rounded-md" />
                 </div>
               ) : (
                 <div className="h-24 bg-slate-50 border border-slate-200 rounded-md flex flex-col items-center justify-center text-slate-400 border-dashed">
@@ -2470,16 +2460,16 @@ function QuestionCard({
           )}
           {question.type === 'MEDIA_AUDIO' && (
             <div className="space-y-4">
-              <input 
-                  type="text"
-                  placeholder="Cole o link do áudio aqui (ex: https://site.com/audio.mp3)"
-                  value={question.sub_question_template?.audio_url || ''}
-                  onChange={(e) => onUpdateSubQuestionTemplate && onUpdateSubQuestionTemplate({ ...question.sub_question_template, audio_url: e.target.value })}
-                  className="w-full text-sm bg-white border border-slate-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-md px-3 py-2 outline-none"
+              <input
+                type="text"
+                placeholder="Cole o link do áudio aqui (ex: https://site.com/audio.mp3)"
+                value={question.sub_question_template?.audio_url || ''}
+                onChange={(e) => onUpdateSubQuestionTemplate && onUpdateSubQuestionTemplate({ ...question.sub_question_template, audio_url: e.target.value })}
+                className="w-full text-sm bg-white border border-slate-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-md px-3 py-2 outline-none"
               />
               {question.sub_question_template?.audio_url ? (
                 <div className="flex justify-center border border-slate-200 rounded-lg p-4 bg-slate-50">
-                   <audio src={question.sub_question_template.audio_url} controls className="w-full max-w-md" />
+                  <audio src={question.sub_question_template.audio_url} controls className="w-full max-w-md" />
                 </div>
               ) : (
                 <div className="h-16 bg-slate-50 border border-slate-200 rounded-md flex items-center justify-center text-slate-400 border-dashed">
@@ -2491,13 +2481,13 @@ function QuestionCard({
           {question.type === 'MEDIA_VIDEO' && (
             <div className="space-y-4">
               <div className="flex space-x-2 border-b border-slate-200">
-                <button 
+                <button
                   className={`px-3 py-1.5 text-xs font-medium border-b-2 transition-colors ${activeTab === 'url' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
                   onClick={() => setActiveTab('url')}
                 >
                   Link Externo (YouTube)
                 </button>
-                <button 
+                <button
                   className={`px-3 py-1.5 text-xs font-medium border-b-2 transition-colors ${activeTab === 'upload' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
                   onClick={() => setActiveTab('upload')}
                 >
@@ -2506,7 +2496,7 @@ function QuestionCard({
               </div>
 
               {activeTab === 'url' ? (
-                <input 
+                <input
                   type="text"
                   placeholder="Cole o link do vídeo aqui (ex: https://youtube.com/watch?v=...)"
                   value={question.video_url || ''}
@@ -2526,10 +2516,10 @@ function QuestionCard({
                       <span className="text-sm text-slate-600 mb-4">Envie um arquivo MP4 ou WebM (Max 50MB)</span>
                       <label className="cursor-pointer bg-white px-4 py-2 border border-slate-300 rounded-md text-sm font-medium text-slate-700 hover:bg-slate-50">
                         Selecionar Arquivo
-                        <input 
-                          type="file" 
-                          accept="video/mp4,video/webm" 
-                          className="hidden" 
+                        <input
+                          type="file"
+                          accept="video/mp4,video/webm"
+                          className="hidden"
                           onChange={handleFileUpload}
                         />
                       </label>
@@ -2540,7 +2530,7 @@ function QuestionCard({
 
               {question.video_url && (question.video_url.includes('youtube.com') || question.video_url.includes('youtu.be')) ? (
                 <div className="relative w-full overflow-hidden rounded-lg bg-black" style={{ paddingTop: '56.25%' }}>
-                  <iframe 
+                  <iframe
                     className="absolute top-0 left-0 w-full h-full"
                     src={question.video_url.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
                     title="Video Preview"
@@ -2549,7 +2539,7 @@ function QuestionCard({
                 </div>
               ) : question.video_url && question.video_url.includes('supabase.co') ? (
                 <div className="relative w-full overflow-hidden rounded-lg bg-black">
-                  <video 
+                  <video
                     className="w-full max-h-80"
                     src={question.video_url}
                     controls
@@ -2596,18 +2586,18 @@ function SectionVideoUploader({ videoUrl, onUpdate }: { videoUrl: string, onUpda
         .replace(/[\u0300-\u036f]/g, "") // Remove accents
         .replace(/[^a-zA-Z0-9.\-_]/g, "_") // Replace invalid chars with underscore
         .toLowerCase();
-        
+
       const fileName = `${Date.now()}_${safeName}`;
       const { error } = await supabase.storage
         .from('form-media')
         .upload(fileName, file, { upsert: false });
-        
+
       if (error) throw error;
-      
+
       const { data: publicData } = supabase.storage
         .from('form-media')
         .getPublicUrl(fileName);
-        
+
       onUpdate(publicData.publicUrl);
     } catch (err: any) {
       console.error(err);
@@ -2620,13 +2610,13 @@ function SectionVideoUploader({ videoUrl, onUpdate }: { videoUrl: string, onUpda
   return (
     <div className="space-y-4">
       <div className="flex space-x-2 border-b border-slate-200">
-        <button 
+        <button
           className={`px-3 py-1.5 text-xs font-medium border-b-2 transition-colors ${activeTab === 'url' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
           onClick={() => setActiveTab('url')}
         >
           YouTube
         </button>
-        <button 
+        <button
           className={`px-3 py-1.5 text-xs font-medium border-b-2 transition-colors ${activeTab === 'upload' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
           onClick={() => setActiveTab('upload')}
         >
@@ -2635,7 +2625,7 @@ function SectionVideoUploader({ videoUrl, onUpdate }: { videoUrl: string, onUpda
       </div>
 
       {activeTab === 'url' ? (
-        <input 
+        <input
           type="text"
           placeholder="Ex: https://youtube.com/watch?v=..."
           value={videoUrl || ''}
@@ -2653,10 +2643,10 @@ function SectionVideoUploader({ videoUrl, onUpdate }: { videoUrl: string, onUpda
             <>
               <label className="cursor-pointer bg-white px-3 py-1.5 border border-slate-300 rounded-md text-xs font-medium text-slate-700 hover:bg-slate-50">
                 Selecionar MP4/WebM
-                <input 
-                  type="file" 
-                  accept="video/mp4,video/webm" 
-                  className="hidden" 
+                <input
+                  type="file"
+                  accept="video/mp4,video/webm"
+                  className="hidden"
                   onChange={handleFileUpload}
                 />
               </label>
@@ -2667,7 +2657,7 @@ function SectionVideoUploader({ videoUrl, onUpdate }: { videoUrl: string, onUpda
 
       {videoUrl && (videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be')) ? (
         <div className="relative w-full overflow-hidden rounded-md bg-black" style={{ paddingTop: '56.25%' }}>
-          <iframe 
+          <iframe
             className="absolute top-0 left-0 w-full h-full"
             src={videoUrl.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
             title="Preview"

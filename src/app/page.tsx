@@ -55,13 +55,7 @@ export default function Dashboard() {
                 const isOwner = session.user && session.user.id === sourceForm.user_id;
                 const isPrivate = sourceForm.settings?.visibility === 'private' && Boolean(sourceForm.settings?.access_token);
                 const expectedToken = sourceForm.settings?.access_token?.trim().toUpperCase();
-                const storedToken = typeof window !== 'undefined' ? (
-                  localStorage.getItem(`gt6_form_token_${sourceForm.id}`) ||
-                  sessionStorage.getItem(`gt6_form_token_${sourceForm.id}`)
-                ) : null;
-                const alreadyUnlocked = Boolean(storedToken && storedToken === expectedToken);
-
-                if (isPrivate && !isOwner && !alreadyUnlocked && (!accessTokenFromUrl || accessTokenFromUrl.trim().toUpperCase() !== expectedToken)) {
+                if (isPrivate && !isOwner && (!accessTokenFromUrl || accessTokenFromUrl.trim().toUpperCase() !== expectedToken)) {
                   // Requer código de acesso do template privado
                   setImportTokenInput(importToken);
                   setTargetTemplateTitle(sourceForm.title);
@@ -69,12 +63,9 @@ export default function Dashboard() {
                   setIsImportModalOpen(true);
                 } else {
                   setIsImporting(true);
-                  const validToken = accessTokenFromUrl || (alreadyUnlocked ? expectedToken : undefined);
+                  const validToken = accessTokenFromUrl || undefined;
                   const newForm = await cloneFormByToken(importToken, validToken);
                   if (newForm) {
-                    if (typeof window !== 'undefined' && expectedToken) {
-                      localStorage.setItem(`gt6_form_token_${sourceForm.id}`, expectedToken);
-                    }
                     router.push(`/builder/${newForm.id}`);
                     return;
                   }
@@ -153,6 +144,8 @@ export default function Dashboard() {
       }
     } else if (cleanToken.includes('/f/')) {
       cleanToken = cleanToken.split('/f/')[1]?.split('?')[0] || cleanToken;
+    } else if (cleanToken.includes('/builder/')) {
+      cleanToken = cleanToken.split('/builder/')[1]?.split('?')[0] || cleanToken;
     }
 
     setIsImporting(true);
