@@ -905,7 +905,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                     </button>
                   </div>
                   <p className="text-[10px] text-slate-500 leading-tight">
-                    Os respondentes deverão digitar este token para liberar o formulário.
+                    Este código será exigido para responder, importar como template e editar colaborativamente.
                   </p>
                 </div>
               )}
