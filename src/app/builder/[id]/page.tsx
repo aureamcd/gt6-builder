@@ -1012,23 +1012,33 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
           <div className="flex items-center space-x-1 sm:space-x-1.5 shrink-0">
             {/* Online Collaborators Badge */}
             {onlineCollaborators.length > 0 && (
-              <div className="hidden 2xl:flex items-center space-x-1.5 bg-indigo-50/80 border border-indigo-100 px-2 py-1 rounded-lg shrink-0">
+              <div 
+                className="flex items-center space-x-1.5 bg-indigo-50/95 border border-indigo-200/90 px-2.5 py-1 rounded-lg shrink-0 shadow-sm"
+                title={onlineCollaborators.map(c => `${c.name} (${c.email || 'Online'})`).join(', ')}
+              >
                 <div className="flex items-center -space-x-1.5">
                   {onlineCollaborators.map((c, i) => (
                     <div
                       key={c.clientId || i}
                       title={`${c.name} (${c.email || 'Online'})`}
                       style={{ backgroundColor: c.color || '#6366f1' }}
-                      className="inline-flex items-center justify-center w-5 h-5 rounded-full text-white text-[9px] font-bold ring-2 ring-white shadow-sm uppercase cursor-default"
+                      className="inline-flex items-center justify-center w-6 h-6 rounded-full text-white text-[10px] font-bold ring-2 ring-white shadow-sm uppercase cursor-default shrink-0"
                     >
                       {c.name ? c.name.slice(0, 2) : 'U'}
                     </div>
                   ))}
                 </div>
-                <span className="text-[10px] font-semibold text-indigo-700 pl-1 flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                  {onlineCollaborators.length}
-                </span>
+                <div className="flex items-center gap-1.5 pl-0.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+                  <span className="text-xs font-semibold text-indigo-900 max-w-[120px] truncate hidden sm:inline">
+                    {onlineCollaborators.length === 1 
+                      ? onlineCollaborators[0].name 
+                      : `${onlineCollaborators.length} colegas`}
+                  </span>
+                  <span className="text-xs font-semibold text-indigo-900 sm:hidden">
+                    {onlineCollaborators.length}
+                  </span>
+                </div>
               </div>
             )}
 
