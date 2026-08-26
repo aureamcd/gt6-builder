@@ -1012,28 +1012,22 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
           <div className="flex items-center space-x-1 sm:space-x-1.5 shrink-0">
             {/* Online Collaborators Badge */}
             {onlineCollaborators.length > 0 && (
-              <div 
-                className="flex items-center space-x-1.5 bg-indigo-50/95 border border-indigo-200/90 px-2 py-1 rounded-lg shrink-0 shadow-xs"
-                title={onlineCollaborators.map(c => `${c.name} (${c.email || 'Online'})`).join(', ')}
-              >
+              <div className="flex items-center space-x-1.5 bg-indigo-50/95 border border-indigo-200/90 px-2 py-1 rounded-lg shrink-0 shadow-xs">
                 <div className="flex items-center -space-x-1.5">
                   {onlineCollaborators.map((c, i) => (
                     <div
                       key={c.clientId || i}
-                      title={`${c.name} (${c.email || 'Online'})`}
                       style={{ backgroundColor: c.color || '#6366f1' }}
-                      className="inline-flex items-center justify-center w-6 h-6 rounded-full text-white text-[10px] font-bold ring-2 ring-white shadow-sm uppercase cursor-default shrink-0"
+                      className="inline-flex items-center justify-center w-6 h-6 rounded-full text-white text-[10px] font-bold ring-2 ring-white shadow-sm uppercase cursor-default shrink-0 select-none"
                     >
                       {c.name ? c.name.slice(0, 2) : 'U'}
                     </div>
                   ))}
                 </div>
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
-                {onlineCollaborators.length > 1 && (
-                  <span className="text-[11px] font-bold text-indigo-800">
-                    {onlineCollaborators.length}
-                  </span>
-                )}
+                <span className="text-[11px] font-bold text-indigo-800">
+                  {onlineCollaborators.length}
+                </span>
               </div>
             )}
 
