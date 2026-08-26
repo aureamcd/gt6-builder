@@ -140,6 +140,8 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
 
     if (enteredToken === expectedToken) {
       if (typeof window !== 'undefined') {
+        localStorage.setItem(`gt6_builder_unlocked_${schema.id}`, 'true');
+        localStorage.setItem(`gt6_form_unlocked_${schema.id}`, 'true');
         sessionStorage.setItem(`gt6_builder_unlocked_${schema.id}`, 'true');
         sessionStorage.setItem(`gt6_form_unlocked_${schema.id}`, 'true');
       }
@@ -308,19 +310,24 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
           fetchComments();
           fetchResponses();
 
-          // Verificar se o formulário é privado e requer código de acesso
+          // O dono nunca precisa do token; colaboradores precisam digitar uma única vez
+          const isOwner = user && user.id === data.user_id;
           const isPrivate = data.settings?.visibility === 'private' && Boolean(data.settings?.access_token);
 
-          if (isPrivate) {
+          if (isPrivate && !isOwner) {
             const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
             const urlAccessToken = urlParams?.get('access_token');
-            const sessionUnlocked = typeof window !== 'undefined' && (
+            const alreadyUnlocked = typeof window !== 'undefined' && (
+              localStorage.getItem(`gt6_builder_unlocked_${data.id}`) === 'true' ||
+              localStorage.getItem(`gt6_form_unlocked_${data.id}`) === 'true' ||
               sessionStorage.getItem(`gt6_builder_unlocked_${data.id}`) === 'true' ||
               sessionStorage.getItem(`gt6_form_unlocked_${data.id}`) === 'true'
             );
 
-            if (sessionUnlocked || (urlAccessToken && urlAccessToken.trim().toUpperCase() === data.settings?.access_token?.trim().toUpperCase())) {
+            if (alreadyUnlocked || (urlAccessToken && urlAccessToken.trim().toUpperCase() === data.settings?.access_token?.trim().toUpperCase())) {
               if (typeof window !== 'undefined') {
+                localStorage.setItem(`gt6_builder_unlocked_${data.id}`, 'true');
+                localStorage.setItem(`gt6_form_unlocked_${data.id}`, 'true');
                 sessionStorage.setItem(`gt6_builder_unlocked_${data.id}`, 'true');
                 sessionStorage.setItem(`gt6_form_unlocked_${data.id}`, 'true');
               }

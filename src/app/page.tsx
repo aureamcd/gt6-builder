@@ -52,8 +52,14 @@ export default function Dashboard() {
             try {
               const sourceForm = await getFormByShareToken(importToken);
               if (sourceForm) {
+                const isOwner = session.user && session.user.id === sourceForm.user_id;
                 const isPrivate = sourceForm.settings?.visibility === 'private' && Boolean(sourceForm.settings?.access_token);
-                if (isPrivate && (!accessTokenFromUrl || accessTokenFromUrl.trim().toUpperCase() !== sourceForm.settings?.access_token?.trim().toUpperCase())) {
+                const alreadyUnlocked = typeof window !== 'undefined' && (
+                  localStorage.getItem(`gt6_form_unlocked_${sourceForm.id}`) === 'true' ||
+                  sessionStorage.getItem(`gt6_form_unlocked_${sourceForm.id}`) === 'true'
+                );
+
+                if (isPrivate && !isOwner && !alreadyUnlocked && (!accessTokenFromUrl || accessTokenFromUrl.trim().toUpperCase() !== sourceForm.settings?.access_token?.trim().toUpperCase())) {
                   // Requer código de acesso do template privado
                   setImportTokenInput(importToken);
                   setTargetTemplateTitle(sourceForm.title);
@@ -61,8 +67,11 @@ export default function Dashboard() {
                   setIsImportModalOpen(true);
                 } else {
                   setIsImporting(true);
-                  const newForm = await cloneFormByToken(importToken, accessTokenFromUrl || undefined);
+                  const newForm = await cloneFormByToken(importToken, accessTokenFromUrl || (alreadyUnlocked ? sourceForm.settings?.access_token || undefined : undefined));
                   if (newForm) {
+                    if (typeof window !== 'undefined') {
+                      localStorage.setItem(`gt6_form_unlocked_${sourceForm.id}`, 'true');
+                    }
                     router.push(`/builder/${newForm.id}`);
                     return;
                   }

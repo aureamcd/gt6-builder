@@ -29,18 +29,25 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
   useEffect(() => {
     async function loadForm() {
       try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
         // Fetch from database using the share token
         const dbData = await getFormByShareToken(token);
         if (dbData) {
           setSchema(dbData);
           
-          // Verificar se o formulário é privado e requer código de acesso
+          // O dono nunca precisa do token; respondentes precisam digitar uma única vez
+          const isOwner = session?.user && session.user.id === dbData.user_id;
           const isPrivate = dbData.settings?.visibility === 'private' && Boolean(dbData.settings?.access_token);
-          if (isPrivate) {
-            const alreadyVerified = typeof window !== 'undefined' && sessionStorage.getItem(`gt6_form_unlocked_${dbData.id}`) === 'true';
+          
+          if (isPrivate && !isOwner) {
+            const alreadyVerified = typeof window !== 'undefined' && (
+              localStorage.getItem(`gt6_form_unlocked_${dbData.id}`) === 'true' ||
+              sessionStorage.getItem(`gt6_form_unlocked_${dbData.id}`) === 'true'
+            );
             setIsUnlocked(alreadyVerified);
           } else {
-            // Formulário público tem acesso livre imediato
+            // Dono ou formulário público tem acesso livre imediato
             setIsUnlocked(true);
           }
         } else {
@@ -64,6 +71,7 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
 
     if (enteredToken === expectedToken) {
       if (typeof window !== 'undefined') {
+        localStorage.setItem(`gt6_form_unlocked_${schema.id}`, 'true');
         sessionStorage.setItem(`gt6_form_unlocked_${schema.id}`, 'true');
       }
       setIsUnlocked(true);
