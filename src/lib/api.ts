@@ -279,13 +279,22 @@ export async function generateShareToken(formId: string): Promise<string> {
 }
 
 export async function getFormByShareToken(token: string): Promise<Form | null> {
-  const { data: sourceForm, error: formError } = await supabase
+  let { data: sourceForm, error: formError } = await supabase
     .from('forms')
     .select('*')
     .eq('share_token', token)
     .single();
     
-  if (formError || !sourceForm) return null;
+  if (!sourceForm) {
+    const { data: byId } = await supabase
+      .from('forms')
+      .select('*')
+      .eq('id', token)
+      .single();
+    if (byId) sourceForm = byId;
+  }
+
+  if (!sourceForm) return null;
 
   return getFormById(sourceForm.id);
 }

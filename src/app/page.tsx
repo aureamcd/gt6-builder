@@ -34,7 +34,11 @@ export default function Dashboard() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) {
-          router.push("/login");
+          if (typeof window !== 'undefined') {
+            router.push(`/login?redirectTo=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+          } else {
+            router.push("/login");
+          }
           return;
         }
         setUser(session.user);

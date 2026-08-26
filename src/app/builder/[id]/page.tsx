@@ -127,7 +127,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info'; title?: string } | null>(null);
 
   // Private Form Passcode Lock State for Builder Collaborators
-  const [isUnlocked, setIsUnlocked] = useState(true);
+  const [isUnlocked, setIsUnlocked] = useState(false);
   const [inputPasscode, setInputPasscode] = useState("");
   const [passcodeError, setPasscodeError] = useState<string | null>(null);
 
@@ -141,6 +141,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
     if (enteredToken === expectedToken) {
       if (typeof window !== 'undefined') {
         sessionStorage.setItem(`gt6_builder_unlocked_${schema.id}`, 'true');
+        sessionStorage.setItem(`gt6_form_unlocked_${schema.id}`, 'true');
       }
       setIsUnlocked(true);
       setPasscodeError(null);
@@ -286,7 +287,13 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
     async function loadForm() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        const user = session?.user;
+        if (!session) {
+          if (typeof window !== 'undefined') {
+            router.push(`/login?redirectTo=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+          }
+          return;
+        }
+        const user = session.user;
         if (user) {
           setCurrentUser(user);
         }
@@ -307,11 +314,15 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
           if (isPrivate) {
             const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
             const urlAccessToken = urlParams?.get('access_token');
-            const sessionUnlocked = typeof window !== 'undefined' && sessionStorage.getItem(`gt6_builder_unlocked_${data.id}`) === 'true';
+            const sessionUnlocked = typeof window !== 'undefined' && (
+              sessionStorage.getItem(`gt6_builder_unlocked_${data.id}`) === 'true' ||
+              sessionStorage.getItem(`gt6_form_unlocked_${data.id}`) === 'true'
+            );
 
             if (sessionUnlocked || (urlAccessToken && urlAccessToken.trim().toUpperCase() === data.settings?.access_token?.trim().toUpperCase())) {
               if (typeof window !== 'undefined') {
                 sessionStorage.setItem(`gt6_builder_unlocked_${data.id}`, 'true');
+                sessionStorage.setItem(`gt6_form_unlocked_${data.id}`, 'true');
               }
               setIsUnlocked(true);
               registerAccessedForm(id);
