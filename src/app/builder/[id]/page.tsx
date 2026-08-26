@@ -2043,7 +2043,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                     className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-white rounded-r-lg transition-colors flex items-center shrink-0 ${copiedKey === 'public' ? 'bg-green-600' : 'bg-indigo-600 hover:bg-indigo-700'}`}
                   >
                     {copiedKey === 'public' ? <CheckSquare size={16} className="mr-1" /> : <Copy size={16} className="mr-1" />}
-                    {copiedKey === 'public' ? 'Copiado!' : 'Copiar Link'}
+                    {copiedKey === 'public' ? 'Copiado!' : 'Copiar'}
                   </button>
                 </div>
               </div>
