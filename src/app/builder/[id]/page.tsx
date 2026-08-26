@@ -1037,60 +1037,24 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
               </div>
             )}
 
-            {/* Auto-save Pill with Custom Tooltip */}
-            <div className="relative group shrink-0">
-              <button
-                onClick={() => setIsAutoSaveEnabled(!isAutoSaveEnabled)}
-                className={`flex items-center justify-center space-x-1.5 px-2 sm:px-2.5 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 border shadow-xs cursor-pointer ${
-                  isAutoSaveEnabled 
-                    ? 'bg-indigo-50/90 text-indigo-700 border-indigo-200 hover:bg-indigo-100/80 hover:border-indigo-300' 
-                    : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100 hover:text-slate-700'
-                }`}
-              >
-                <div className={`w-2 h-2 rounded-full ${
-                  isAutoSaveEnabled 
-                    ? (isSaving ? 'bg-amber-500 animate-ping' : 'bg-emerald-500 animate-pulse') 
-                    : 'bg-slate-300'
-                }`}></div>
-                <span className="text-[11px] font-semibold hidden md:inline">
-                  {isAutoSaveEnabled ? (isSaving ? 'Salvando...' : 'Auto-save') : 'Auto-save OFF'}
-                </span>
-              </button>
-
-              {/* Floating Custom Tooltip */}
-              <div className="absolute top-full right-0 mt-2 pointer-events-none opacity-0 group-hover:opacity-100 translate-y-1 group-hover:translate-y-0 transition-all duration-200 z-50 min-w-[220px] bg-slate-900/95 backdrop-blur-md text-white text-xs rounded-xl p-3 shadow-2xl border border-slate-800">
-                <div className="flex items-center gap-2.5 mb-1.5">
-                  <div className={`p-1.5 rounded-lg shrink-0 ${
-                    isAutoSaveEnabled 
-                      ? (isSaving ? 'bg-amber-500/20 text-amber-400' : 'bg-emerald-500/20 text-emerald-400') 
-                      : 'bg-slate-800 text-slate-400'
-                  }`}>
-                    {isAutoSaveEnabled ? (
-                      isSaving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />
-                    ) : (
-                      <AlertCircle size={14} />
-                    )}
-                  </div>
-                  <div>
-                    <h5 className="font-bold text-[12px] leading-tight text-white">
-                      {isAutoSaveEnabled 
-                        ? (isSaving ? 'Salvando alterações...' : 'Salvamento Automático Ativo') 
-                        : 'Salvamento Automático Desativado'}
-                    </h5>
-                    <span className="text-[10px] text-slate-300 block mt-0.5">
-                      {isAutoSaveEnabled 
-                        ? (lastSavedTime ? `Última sincronização: ${lastSavedTime}` : 'Suas alterações salvam sozinhas') 
-                        : 'Clique para reativar o salvamento'}
-                    </span>
-                  </div>
-                </div>
-                <div className="pt-2 mt-1 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-indigo-300 font-medium">
-                  <span>💡 Clique para {isAutoSaveEnabled ? 'pausar' : 'ativar'}</span>
-                </div>
-                {/* Tooltip Arrow Pointer */}
-                <div className="absolute -top-1 right-4 w-2 h-2 bg-slate-900 border-t border-l border-slate-800 rotate-45"></div>
-              </div>
-            </div>
+            {/* Auto-save Button */}
+            <button
+              onClick={() => setIsAutoSaveEnabled(!isAutoSaveEnabled)}
+              className={`flex items-center justify-center space-x-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors border shadow-xs shrink-0 cursor-pointer ${
+                isAutoSaveEnabled 
+                  ? 'bg-indigo-50/90 text-indigo-700 border-indigo-200 hover:bg-indigo-100/80' 
+                  : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
+              }`}
+            >
+              <div className={`w-2 h-2 rounded-full ${
+                isAutoSaveEnabled 
+                  ? (isSaving ? 'bg-amber-500 animate-ping' : 'bg-emerald-500 animate-pulse') 
+                  : 'bg-slate-300'
+              }`}></div>
+              <span className="text-[11px] font-semibold hidden md:inline">
+                {isAutoSaveEnabled ? (isSaving ? 'Salvando...' : 'Auto-save') : 'Auto-save OFF'}
+              </span>
+            </button>
             <button
               onClick={async () => {
                 let token = schema.share_token;
