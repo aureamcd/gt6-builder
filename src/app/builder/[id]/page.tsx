@@ -1013,7 +1013,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
             {/* Online Collaborators Badge */}
             {onlineCollaborators.length > 0 && (
               <div 
-                className="flex items-center space-x-1.5 bg-indigo-50/95 border border-indigo-200/90 px-2.5 py-1 rounded-lg shrink-0 shadow-sm"
+                className="flex items-center space-x-1.5 bg-indigo-50/95 border border-indigo-200/90 px-2 py-1 rounded-lg shrink-0 shadow-xs"
                 title={onlineCollaborators.map(c => `${c.name} (${c.email || 'Online'})`).join(', ')}
               >
                 <div className="flex items-center -space-x-1.5">
@@ -1028,17 +1028,12 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                     </div>
                   ))}
                 </div>
-                <div className="flex items-center gap-1.5 pl-0.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
-                  <span className="text-xs font-semibold text-indigo-900 max-w-[120px] truncate hidden sm:inline">
-                    {onlineCollaborators.length === 1 
-                      ? onlineCollaborators[0].name 
-                      : `${onlineCollaborators.length} colegas`}
-                  </span>
-                  <span className="text-xs font-semibold text-indigo-900 sm:hidden">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+                {onlineCollaborators.length > 1 && (
+                  <span className="text-[11px] font-bold text-indigo-800">
                     {onlineCollaborators.length}
                   </span>
-                </div>
+                )}
               </div>
             )}
 
