@@ -41,10 +41,12 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
           const isPrivate = dbData.settings?.visibility === 'private' && Boolean(dbData.settings?.access_token);
           
           if (isPrivate && !isOwner) {
-            const alreadyVerified = typeof window !== 'undefined' && (
-              localStorage.getItem(`gt6_form_unlocked_${dbData.id}`) === 'true' ||
-              sessionStorage.getItem(`gt6_form_unlocked_${dbData.id}`) === 'true'
-            );
+            const expectedToken = dbData.settings?.access_token?.trim().toUpperCase();
+            const storedToken = typeof window !== 'undefined' ? (
+              localStorage.getItem(`gt6_form_token_${dbData.id}`) ||
+              sessionStorage.getItem(`gt6_form_token_${dbData.id}`)
+            ) : null;
+            const alreadyVerified = Boolean(storedToken && storedToken === expectedToken);
             setIsUnlocked(alreadyVerified);
           } else {
             // Dono ou formulário público tem acesso livre imediato
@@ -71,8 +73,8 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
 
     if (enteredToken === expectedToken) {
       if (typeof window !== 'undefined') {
-        localStorage.setItem(`gt6_form_unlocked_${schema.id}`, 'true');
-        sessionStorage.setItem(`gt6_form_unlocked_${schema.id}`, 'true');
+        localStorage.setItem(`gt6_form_token_${schema.id}`, expectedToken);
+        sessionStorage.setItem(`gt6_form_token_${schema.id}`, expectedToken);
       }
       setIsUnlocked(true);
       setPasscodeError(null);

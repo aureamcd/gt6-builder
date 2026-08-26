@@ -54,12 +54,14 @@ export default function Dashboard() {
               if (sourceForm) {
                 const isOwner = session.user && session.user.id === sourceForm.user_id;
                 const isPrivate = sourceForm.settings?.visibility === 'private' && Boolean(sourceForm.settings?.access_token);
-                const alreadyUnlocked = typeof window !== 'undefined' && (
-                  localStorage.getItem(`gt6_form_unlocked_${sourceForm.id}`) === 'true' ||
-                  sessionStorage.getItem(`gt6_form_unlocked_${sourceForm.id}`) === 'true'
-                );
+                const expectedToken = sourceForm.settings?.access_token?.trim().toUpperCase();
+                const storedToken = typeof window !== 'undefined' ? (
+                  localStorage.getItem(`gt6_form_token_${sourceForm.id}`) ||
+                  sessionStorage.getItem(`gt6_form_token_${sourceForm.id}`)
+                ) : null;
+                const alreadyUnlocked = Boolean(storedToken && storedToken === expectedToken);
 
-                if (isPrivate && !isOwner && !alreadyUnlocked && (!accessTokenFromUrl || accessTokenFromUrl.trim().toUpperCase() !== sourceForm.settings?.access_token?.trim().toUpperCase())) {
+                if (isPrivate && !isOwner && !alreadyUnlocked && (!accessTokenFromUrl || accessTokenFromUrl.trim().toUpperCase() !== expectedToken)) {
                   // Requer código de acesso do template privado
                   setImportTokenInput(importToken);
                   setTargetTemplateTitle(sourceForm.title);
@@ -67,10 +69,11 @@ export default function Dashboard() {
                   setIsImportModalOpen(true);
                 } else {
                   setIsImporting(true);
-                  const newForm = await cloneFormByToken(importToken, accessTokenFromUrl || (alreadyUnlocked ? sourceForm.settings?.access_token || undefined : undefined));
+                  const validToken = accessTokenFromUrl || (alreadyUnlocked ? expectedToken : undefined);
+                  const newForm = await cloneFormByToken(importToken, validToken);
                   if (newForm) {
-                    if (typeof window !== 'undefined') {
-                      localStorage.setItem(`gt6_form_unlocked_${sourceForm.id}`, 'true');
+                    if (typeof window !== 'undefined' && expectedToken) {
+                      localStorage.setItem(`gt6_form_token_${sourceForm.id}`, expectedToken);
                     }
                     router.push(`/builder/${newForm.id}`);
                     return;
