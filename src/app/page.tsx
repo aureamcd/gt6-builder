@@ -34,11 +34,14 @@ export default function Dashboard() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) {
-          // DEVELOPMENT BYPASS: allow access without login
-          setUser({ id: "11111111-1111-1111-1111-111111111111", email: "dev@local.test" } as any);
-        } else {
-          setUser(session.user);
+          if (typeof window !== 'undefined') {
+            router.push(`/login?redirectTo=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+          } else {
+            router.push("/login");
+          }
+          return;
         }
+        setUser(session.user);
 
         // Check if redirected with import_token query param
         if (typeof window !== 'undefined') {
