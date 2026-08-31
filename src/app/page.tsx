@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { getForms, createEmptyForm, cloneFormByToken, getFormByShareToken, deleteForm, generateAccessToken } from "../lib/api";
+import { getForms, createEmptyForm, cloneFormByToken, getFormByShareToken, deleteForm, generateAccessToken, removeSharedForm } from "../lib/api";
 import { Form, FormSettings } from "../types/form";
 import { Plus, FileText, Loader2, ArrowRight, Save, Download, FileCode, LogOut, BarChart3, Trash2, Users, Globe, Lock, RefreshCw, Key, ShieldCheck, AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -175,12 +175,8 @@ export default function Dashboard() {
     setIsDeleting(true);
     try {
       if (formToDelete.is_shared) {
-        // Remover apenas da visualização local do usuário
-        if (typeof window !== 'undefined') {
-          const accessed: string[] = JSON.parse(sessionStorage.getItem('gt6_accessed_forms') || '[]');
-          const updated = accessed.filter(id => id !== formToDelete.id);
-          sessionStorage.setItem('gt6_accessed_forms', JSON.stringify(updated));
-        }
+        // Remover apenas da lista de compartilhados do usuário
+        await removeSharedForm(formToDelete.id);
       } else {
         // Excluir permanentemente do banco (é o autor original)
         await deleteForm(formToDelete.id);

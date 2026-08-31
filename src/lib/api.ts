@@ -11,15 +11,48 @@ export function generateUUID() {
   });
 }
 
-export function registerAccessedForm(formId: string) {
-  // Mantido para compatibilidade, sem injetar no dashboard de outros usuários
+export async function registerAccessedForm(formId: string) {
+  try {
+    const { data: authData } = await supabase.auth.getUser();
+    if (!authData?.user) return;
+    
+    const currentShared: string[] = authData.user.user_metadata?.shared_forms || [];
+    if (!currentShared.includes(formId)) {
+      const updatedShared = [...currentShared, formId];
+      await supabase.auth.updateUser({
+        data: { ...authData.user.user_metadata, shared_forms: updatedShared }
+      });
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem(`gt6_shared_forms_${authData.user.id}`, JSON.stringify(updatedShared));
+      }
+    }
+  } catch (err) {
+    console.error("Erro ao registrar formulário compartilhado:", err);
+  }
+}
+
+export async function removeSharedForm(formId: string) {
+  try {
+    const { data: authData } = await supabase.auth.getUser();
+    if (!authData?.user) return;
+    const currentShared: string[] = authData.user.user_metadata?.shared_forms || [];
+    const updatedShared = currentShared.filter(id => id !== formId);
+    await supabase.auth.updateUser({
+      data: { ...authData.user.user_metadata, shared_forms: updatedShared }
+    });
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem(`gt6_shared_forms_${authData.user.id}`, JSON.stringify(updatedShared));
+    }
+  } catch (err) {
+    console.error("Erro ao remover formulário compartilhado:", err);
+  }
 }
 
 export async function getForms(): Promise<Form[]> {
   const { data: authData } = await supabase.auth.getUser();
-  if (!authData.user) return [];
+  if (!authData?.user) return [];
 
-  // Apenas formulários criados pelo próprio usuário logado
+  // 1. Formulários criados pelo próprio usuário logado
   const { data: myForms, error } = await supabase
     .from('forms')
     .select('*')
@@ -28,7 +61,33 @@ export async function getForms(): Promise<Form[]> {
     
   if (error) throw error;
 
-  return (myForms || []).map(f => ({ ...f, is_shared: false }));
+  const result: Form[] = (myForms || []).map(f => ({ ...f, is_shared: false }));
+
+  // 2. Formulários compartilhados que o usuário acessou via colaboração
+  let sharedIds: string[] = authData.user.user_metadata?.shared_forms || [];
+  if (typeof window !== 'undefined') {
+    try {
+      const localShared = JSON.parse(sessionStorage.getItem(`gt6_shared_forms_${authData.user.id}`) || '[]');
+      sharedIds = Array.from(new Set([...sharedIds, ...localShared]));
+    } catch (e) {}
+  }
+
+  const validSharedIds = sharedIds.filter(id => !result.some(f => f.id === id));
+
+  if (validSharedIds.length > 0) {
+    const { data: sharedForms } = await supabase
+      .from('forms')
+      .select('*')
+      .in('id', validSharedIds);
+
+    if (sharedForms) {
+      sharedForms.forEach(sf => {
+        result.push({ ...sf, is_shared: true });
+      });
+    }
+  }
+
+  return result;
 }
 
 export async function getFormById(id: string): Promise<Form | null> {
