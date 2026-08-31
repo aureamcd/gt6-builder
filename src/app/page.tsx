@@ -350,7 +350,7 @@ export default function Dashboard() {
                   <Plus size={24} />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-800">Criar Novo Questionário</h3>
+                  <h3 className="text-lg font-bold text-slate-800">Criar Novo Questionário 🚀</h3>
                   <p className="text-xs sm:text-sm text-slate-500">Configure o título e a privacidade de acesso do formulário.</p>
                 </div>
               </div>
