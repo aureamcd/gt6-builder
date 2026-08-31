@@ -12,23 +12,14 @@ export function generateUUID() {
 }
 
 export function registerAccessedForm(formId: string) {
-  if (typeof window === 'undefined' || !formId) return;
-  try {
-    const list: string[] = JSON.parse(localStorage.getItem('gt6_accessed_forms') || '[]');
-    if (!list.includes(formId)) {
-      list.push(formId);
-      localStorage.setItem('gt6_accessed_forms', JSON.stringify(list));
-    }
-  } catch (e) {
-    console.warn("Erro ao registrar formulário acessado:", e);
-  }
+  // Mantido para compatibilidade, sem injetar no dashboard de outros usuários
 }
 
 export async function getForms(): Promise<Form[]> {
   const { data: authData } = await supabase.auth.getUser();
   if (!authData.user) return [];
 
-  // 1. Meus formulários criados
+  // Apenas formulários criados pelo próprio usuário logado
   const { data: myForms, error } = await supabase
     .from('forms')
     .select('*')
@@ -37,38 +28,7 @@ export async function getForms(): Promise<Form[]> {
     
   if (error) throw error;
 
-  let allForms: Form[] = (myForms || []).map(f => ({ ...f, is_shared: false }));
-
-  // 2. Formulários compartilhados acessados via link
-  if (typeof window !== 'undefined') {
-    try {
-      const accessedIds: string[] = JSON.parse(localStorage.getItem('gt6_accessed_forms') || '[]');
-      const myFormIds = new Set(allForms.map(f => f.id));
-      const sharedIdsToFetch = accessedIds.filter(id => !myFormIds.has(id));
-
-      if (sharedIdsToFetch.length > 0) {
-        const { data: sharedForms } = await supabase
-          .from('forms')
-          .select('*')
-          .in('id', sharedIdsToFetch);
-
-        if (sharedForms) {
-          const formattedShared: Form[] = sharedForms.map(f => ({ 
-            ...f, 
-            is_shared: true 
-          }));
-          allForms = [...allForms, ...formattedShared];
-        }
-      }
-    } catch (e) {
-      console.warn("Erro ao buscar formulários compartilhados:", e);
-    }
-  }
-
-  // Ordenar todos pelo mais recente
-  allForms.sort((a, b) => new Date(b.updated_at || b.created_at || 0).getTime() - new Date(a.updated_at || a.created_at || 0).getTime());
-
-  return allForms;
+  return (myForms || []).map(f => ({ ...f, is_shared: false }));
 }
 
 export async function getFormById(id: string): Promise<Form | null> {

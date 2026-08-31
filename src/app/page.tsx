@@ -196,6 +196,9 @@ export default function Dashboard() {
   };
 
   const handleLogout = async () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('gt6_accessed_forms');
+    }
     await supabase.auth.signOut();
     router.push("/login");
   };
