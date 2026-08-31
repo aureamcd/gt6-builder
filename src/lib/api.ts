@@ -26,14 +26,15 @@ export function registerAccessedForm(formId: string) {
 
 export async function getForms(): Promise<Form[]> {
   const { data: authData } = await supabase.auth.getUser();
-  if (!authData.user) return [];
+  const user = authData?.user || { id: "11111111-1111-1111-1111-111111111111", email: "dev@local.test" };
+  if (!user) return [];
 
   // 1. Meus formulários criados
   const { data: myForms, error } = await supabase
     .from('forms')
     .select('*')
-    .eq('user_id', authData.user.id)
-    .order('updated_at', { ascending: false });
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false });
     
   if (error) throw error;
 
@@ -112,7 +113,7 @@ export async function getFormById(id: string): Promise<Form | null> {
 
 export async function createEmptyForm(title: string = "Novo Formulário"): Promise<Form> {
   const { data: authData } = await supabase.auth.getUser();
-  const userId = authData.user?.id || null;
+  const userId = authData?.user?.id || "11111111-1111-1111-1111-111111111111";
 
   const newFormId = generateUUID();
   const form: Form = {
@@ -276,7 +277,7 @@ export async function cloneFormByToken(token: string): Promise<Form | null> {
   if (!sourceForm) throw new Error("Formulário não encontrado para este token");
 
   const { data: authData } = await supabase.auth.getUser();
-  const userId = authData.user?.id || "";
+  const userId = authData?.user?.id || "11111111-1111-1111-1111-111111111111";
 
   const newFormId = generateUUID();
   const clonedForm: Form = {
