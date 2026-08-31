@@ -2021,7 +2021,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
               <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
                 <div className="flex items-center space-x-2 text-indigo-700 font-semibold text-sm">
                   <Globe size={18} />
-                  <span>1. Link para Respondentes</span>
+                  <span>1. Link para Respondentes {schema.settings?.visibility === 'private' ? '(Protegido por Senha)' : ''}</span>
                 </div>
                 <p className="text-xs text-slate-500">Envie este link para as pessoas responderem e enviarem dados do questionário.</p>
                 <div className="flex">
@@ -2102,16 +2102,18 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
               </div>
 
               {/* Código QR */}
-              <div className="space-y-2 pt-2 border-t border-slate-100">
-                <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Código QR (Link Público)</label>
-                <div className="flex items-center space-x-4 bg-slate-50 rounded-xl p-3 border border-slate-200">
-                  <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(typeof window !== 'undefined' ? `${window.location.origin}/f/${schema.share_token}` : '')}`}
-                    alt="QR Code"
-                    className="w-20 h-20 rounded-lg border border-white shadow-sm shrink-0"
-                  />
+              {schema.settings?.visibility !== 'private' && (
+                <div className="space-y-2 pt-2 border-t border-slate-100">
+                  <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Código QR (Link Público)</label>
+                  <div className="flex items-center space-x-4 bg-slate-50 rounded-xl p-3 border border-slate-200">
+                    <img
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(typeof window !== 'undefined' ? `${window.location.origin}/f/${schema.share_token}` : '')}`}
+                      alt="QR Code"
+                      className="w-20 h-20 rounded-lg border border-white shadow-sm shrink-0"
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
 
             </div>
           </div>
