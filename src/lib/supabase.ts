@@ -3,7 +3,26 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://gmpsqzohwxnzhvpalkmx.supabase.co'
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_72LpPhENZcb4izysMuWUxA_WmmSzt3h'
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+if (typeof window !== 'undefined') {
+  try {
+    // Limpar resíduos antigos de sessões e tokens no localStorage
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith('sb-') || key.startsWith('gt6_') || key.startsWith('form_preview_')) {
+        localStorage.removeItem(key);
+      }
+    });
+  } catch (e) {
+    // ignore
+  }
+}
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    storage: typeof window !== 'undefined' ? window.sessionStorage : undefined,
+    persistSession: true,
+    autoRefreshToken: true,
+  }
+})
 
 export function getFriendlyAuthError(errorMessage: string): string {
   const msg = errorMessage.toLowerCase();

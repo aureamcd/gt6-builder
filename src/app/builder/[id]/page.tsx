@@ -140,7 +140,6 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
 
     if (enteredToken === expectedToken) {
       if (typeof window !== 'undefined') {
-        localStorage.setItem(`gt6_builder_token_${schema.id}`, expectedToken);
         sessionStorage.setItem(`gt6_builder_token_${schema.id}`, expectedToken);
       }
       setIsUnlocked(true);
@@ -317,14 +316,12 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
             const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
             const urlAccessToken = urlParams?.get('access_token');
             const storedToken = typeof window !== 'undefined' ? (
-              localStorage.getItem(`gt6_builder_token_${data.id}`) ||
               sessionStorage.getItem(`gt6_builder_token_${data.id}`)
             ) : null;
             const alreadyUnlocked = Boolean(storedToken && expectedToken && storedToken === expectedToken);
 
             if (alreadyUnlocked || (urlAccessToken && expectedToken && urlAccessToken.trim().toUpperCase() === expectedToken)) {
               if (typeof window !== 'undefined' && expectedToken) {
-                localStorage.setItem(`gt6_builder_token_${data.id}`, expectedToken);
                 sessionStorage.setItem(`gt6_builder_token_${data.id}`, expectedToken);
               }
               setIsUnlocked(true);
@@ -354,10 +351,10 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
     loadForm();
   }, [id]);
 
-  // Sincronização automática para a Aba de Preview usando localStorage
+  // Sincronização automática para a Aba de Preview usando sessionStorage
   useEffect(() => {
-    if (schema && !isLoading) {
-      localStorage.setItem(`form_preview_${id}`, JSON.stringify(schema));
+    if (schema && !isLoading && typeof window !== 'undefined') {
+      sessionStorage.setItem(`form_preview_${id}`, JSON.stringify(schema));
     }
   }, [schema, id, isLoading]);
 

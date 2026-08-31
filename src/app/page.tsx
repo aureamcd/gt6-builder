@@ -177,9 +177,9 @@ export default function Dashboard() {
       if (formToDelete.is_shared) {
         // Remover apenas da visualização local do usuário
         if (typeof window !== 'undefined') {
-          const accessed: string[] = JSON.parse(localStorage.getItem('gt6_accessed_forms') || '[]');
+          const accessed: string[] = JSON.parse(sessionStorage.getItem('gt6_accessed_forms') || '[]');
           const updated = accessed.filter(id => id !== formToDelete.id);
-          localStorage.setItem('gt6_accessed_forms', JSON.stringify(updated));
+          sessionStorage.setItem('gt6_accessed_forms', JSON.stringify(updated));
         }
       } else {
         // Excluir permanentemente do banco (é o autor original)
@@ -197,7 +197,10 @@ export default function Dashboard() {
 
   const handleLogout = async () => {
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('gt6_accessed_forms');
+      sessionStorage.clear();
+      try {
+        localStorage.clear();
+      } catch (e) {}
     }
     await supabase.auth.signOut();
     router.push("/login");

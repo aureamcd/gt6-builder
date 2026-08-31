@@ -66,8 +66,8 @@ export default function PreviewPage({ params }: { params: Promise<{ id: string }
           return;
         }
 
-        // 2. Try to load from localStorage first (for live sync)
-        const localData = localStorage.getItem(`form_preview_${id}`);
+        // 2. Try to load from sessionStorage first (for live sync)
+        const localData = typeof window !== 'undefined' ? sessionStorage.getItem(`form_preview_${id}`) : null;
         let formToUse = null;
 
         if (localData) {
@@ -79,7 +79,9 @@ export default function PreviewPage({ params }: { params: Promise<{ id: string }
           if (dbData) {
             formToUse = dbData;
             setSchema(dbData);
-            localStorage.setItem(`form_preview_${id}`, JSON.stringify(dbData));
+            if (typeof window !== 'undefined') {
+              sessionStorage.setItem(`form_preview_${id}`, JSON.stringify(dbData));
+            }
           }
         }
 
@@ -105,16 +107,6 @@ export default function PreviewPage({ params }: { params: Promise<{ id: string }
       }
     }
     checkAuthAndLoadForm();
-
-    // Listen to localStorage changes for live sync across tabs
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === `form_preview_${id}` && e.newValue) {
-        setSchema(JSON.parse(e.newValue));
-      }
-    };
-    
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
   }, [id]);
 
   if (isLoading) return <div className="flex h-screen items-center justify-center bg-slate-50"><Loader2 className="animate-spin text-indigo-600" size={32} /></div>;
