@@ -225,18 +225,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
         showToast("Uma nova resposta foi registrada no formulário!", "success", "Nova Resposta Recebida! 🎉");
       });
 
-      // 3. Receber novas respostas em tempo real (via Postgres Changes se habilitado)
-      channel.on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'responses',
-        filter: `form_id=eq.${id}`
-      }, () => {
-        fetchResponses();
-        showToast("Uma nova resposta foi registrada no formulário!", "success", "Nova Resposta Recebida! 🎉");
-      });
-
-      // 4. Acompanhar colaboradores online (Presence)
+      // 4. Acompanhar colaboradores online (Presence) online (Presence)
       channel
         .on('presence', { event: 'sync' }, () => {
           const state = channel.presenceState();

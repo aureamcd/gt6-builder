@@ -65,10 +65,10 @@ export async function getForms(): Promise<Form[]> {
   const result: Form[] = (myForms || []).map(f => ({ ...f, is_shared: false }));
 
   // 2. Formulários compartilhados que o usuário acessou via colaboração
-  let sharedIds: string[] = authData.user.user_metadata?.shared_forms || [];
+  let sharedIds: string[] = authData?.user?.user_metadata?.shared_forms || [];
   if (typeof window !== 'undefined') {
     try {
-      const localShared = JSON.parse(sessionStorage.getItem(`gt6_shared_forms_${authData.user.id}`) || '[]');
+      const localShared = JSON.parse(sessionStorage.getItem(`gt6_shared_forms_${user.id}`) || '[]');
       sharedIds = Array.from(new Set([...sharedIds, ...localShared]));
     } catch (e) {}
   }
