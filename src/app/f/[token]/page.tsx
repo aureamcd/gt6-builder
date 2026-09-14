@@ -19,6 +19,8 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
   const [unansweredIds, setUnansweredIds] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [lockedVideos, setLockedVideos] = useState<Record<string, boolean>>({});
+  const maxTimeRef = React.useRef<Record<string, number>>({});
 
   // Private Form Passcode Lock State
   const [isUnlocked, setIsUnlocked] = useState(false);
@@ -39,6 +41,19 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
         const dbData = await getFormByShareToken(token);
         if (dbData) {
           setSchema(dbData);
+
+          const initialLocked: Record<string, boolean> = {};
+          dbData.sections?.forEach((sec: Section) => {
+            if (sec.unlock_at_seconds) {
+              initialLocked[sec.id] = true;
+            }
+            sec.questions?.forEach((q: Question) => {
+              if (q.type === 'MEDIA_VIDEO' && q.sub_question_template?.unlock_at_seconds) {
+                initialLocked[q.id] = true;
+              }
+            });
+          });
+          setLockedVideos(initialLocked);
           
           // O dono nunca precisa do token; respondentes precisam digitar uma única vez
           const isOwner = session?.user && session.user.id === dbData.user_id;
@@ -162,6 +177,15 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
   }).length;
 
   const progressPercentage = totalQuestions > 0 ? Math.round((answeredQuestionsCount / totalQuestions) * 100) : 0;
+
+  const isCurrentSectionHidden = currentSection?.unlock_at_seconds ? lockedVideos[currentSection.id] : false;
+  const isCurrentSectionLocked = isCurrentSectionHidden || (currentSection?.questions?.some(q => lockedVideos[q.id]) || false);
+
+  const handleVideoTimeUpdate = (questionId: string, currentTime: number, unlockAt: number) => {
+    if (lockedVideos[questionId] && currentTime >= unlockAt) {
+      setLockedVideos(prev => ({ ...prev, [questionId]: false }));
+    }
+  };
 
   const validateCurrentSection = () => {
     if (!currentSection || !currentSection.questions) return { isValid: true, missingIds: [] };
@@ -314,7 +338,9 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
                       controls
                       onTimeUpdate={(e) => {
                         const video = e.currentTarget;
-                        // If there's an unlock timer, we could handle it here, but public page relies on the overall unlock timer logic
+                        if (currentSection.unlock_at_seconds) {
+                          handleVideoTimeUpdate(currentSection.id, video.currentTime, currentSection.unlock_at_seconds);
+                        }
                       }}
                     />
                   )}
@@ -323,10 +349,17 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
             </div>
 
             {/* Questions List */}
-            <div className="p-6 sm:p-8 space-y-10">
-              {(!currentSection.questions || currentSection.questions.length === 0) && (
-                <div className="text-center text-slate-500 py-8">Nenhuma pergunta nesta seção.</div>
-              )}
+            {isCurrentSectionHidden ? (
+              <div className="p-12 text-center flex flex-col items-center justify-center bg-white">
+                <Video size={48} className="text-slate-300 mb-4" />
+                <h3 className="text-lg font-medium text-slate-700">Perguntas Bloqueadas</h3>
+                <p className="text-slate-500 mt-2 max-w-md">As perguntas desta seção estão ocultas. Assista ao vídeo explicativo acima até {currentSection.unlock_at_seconds} segundos para liberá-las.</p>
+              </div>
+            ) : (
+              <div className="p-6 sm:p-8 space-y-10">
+                {(!currentSection.questions || currentSection.questions.length === 0) && (
+                  <div className="text-center text-slate-500 py-8">Nenhuma pergunta nesta seção.</div>
+                )}
               {currentSection.questions?.map((q, qIndex) => (
                 <QuestionRenderer 
                   key={q.id} 
@@ -335,9 +368,13 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
                   value={answers[q.id]}
                   hasError={unansweredIds.includes(q.id)}
                   onChange={(val) => handleAnswerChange(q.id, val)}
+                  onAnswerChange={handleAnswerChange}
+                  answers={answers}
+                  schema={schema}
                 />
               ))}
-            </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="bg-white rounded-xl shadow-sm p-8 text-center text-slate-500 border border-slate-200">
@@ -386,7 +423,97 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
 }
 
 // Helper component to render each question type in interactive mode for the preview
-function QuestionRenderer({ question, number, value, hasError, onChange }: { question: Question, number: number, value: any, hasError?: boolean, onChange: (val: any) => void }) {
+function QuestionRenderer({ question, number, value, hasError, onChange, onAnswerChange, answers, schema }: { question: Question, number: number | string, value: any, hasError?: boolean, onChange: (val: any) => void, onAnswerChange?: (id: string, val: any) => void, answers?: any, schema?: any }) {
+  if (question.type === 'DYNAMIC_REPEATER') {
+    const triggerValue = answers?.[question.trigger_source_question_id || ''];
+    if (!triggerValue || (Array.isArray(triggerValue) && triggerValue.length === 0)) {
+      return null;
+    }
+    
+    const selectedValues = Array.isArray(triggerValue) ? triggerValue : [triggerValue];
+    const subQuestions = question.sub_question_template?.sub_questions || [];
+    
+    const getOptionLabel = (val: string) => {
+      if (val.startsWith('other:')) return val.replace('other:', '');
+      const triggerQ = schema?.sections?.flatMap((s: any) => s.questions || []).find((sq: any) => sq.id === question.trigger_source_question_id);
+      const opt = triggerQ?.options?.find((o: any) => o.id === val);
+      return opt ? opt.label : val;
+    };
+    
+    let baseNumber = number;
+    if (schema?.sections) {
+      const allQs = schema.sections.flatMap((s: any) => s.questions || []);
+      const triggerIdx = allQs.findIndex((sq: any) => sq.id === question.trigger_source_question_id);
+      if (triggerIdx >= 0) {
+        // Since we don't have the exact section-local index easily, we just use the trigger's section index if we can find it.
+        // For simplicity, let's just find it in the current section
+        const currentSec = schema.sections.find((s: any) => s.questions?.some((sq: any) => sq.id === question.id));
+        if (currentSec) {
+          const localTriggerIdx = currentSec.questions.findIndex((sq: any) => sq.id === question.trigger_source_question_id);
+          if (localTriggerIdx >= 0) baseNumber = localTriggerIdx + 1;
+        }
+      }
+    }
+
+    return (
+      <div key={question.id} className="relative group/question space-y-6 bg-slate-50 p-6 rounded-xl border border-indigo-100">
+        {question.label && question.label.trim() !== '' && (
+          <div className="flex items-start mb-4">
+            <span className="font-bold text-slate-400 mr-3 text-lg mt-0.5">{number}.</span>
+            <label className="font-semibold text-slate-800 text-lg leading-snug">
+              {question.label}
+            </label>
+          </div>
+        )}
+        <div className="space-y-6">
+          {selectedValues.map((val: string) => (
+            <div key={`${question.id}_${val}`} className="bg-white p-5 rounded-lg shadow-sm border border-slate-200">
+              <h4 className="text-sm font-bold text-indigo-600 mb-4 uppercase tracking-wider">
+                Referente a: {getOptionLabel(val)}
+              </h4>
+              <div className="space-y-6">
+                {subQuestions.map((subQ: any, subIndex: number) => {
+                  if (subQ.depends_on_id && subQ.depends_on_label) {
+                    const depAnswerKey = `${question.id}_${val}_${subQ.depends_on_id}`;
+                    const depAnswerValue = answers?.[depAnswerKey];
+                    const depSubQ = subQuestions.find((sq: any) => sq.id === subQ.depends_on_id);
+                    const depValues = Array.isArray(depAnswerValue) ? depAnswerValue : [depAnswerValue];
+                    
+                    const hasMatchingLabel = depValues.some(v => {
+                      if (!v) return false;
+                      if (v.startsWith('other:')) {
+                        return v.replace('other:', '').toLowerCase().trim() === subQ.depends_on_label.toLowerCase().trim();
+                      }
+                      const opt = depSubQ?.options?.find((o: any) => o.id === v);
+                      return opt?.label?.toLowerCase().trim() === subQ.depends_on_label.toLowerCase().trim();
+                    });
+
+                    if (!hasMatchingLabel) return null;
+                  }
+
+                  const answerKey = `${question.id}_${val}_${subQ.id}`;
+                  return (
+                    <QuestionRenderer 
+                      key={answerKey}
+                      question={subQ}
+                      number={`${baseNumber}.${subIndex + 1}`}
+                      value={answers?.[answerKey]}
+                      hasError={false}
+                      onChange={(newVal) => onAnswerChange?.(answerKey, newVal)}
+                      onAnswerChange={onAnswerChange}
+                      answers={answers}
+                      schema={schema}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div 
       id={`q_wrapper_${question.id}`} 
