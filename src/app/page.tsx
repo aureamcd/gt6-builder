@@ -6,8 +6,10 @@ import { Form, FormSettings } from "../types/form";
 import { Plus, FileText, Loader2, ArrowRight, Save, Download, FileCode, LogOut, BarChart3, Trash2, Users, Globe, Lock, RefreshCw, Key, ShieldCheck, AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { supabase, getFriendlyErrorMessage } from "../lib/supabase";
+import { useToast } from "../context/ToastContext";
 
 export default function Dashboard() {
+  const { toast } = useToast();
   const [forms, setForms] = useState<Form[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
@@ -66,6 +68,7 @@ export default function Dashboard() {
                   const validToken = accessTokenFromUrl || undefined;
                   const newForm = await cloneFormByToken(importToken, validToken);
                   if (newForm) {
+                    toast.success("Questionário importado com sucesso!", "Template Carregado");
                     router.push(`/builder/${newForm.id}`);
                     return;
                   }
@@ -73,7 +76,7 @@ export default function Dashboard() {
               }
             } catch (err: any) {
               console.error("Erro ao clonar template:", err);
-              alert("Erro ao importar questionário a partir do link: " + getFriendlyErrorMessage(err));
+              toast.error(getFriendlyErrorMessage(err), "Erro na Importação");
             } finally {
               setIsImporting(false);
             }
@@ -89,7 +92,7 @@ export default function Dashboard() {
       }
     }
     load();
-  }, [router]);
+  }, [router, toast]);
 
   const handleOpenCreateModal = () => {
     setNewFormTitle("Novo Questionário");
@@ -110,10 +113,11 @@ export default function Dashboard() {
 
       const newForm = await createEmptyForm(finalTitle, settings);
       setIsCreateModalOpen(false);
+      toast.success("Questionário criado com sucesso!", "Pronto para Editar");
       router.push(`/builder/${newForm.id}`);
     } catch (error) {
       console.error("Erro ao criar formulário:", error);
-      alert("Erro ao criar o formulário: " + getFriendlyErrorMessage(error));
+      toast.error(getFriendlyErrorMessage(error), "Erro ao Criar");
       setIsCreating(false);
     }
   };
@@ -154,6 +158,7 @@ export default function Dashboard() {
       const newForm = await cloneFormByToken(cleanToken, importPasscodeInput.trim() || undefined);
       if (newForm) {
         setIsImportModalOpen(false);
+        toast.success("Questionário importado com sucesso!", "Template Clonado");
         router.push(`/builder/${newForm.id}`);
       }
     } catch (error: any) {
@@ -183,9 +188,10 @@ export default function Dashboard() {
       }
       setForms(prev => prev.filter(f => f.id !== formToDelete.id));
       setFormToDelete(null);
+      toast.success("Formulário removido com sucesso!", "Item Excluído");
     } catch (err: any) {
       console.error("Erro ao remover formulário:", err);
-      alert("Erro ao remover formulário: " + getFriendlyErrorMessage(err));
+      toast.error(getFriendlyErrorMessage(err), "Erro ao Remover");
     } finally {
       setIsDeleting(false);
     }

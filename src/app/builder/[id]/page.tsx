@@ -13,6 +13,7 @@ import CommentsPanel from "../../../components/CommentsPanel";
 import { MessageSquare } from "lucide-react";
 import { supabase, getFriendlyErrorMessage } from "../../../lib/supabase";
 import { useRouter } from "next/navigation";
+import { useToast, globalToast } from "../../../context/ToastContext";
 
 const generateId = () => crypto.randomUUID();
 
@@ -1916,7 +1917,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                     await deleteForm(id);
                     router.push('/');
                   } catch (err: any) {
-                    alert("Erro ao excluir: " + getFriendlyErrorMessage(err));
+                    globalToast.error(getFriendlyErrorMessage(err), "Erro ao Excluir");
                     setIsDeletingForm(false);
                   }
                 }}
@@ -2232,7 +2233,7 @@ function QuestionCard({
     if (!file || !onUpdateVideoUrl) return;
 
     if (file.size > 50 * 1024 * 1024) { // 50MB
-      alert("O vídeo é muito grande. O tamanho máximo é 50MB.");
+      globalToast.warning("O vídeo ultrapassa o limite permitido de 50MB. Selecione um arquivo menor.", "Arquivo muito grande");
       return;
     }
 
@@ -2259,7 +2260,7 @@ function QuestionCard({
       onUpdateVideoUrl(publicData.publicUrl);
     } catch (err: any) {
       console.error(err);
-      alert("Erro ao fazer upload do vídeo: " + getFriendlyErrorMessage(err));
+      globalToast.error(getFriendlyErrorMessage(err), "Erro no Upload");
     } finally {
       setIsUploading(false);
     }
@@ -2523,7 +2524,7 @@ function SectionVideoUploader({ videoUrl, onUpdate }: { videoUrl: string, onUpda
     if (!file) return;
 
     if (file.size > 50 * 1024 * 1024) { // 50MB
-      alert("O vídeo é muito grande. O tamanho máximo é 50MB.");
+      globalToast.warning("O vídeo ultrapassa o limite permitido de 50MB. Selecione um arquivo menor.", "Arquivo muito grande");
       return;
     }
 
@@ -2550,7 +2551,7 @@ function SectionVideoUploader({ videoUrl, onUpdate }: { videoUrl: string, onUpda
       onUpdate(publicData.publicUrl);
     } catch (err: any) {
       console.error(err);
-      alert("Erro ao fazer upload do vídeo: " + getFriendlyErrorMessage(err));
+      globalToast.error(getFriendlyErrorMessage(err), "Erro no Upload");
     } finally {
       setIsUploading(false);
     }

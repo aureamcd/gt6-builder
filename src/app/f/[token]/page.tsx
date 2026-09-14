@@ -4,16 +4,19 @@ import React, { useState, useEffect, use } from "react";
 import { Form, Section, Question } from "../../../types/form";
 import { getFormByShareToken, submitFormResponse } from "../../../lib/api";
 import { supabase, getFriendlyErrorMessage } from "../../../lib/supabase";
+import { useToast } from "../../../context/ToastContext";
 import { Loader2, ChevronRight, ChevronLeft, Calendar, UploadCloud, FileText, Headphones, Video, Lock, Key, ArrowRight, ShieldCheck, AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function PublicFormPage({ params }: { params: Promise<{ token: string }> }) {
   const router = useRouter();
+  const { toast } = useToast();
   const { token } = use(params);
   const [schema, setSchema] = useState<Form | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeSectionIndex, setActiveSectionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, any>>({});
+  const [unansweredIds, setUnansweredIds] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasSubmitted, setHasSubmitted] = useState(false);
 
@@ -24,6 +27,7 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
 
   const handleAnswerChange = (questionId: string, value: any) => {
     setAnswers(prev => ({ ...prev, [questionId]: value }));
+    setUnansweredIds(prev => prev.filter(id => id !== questionId));
   };
 
   useEffect(() => {
@@ -160,33 +164,50 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
   const progressPercentage = totalQuestions > 0 ? Math.round((answeredQuestionsCount / totalQuestions) * 100) : 0;
 
   const validateCurrentSection = () => {
-    if (!currentSection || !currentSection.questions) return true;
+    if (!currentSection || !currentSection.questions) return { isValid: true, missingIds: [] };
+    const missingIds: string[] = [];
     for (const q of currentSection.questions) {
       if (q.required && q.type !== 'DYNAMIC_REPEATER') {
         const val = answers[q.id];
-        if (val === undefined || val === null || val === '') return false;
-        if (Array.isArray(val) && val.length === 0) return false;
+        const isMissing = val === undefined || val === null || val === '' || (Array.isArray(val) && val.length === 0);
+        if (isMissing) {
+          missingIds.push(q.id);
+        }
       }
     }
-    return true;
+    return { isValid: missingIds.length === 0, missingIds };
   };
 
   const handleNextSection = () => {
-    if (!validateCurrentSection()) {
-      alert("Por favor, responda todas as perguntas obrigatórias antes de prosseguir.");
+    const { isValid, missingIds } = validateCurrentSection();
+    if (!isValid) {
+      setUnansweredIds(missingIds);
+      const firstEl = document.getElementById(`q_wrapper_${missingIds[0]}`);
+      if (firstEl) {
+        firstEl.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+      toast.warning("Por favor, preencha todos os campos obrigatórios (*) antes de avançar.", "Campos Obrigatórios");
       return;
     }
+    setUnansweredIds([]);
     if (activeSectionIndex < sections.length - 1) {
       setActiveSectionIndex(prev => prev + 1);
-      window.scrollTo(0, 0);
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
 
   const handleSubmitResponse = async () => {
-    if (!validateCurrentSection()) {
-      alert("Por favor, responda todas as perguntas obrigatórias antes de enviar.");
+    const { isValid, missingIds } = validateCurrentSection();
+    if (!isValid) {
+      setUnansweredIds(missingIds);
+      const firstEl = document.getElementById(`q_wrapper_${missingIds[0]}`);
+      if (firstEl) {
+        firstEl.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+      toast.warning("Por favor, preencha todos os campos obrigatórios (*) antes de finalizar.", "Campos Obrigatórios");
       return;
     }
+    setUnansweredIds([]);
 
     setIsSubmitting(true);
     try {
@@ -208,13 +229,14 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
       
       if (res.success) {
         setHasSubmitted(true);
-        window.scrollTo(0, 0);
+        toast.success("Suas respostas foram registradas com sucesso!", "Formulário Concluído");
+        window.scrollTo({ top: 0, behavior: "smooth" });
       } else {
-        alert("Ocorreu um erro ao enviar suas respostas: " + getFriendlyErrorMessage(res.error));
+        toast.error(getFriendlyErrorMessage(res.error), "Erro no Envio");
       }
     } catch (error) {
       console.error(error);
-      alert("Erro de conexão ao enviar respostas: " + getFriendlyErrorMessage(error));
+      toast.error(getFriendlyErrorMessage(error), "Falha na Conexão");
     } finally {
       setIsSubmitting(false);
     }
@@ -286,6 +308,7 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
                   question={q} 
                   number={qIndex + 1} 
                   value={answers[q.id]}
+                  hasError={unansweredIds.includes(q.id)}
                   onChange={(val) => handleAnswerChange(q.id, val)}
                 />
               ))}
@@ -314,7 +337,7 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
           {activeSectionIndex < sections.length - 1 ? (
             <button 
               onClick={handleNextSection}
-              className="w-full sm:w-auto flex items-center justify-center space-x-2 px-8 py-3 rounded-xl font-semibold transition-colors bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm ml-auto"
+              className="w-full sm:w-auto flex items-center justify-center space-x-2 px-8 py-3 rounded-xl font-semibold transition-colors bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm ml-auto cursor-pointer"
             >
               <span>Próxima Seção</span>
               <ChevronRight size={18} />
@@ -323,7 +346,7 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
             <button 
               onClick={handleSubmitResponse}
               disabled={isSubmitting}
-              className={`w-full sm:w-auto flex items-center justify-center space-x-2 px-8 py-3.5 rounded-xl font-bold transition-colors ml-auto ${isSubmitting ? 'bg-indigo-400 text-white cursor-wait' : 'bg-green-600 text-white hover:bg-green-700 shadow-md shadow-green-200'}`}
+              className={`w-full sm:w-auto flex items-center justify-center space-x-2 px-8 py-3.5 rounded-xl font-bold transition-colors ml-auto cursor-pointer ${isSubmitting ? 'bg-indigo-400 text-white cursor-wait' : 'bg-green-600 text-white hover:bg-green-700 shadow-md shadow-green-200'}`}
             >
               <span>{isSubmitting ? 'Enviando...' : 'Finalizar e Enviar Respostas'}</span>
             </button>
@@ -338,15 +361,26 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
 }
 
 // Helper component to render each question type in interactive mode for the preview
-function QuestionRenderer({ question, number, value, onChange }: { question: Question, number: number, value: any, onChange: (val: any) => void }) {
+function QuestionRenderer({ question, number, value, hasError, onChange }: { question: Question, number: number, value: any, hasError?: boolean, onChange: (val: any) => void }) {
   return (
-    <div className="group">
+    <div 
+      id={`q_wrapper_${question.id}`} 
+      className={`group transition-all duration-300 rounded-2xl ${hasError ? 'p-4 sm:p-5 bg-red-50/60 border-2 border-red-300 shadow-sm ring-4 ring-red-50' : 'p-2'}`}
+    >
       <div className="flex items-start mb-4">
-        <span className="font-bold text-slate-400 mr-3 text-lg mt-0.5">{number}.</span>
-        <label className="font-semibold text-slate-800 text-lg leading-snug">
-          {question.label || "Pergunta sem título"}
-          {question.required && <span className="text-red-500 ml-1" title="Obrigatório">*</span>}
-        </label>
+        <span className={`font-bold mr-3 text-lg mt-0.5 ${hasError ? 'text-red-500' : 'text-slate-400'}`}>{number}.</span>
+        <div>
+          <label className={`font-semibold text-lg leading-snug ${hasError ? 'text-red-900' : 'text-slate-800'}`}>
+            {question.label || "Pergunta sem título"}
+            {question.required && <span className="text-red-500 ml-1 font-bold" title="Obrigatório">*</span>}
+          </label>
+          {hasError && (
+            <p className="text-xs font-semibold text-red-600 mt-1 flex items-center gap-1 animate-in fade-in">
+              <AlertCircle size={13} className="shrink-0" />
+              Esta pergunta é obrigatória. Por favor, responda para continuar.
+            </p>
+          )}
+        </div>
       </div>
 
       <div className="pl-7 sm:pl-9">

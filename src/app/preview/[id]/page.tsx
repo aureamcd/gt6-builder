@@ -8,6 +8,8 @@ import { Loader2, ChevronRight, ChevronLeft, Calendar, UploadCloud, FileText, He
 import { useRouter } from "next/navigation";
 import CommentsPanel from "../../../components/CommentsPanel";
 
+import { useToast } from "../../../context/ToastContext";
+
 const calculateSectionTimeRaw = (section: Section) => {
   let seconds = 0;
   if (section.video_url) {
@@ -43,17 +45,20 @@ const formatTime = (seconds: number) => {
 
 export default function PreviewPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
+  const { toast } = useToast();
   const { id } = use(params);
   const [schema, setSchema] = useState<Form | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeSectionIndex, setActiveSectionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, any>>({});
+  const [unansweredIds, setUnansweredIds] = useState<string[]>([]);
   const [activeCommentElement, setActiveCommentElement] = useState<{id: string, title: string} | null>(null);
   const [lockedVideos, setLockedVideos] = useState<Record<string, boolean>>({});
   const maxTimeRef = useRef<Record<string, number>>({});
 
   const handleAnswerChange = (questionId: string, value: any) => {
     setAnswers(prev => ({ ...prev, [questionId]: value }));
+    setUnansweredIds(prev => prev.filter(qId => qId !== questionId));
   };
 
   useEffect(() => {
@@ -137,27 +142,38 @@ export default function PreviewPage({ params }: { params: Promise<{ id: string }
   const totalTimeSeconds = schema?.sections?.reduce((acc, sec) => acc + calculateSectionTimeRaw(sec), 0) || 0;
 
   const validateCurrentSection = () => {
-    if (!currentSection || !currentSection.questions) return true;
+    if (!currentSection || !currentSection.questions) return { isValid: true, missingIds: [] };
+    const missingIds: string[] = [];
     for (const q of currentSection.questions) {
       if (q.required && q.type !== 'DYNAMIC_REPEATER') {
         const val = answers[q.id];
-        if (val === undefined || val === null || val === '') return false;
-        if (Array.isArray(val) && val.length === 0) return false;
+        const isMissing = val === undefined || val === null || val === '' || (Array.isArray(val) && val.length === 0);
+        if (isMissing) {
+          missingIds.push(q.id);
+        }
       }
     }
-    return true;
+    return { isValid: missingIds.length === 0, missingIds };
   };
 
   const handleNextSection = () => {
-    if (!validateCurrentSection()) {
-      alert("Por favor, responda todas as perguntas obrigatórias antes de prosseguir.");
+    const { isValid, missingIds } = validateCurrentSection();
+    if (!isValid) {
+      setUnansweredIds(missingIds);
+      const firstEl = document.getElementById(`prev_q_${missingIds[0]}`);
+      if (firstEl) {
+        firstEl.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+      toast.warning("Por favor, preencha todas as perguntas obrigatórias antes de prosseguir.", "Campos Obrigatórios");
       return;
     }
+    setUnansweredIds([]);
     
     if (activeSectionIndex === sections.length - 1) {
-      alert("Formulário finalizado! (A gravação de respostas será implementada em breve)");
+      toast.success("Pré-visualização concluída! Em produção, as respostas serão gravadas no banco.", "Fim da Pré-visualização");
     } else {
       setActiveSectionIndex(prev => Math.min(sections.length - 1, prev + 1));
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
 
@@ -354,6 +370,7 @@ export default function PreviewPage({ params }: { params: Promise<{ id: string }
                       question={q} 
                       number={qIndex + 1} 
                       value={answers[q.id]}
+                      hasError={unansweredIds.includes(q.id)}
                       onChange={(val) => handleAnswerChange(q.id, val)}
                       onVideoTimeUpdate={(time) => {
                         if (q.sub_question_template?.unlock_at_seconds) {
@@ -419,16 +436,26 @@ export default function PreviewPage({ params }: { params: Promise<{ id: string }
 }
 
 // Helper component to render each question type in interactive mode for the preview
-function QuestionRenderer({ question, number, value, onChange, onVideoTimeUpdate }: { question: any, number: number | string, value: any, onChange: (val: any) => void, onVideoTimeUpdate?: (time: number) => void }) {
+function QuestionRenderer({ question, number, value, hasError, onChange, onVideoTimeUpdate }: { question: any, number: number | string, value: any, hasError?: boolean, onChange: (val: any) => void, onVideoTimeUpdate?: (time: number) => void }) {
   const maxTimeRef = useRef<number>(0);
   return (
-    <div className="group">
+    <div 
+      id={`prev_q_${question.id}`}
+      className={`group transition-all duration-300 rounded-2xl ${hasError ? 'p-4 sm:p-5 bg-red-50/60 border-2 border-red-300 shadow-sm ring-4 ring-red-50' : 'p-1'}`}
+    >
       <div className="flex items-start mb-4">
-        <span className="font-bold text-slate-400 mr-3 text-lg mt-0.5">{number}.</span>
-        <label className="font-semibold text-slate-800 text-lg leading-snug">
-          {question.label || "Pergunta sem título"}
-          {question.required && <span className="text-red-500 ml-1" title="Obrigatório">*</span>}
-        </label>
+        <span className={`font-bold mr-3 text-lg mt-0.5 ${hasError ? 'text-red-500' : 'text-slate-400'}`}>{number}.</span>
+        <div>
+          <label className={`font-semibold text-lg leading-snug ${hasError ? 'text-red-900' : 'text-slate-800'}`}>
+            {question.label || "Pergunta sem título"}
+            {question.required && <span className="text-red-500 ml-1 font-bold" title="Obrigatório">*</span>}
+          </label>
+          {hasError && (
+            <p className="text-xs font-semibold text-red-600 mt-1">
+              * Pergunta obrigatória. Por favor, preencha para prosseguir.
+            </p>
+          )}
+        </div>
       </div>
 
       <div className="pl-7 sm:pl-9">
