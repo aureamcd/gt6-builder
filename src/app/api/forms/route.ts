@@ -1,15 +1,14 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabase, getFriendlyErrorMessage } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
-
 
 export async function POST(request: Request) {
   try {
     const body = await request.json() as any;
     
     if (!body.form_id || !body.title) {
-      return NextResponse.json({ error: 'form_id and title are required' }, { status: 400 });
+      return NextResponse.json({ error: 'O ID do formulário e o título são obrigatórios.' }, { status: 400 });
     }
 
     // Insert or update (upsert) the form in the 'forms' table
@@ -25,14 +24,14 @@ export async function POST(request: Request) {
       .single();
 
     if (error) {
-      console.error('Supabase Error:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error('Erro Supabase:', error);
+      return NextResponse.json({ error: getFriendlyErrorMessage(error) }, { status: 500 });
     }
 
-    return NextResponse.json({ message: 'Form saved successfully', data });
+    return NextResponse.json({ message: 'Formulário salvo com sucesso.', data });
 
   } catch (error: any) {
-    console.error('API Error:', error);
-    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
+    console.error('Erro na API:', error);
+    return NextResponse.json({ error: getFriendlyErrorMessage(error) }, { status: 500 });
   }
 }

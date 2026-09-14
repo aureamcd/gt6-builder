@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, Suspense } from 'react';
-import { supabase } from '../../lib/supabase';
+import { supabase, getFriendlyErrorMessage } from '../../lib/supabase';
 import { Loader2, Mail, Lock, ShieldCheck } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
@@ -32,11 +32,11 @@ function LoginContent() {
         const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
         
-        setMessage({ type: 'success', text: 'Conta criada! Você já pode fazer login.' });
+        setMessage({ type: 'success', text: 'Conta criada com sucesso! Você já pode fazer login.' });
         setIsLogin(true); // Troca para a tela de login
       }
     } catch (err: any) {
-      setMessage({ type: 'error', text: err.message || 'Erro ao autenticar.' });
+      setMessage({ type: 'error', text: getFriendlyErrorMessage(err) });
     } finally {
       setIsLoading(false);
     }

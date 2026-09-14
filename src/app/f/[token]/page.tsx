@@ -3,7 +3,7 @@
 import React, { useState, useEffect, use } from "react";
 import { Form, Section, Question } from "../../../types/form";
 import { getFormByShareToken, submitFormResponse } from "../../../lib/api";
-import { supabase } from "../../../lib/supabase";
+import { supabase, getFriendlyErrorMessage } from "../../../lib/supabase";
 import { Loader2, ChevronRight, ChevronLeft, Calendar, UploadCloud, FileText, Headphones, Video, Lock, Key, ArrowRight, ShieldCheck, AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -210,11 +210,11 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
         setHasSubmitted(true);
         window.scrollTo(0, 0);
       } else {
-        alert("Ocorreu um erro ao enviar suas respostas. Tente novamente.");
+        alert("Ocorreu um erro ao enviar suas respostas: " + getFriendlyErrorMessage(res.error));
       }
     } catch (error) {
       console.error(error);
-      alert("Erro de conexão.");
+      alert("Erro de conexão ao enviar respostas: " + getFriendlyErrorMessage(error));
     } finally {
       setIsSubmitting(false);
     }

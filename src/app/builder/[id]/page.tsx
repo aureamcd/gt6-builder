@@ -11,7 +11,7 @@ import { Form, Section, Question, QuestionType, Option, FormComment } from "../.
 import { saveFormState, getFormById, generateShareToken, getComments, getFormResponses, deleteForm, registerAccessedForm, generateAccessToken } from "../../../lib/api";
 import CommentsPanel from "../../../components/CommentsPanel";
 import { MessageSquare } from "lucide-react";
-import { supabase } from "../../../lib/supabase";
+import { supabase, getFriendlyErrorMessage } from "../../../lib/supabase";
 import { useRouter } from "next/navigation";
 
 const generateId = () => crypto.randomUUID();
@@ -381,7 +381,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
         setLastSavedTime(time);
         showToast("Todas as perguntas, seções e configurações foram salvas com sucesso!", "success", "Questionário Salvo!");
       } else {
-        showToast((result.error as any)?.message || "Ocorreu um erro ao salvar as alterações.", "error", "Falha ao salvar");
+        showToast(getFriendlyErrorMessage(result.error), "error", "Falha ao salvar");
       }
     }
   };
@@ -1916,7 +1916,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                     await deleteForm(id);
                     router.push('/');
                   } catch (err: any) {
-                    alert("Erro ao excluir: " + (err.message || "Erro inesperado"));
+                    alert("Erro ao excluir: " + getFriendlyErrorMessage(err));
                     setIsDeletingForm(false);
                   }
                 }}
@@ -2259,7 +2259,7 @@ function QuestionCard({
       onUpdateVideoUrl(publicData.publicUrl);
     } catch (err: any) {
       console.error(err);
-      alert("Erro ao fazer upload do vídeo: " + err.message);
+      alert("Erro ao fazer upload do vídeo: " + getFriendlyErrorMessage(err));
     } finally {
       setIsUploading(false);
     }
@@ -2550,7 +2550,7 @@ function SectionVideoUploader({ videoUrl, onUpdate }: { videoUrl: string, onUpda
       onUpdate(publicData.publicUrl);
     } catch (err: any) {
       console.error(err);
-      alert("Erro ao fazer upload do vídeo: " + err.message);
+      alert("Erro ao fazer upload do vídeo: " + getFriendlyErrorMessage(err));
     } finally {
       setIsUploading(false);
     }

@@ -35,7 +35,7 @@ export default function RegisterPage() {
         router.push("/");
       }, 1500);
     } catch (err: any) {
-      setError(getFriendlyAuthError(err.message));
+      setError(getFriendlyAuthError(err));
     } finally {
       setIsLoading(false);
     }

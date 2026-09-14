@@ -5,7 +5,7 @@ import { getForms, createEmptyForm, cloneFormByToken, getFormByShareToken, delet
 import { Form, FormSettings } from "../types/form";
 import { Plus, FileText, Loader2, ArrowRight, Save, Download, FileCode, LogOut, BarChart3, Trash2, Users, Globe, Lock, RefreshCw, Key, ShieldCheck, AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { supabase } from "../lib/supabase";
+import { supabase, getFriendlyErrorMessage } from "../lib/supabase";
 
 export default function Dashboard() {
   const [forms, setForms] = useState<Form[]>([]);
@@ -73,7 +73,7 @@ export default function Dashboard() {
               }
             } catch (err: any) {
               console.error("Erro ao clonar template:", err);
-              alert("Erro ao importar questionário a partir do link: " + (err.message || "Token inválido"));
+              alert("Erro ao importar questionário a partir do link: " + getFriendlyErrorMessage(err));
             } finally {
               setIsImporting(false);
             }
@@ -113,7 +113,7 @@ export default function Dashboard() {
       router.push(`/builder/${newForm.id}`);
     } catch (error) {
       console.error("Erro ao criar formulário:", error);
-      alert("Erro ao criar o formulário.");
+      alert("Erro ao criar o formulário: " + getFriendlyErrorMessage(error));
       setIsCreating(false);
     }
   };
@@ -158,12 +158,12 @@ export default function Dashboard() {
       }
     } catch (error: any) {
       console.error("Erro ao importar:", error);
-      const errMsg = error.message || "";
+      const errMsg = error?.message || "";
       if (errMsg.toLowerCase().includes("código") || errMsg.toLowerCase().includes("privado") || errMsg.toLowerCase().includes("passcode")) {
         setIsPasscodeRequired(true);
-        setImportError(errMsg);
+        setImportError(getFriendlyErrorMessage(errMsg));
       } else {
-        setImportError(errMsg || "Token ou link inválido. Verifique e tente novamente.");
+        setImportError(getFriendlyErrorMessage(error));
       }
     } finally {
       setIsImporting(false);
@@ -185,7 +185,7 @@ export default function Dashboard() {
       setFormToDelete(null);
     } catch (err: any) {
       console.error("Erro ao remover formulário:", err);
-      alert("Erro ao remover formulário: " + (err.message || "Erro inesperado"));
+      alert("Erro ao remover formulário: " + getFriendlyErrorMessage(err));
     } finally {
       setIsDeleting(false);
     }
