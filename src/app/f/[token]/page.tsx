@@ -295,6 +295,31 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
                   {currentSection.description}
                 </div>
               )}
+              
+              {currentSection.video_url && (
+                <div className="mt-6 w-full max-w-3xl mx-auto overflow-hidden rounded-xl shadow-md bg-black">
+                  {(currentSection.video_url.includes('youtube.com') || currentSection.video_url.includes('youtu.be')) ? (
+                    <div className="relative w-full" style={{ paddingTop: '56.25%' }}>
+                      <iframe 
+                        className="absolute top-0 left-0 w-full h-full"
+                        src={currentSection.video_url.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
+                        title="Section Video"
+                        allowFullScreen
+                      />
+                    </div>
+                  ) : (
+                    <video 
+                      className="w-full max-h-[500px]"
+                      src={currentSection.video_url}
+                      controls
+                      onTimeUpdate={(e) => {
+                        const video = e.currentTarget;
+                        // If there's an unlock timer, we could handle it here, but public page relies on the overall unlock timer logic
+                      }}
+                    />
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Questions List */}

@@ -361,6 +361,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
           setLastSavedTime(new Date().toLocaleTimeString('pt-BR'));
         } else {
           console.error("Auto-save error:", result.error);
+          showToast("Erro ao salvar: " + ((result.error as any)?.message || "Falha na conexão"), "error");
         }
       }).catch(err => {
         console.error("Auto-save throw:", err);
