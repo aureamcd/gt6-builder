@@ -1102,6 +1102,19 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
               <Share2 size={14} />
               <span className="hidden xl:inline">Compartilhar</span>
             </button>
+            <label className="cursor-pointer flex items-center justify-center space-x-1 px-2 sm:px-2.5 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg shadow-sm hover:bg-slate-50 transition-colors shrink-0 whitespace-nowrap" title="Importar XML">
+              <FileDown size={14} className="rotate-180" />
+              <span className="hidden xl:inline">Importar XML</span>
+              <input type="file" accept=".xml" className="hidden" onChange={handleImportXML} />
+            </label>
+            <button
+              onClick={handleExportXML}
+              className="flex items-center justify-center space-x-1 px-2 sm:px-2.5 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg shadow-sm hover:bg-slate-50 transition-colors shrink-0 whitespace-nowrap"
+              title="Exportar XML"
+            >
+              <FileDown size={14} />
+              <span className="hidden xl:inline">Exportar XML</span>
+            </button>
             <button
               onClick={() => window.open(`/preview/${id}`, '_blank')}
               className="flex items-center justify-center space-x-1 px-2 sm:px-2.5 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg shadow-sm hover:bg-slate-50 transition-colors shrink-0 whitespace-nowrap"
