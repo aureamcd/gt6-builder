@@ -14,6 +14,7 @@ import { MessageSquare } from "lucide-react";
 import { supabase, getFriendlyErrorMessage } from "../../../lib/supabase";
 import { useRouter } from "next/navigation";
 import { useToast, globalToast } from "../../../context/ToastContext";
+import { XMLBuilder, XMLParser } from "fast-xml-parser";
 
 const generateId = () => crypto.randomUUID();
 
@@ -389,6 +390,55 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
   };
 
   // Removido useEffect redundante de 10 segundos que causava race condition
+
+
+  const handleExportXML = () => {
+    if (!schema) return;
+    const builder = new XMLBuilder({
+      ignoreAttributes: false,
+      format: true,
+      arrayNodeName: "item",
+    });
+    const xmlContent = builder.build({ FormSchema: schema });
+    const dataStr = "data:text/xml;charset=utf-8," + encodeURIComponent("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" + xmlContent);
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", schema_.xml);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+    showToast("Estrutura exportada em XML para backup seguro.", "success", "XML Exportado");
+  };
+
+  const handleImportXML = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const xmlContent = event.target?.result as string;
+        const parser = new XMLParser({
+          ignoreAttributes: false,
+          parseAttributeValue: true,
+          isArray: (name, jpath, isLeafNode, isAttribute) => { 
+            if (['FormSchema.sections', 'FormSchema.sections.questions', 'FormSchema.sections.questions.options', 'FormSchema.sections.questions.sub_question_template.sub_questions'].includes(jpath)) return true;
+            return false;
+          }
+        });
+        const parsed = parser.parse(xmlContent);
+        if (parsed && parsed.FormSchema) {
+          saveStateWithHistory(parsed.FormSchema);
+          showToast("Estrutura carregada via XML com sucesso.", "success", "XML Importado");
+        } else {
+          showToast("Formato XML invalido.", "error", "Erro");
+        }
+      } catch (err: any) {
+        showToast("Falha ao analisar XML: " + err.message, "error", "Erro");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
 
   if (isLoading) return <div className="flex h-screen items-center justify-center bg-slate-50"><Loader2 className="animate-spin text-indigo-600" size={32} /></div>;
   if (!schema) return <div className="flex h-screen items-center justify-center bg-slate-50 text-slate-500">Formulário não encontrado.</div>;
