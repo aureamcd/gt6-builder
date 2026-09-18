@@ -403,7 +403,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
     const dataStr = "data:text/xml;charset=utf-8," + encodeURIComponent("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" + xmlContent);
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", schema_.xml);
+    downloadAnchor.setAttribute("download", `schema_${schema.title?.replace(/\s+/g, '_') || 'form'}.xml`);
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
