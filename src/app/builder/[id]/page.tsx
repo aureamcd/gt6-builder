@@ -427,7 +427,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
         });
         const parsed = parser.parse(xmlContent);
         if (parsed && parsed.FormSchema) {
-          saveStateWithHistory(parsed.FormSchema);
+          setSchema(parsed.FormSchema);
           showToast("Estrutura carregada via XML com sucesso.", "success", "XML Importado");
         } else {
           showToast("Formato XML invalido.", "error", "Erro");
