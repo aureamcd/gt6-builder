@@ -453,45 +453,116 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
     setActiveSectionId(newSectionId);
   };
 
-  // Mapeamento de perguntas e seções para renderização enriquecida das respostas
-  const questionMap = useMemo(() => {
-    const map = new Map<string, { label: string; sectionTitle: string; type: string }>();
-    if (!schema?.sections) return map;
+  // Mapeamento de perguntas e opções para converter IDs em textos legíveis nas respostas
+  const { questionMap, optionMap } = useMemo(() => {
+    const qMap = new Map<string, { label: string; sectionTitle: string; type: string; options: Map<string, string> }>();
+    const optMap = new Map<string, string>(); // optId -> optLabel
+
+    if (!schema?.sections) return { questionMap: qMap, optionMap: optMap };
+
     schema.sections.forEach(sec => {
       sec.questions?.forEach(q => {
-        map.set(q.id, {
+        const questionOptions = new Map<string, string>();
+        
+        q.options?.forEach(opt => {
+          if (opt.id && opt.label) {
+            questionOptions.set(opt.id, opt.label);
+            optMap.set(opt.id, opt.label);
+          }
+        });
+
+        // Mapear opções de sub-perguntas em templates dinâmicos se existirem
+        if (q.sub_question_template?.sub_questions) {
+          q.sub_question_template.sub_questions.forEach((sq: any) => {
+            if (sq.options && Array.isArray(sq.options)) {
+              sq.options.forEach((subOpt: any) => {
+                if (typeof subOpt === 'object' && subOpt.id && subOpt.label) {
+                  optMap.set(subOpt.id, subOpt.label);
+                }
+              });
+            }
+          });
+        }
+
+        qMap.set(q.id, {
           label: q.label || 'Pergunta sem título',
           sectionTitle: sec.title || 'Seção',
-          type: q.type
+          type: q.type,
+          options: questionOptions
         });
       });
     });
-    return map;
+
+    return { questionMap: qMap, optionMap: optMap };
   }, [schema]);
 
+  // Função auxiliar para formatar e traduzir IDs de opções em nomes legíveis
+  const formatAnswerValue = (rawVal: any, qInfo?: { label: string; options: Map<string, string>; type: string }): { text: string; badges?: string[] } => {
+    if (rawVal === null || rawVal === undefined || rawVal === '') {
+      return { text: '(Em branco)' };
+    }
+
+    const resolveOption = (val: string): string => {
+      if (!val) return '';
+      if (typeof val === 'string' && val.startsWith('other:')) {
+        const otherText = val.replace('other:', '').trim();
+        return otherText ? `Outro: ${otherText}` : 'Outro';
+      }
+      if (qInfo?.options?.has(val)) {
+        return qInfo.options.get(val)!;
+      }
+      if (optionMap.has(val)) {
+        return optionMap.get(val)!;
+      }
+      return val;
+    };
+
+    // Caso seja Array (ex: CHECKBOX_MULTIPLE)
+    if (Array.isArray(rawVal)) {
+      if (rawVal.length === 0) return { text: '(Nenhuma opção marcada)' };
+      const resolvedList = rawVal.map(v => resolveOption(String(v))).filter(Boolean);
+      return {
+        text: resolvedList.join(', '),
+        badges: resolvedList
+      };
+    }
+
+    // Caso seja Objeto Dinâmico (ex: DYNAMIC_REPEATER)
+    if (typeof rawVal === 'object') {
+      if (rawVal.selected && Array.isArray(rawVal.selected)) {
+        const selectedLabels = rawVal.selected.map((optId: string) => resolveOption(optId));
+        return {
+          text: selectedLabels.join(', '),
+          badges: selectedLabels
+        };
+      }
+      return { text: JSON.stringify(rawVal) };
+    }
+
+    const resolvedSingle = resolveOption(String(rawVal));
+    return { text: resolvedSingle };
+  };
+
   // Função normalizadora para converter respostas (array do Supabase ou objeto) em lista legível
-  const getNormalizedAnswers = (resp: any): { questionId: string; label: string; sectionTitle?: string; value: string }[] => {
+  const getNormalizedAnswers = (resp: any): { questionId: string; label: string; sectionTitle?: string; value: string; badges?: string[] }[] => {
     if (!resp) return [];
 
     // Se resp.answers for array vindo do Supabase (relacionamento com a tabela answers)
     if (Array.isArray(resp.answers)) {
       return resp.answers.map((a: any) => {
         const qInfo = questionMap.get(a.question_id);
-        let valStr = '';
-        if (a.answer_text !== null && a.answer_text !== undefined && a.answer_text !== '') {
-          valStr = a.answer_text;
-        } else if (a.answer_json !== null && a.answer_json !== undefined) {
-          valStr = Array.isArray(a.answer_json)
-            ? a.answer_json.join(', ')
-            : typeof a.answer_json === 'object'
-              ? JSON.stringify(a.answer_json)
-              : String(a.answer_json);
-        }
+        const rawVal = a.answer_text !== null && a.answer_text !== undefined && a.answer_text !== ''
+          ? a.answer_text
+          : a.answer_json;
+
+        const formatted = formatAnswerValue(rawVal, qInfo);
+
         return {
           questionId: a.question_id,
           label: qInfo?.label || `Pergunta (${a.question_id ? a.question_id.slice(0, 8) : 'Geral'})`,
           sectionTitle: qInfo?.sectionTitle,
-          value: valStr || '(Em branco)'
+          value: formatted.text,
+          badges: formatted.badges
         };
       });
     }
@@ -500,19 +571,13 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
     if (resp.answers && typeof resp.answers === 'object') {
       return Object.entries(resp.answers).map(([qId, val]: [string, any]) => {
         const qInfo = questionMap.get(qId);
-        let valStr = '';
-        if (Array.isArray(val)) {
-          valStr = val.join(', ');
-        } else if (typeof val === 'object' && val !== null) {
-          valStr = JSON.stringify(val);
-        } else {
-          valStr = val !== undefined && val !== null ? String(val) : '';
-        }
+        const formatted = formatAnswerValue(val, qInfo);
         return {
           questionId: qId,
           label: qInfo?.label || `Pergunta (${qId.slice(0, 8)})`,
           sectionTitle: qInfo?.sectionTitle,
-          value: valStr || '(Em branco)'
+          value: formatted.text,
+          badges: formatted.badges
         };
       });
     }
@@ -802,17 +867,14 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                             <span className="text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-full">
                               Envio #{responsesList.length - i}
                             </span>
-                            <span className="text-xs text-slate-400 font-mono">
-                              ID: {resp.id ? resp.id.slice(0, 8) : `#${i + 1}`}
-                            </span>
                           </div>
                           <div className="flex items-center space-x-3 text-xs text-slate-500">
-                            <span className="flex items-center space-x-1">
+                            <span className="flex items-center space-x-1 font-medium">
                               <Clock size={13} className="text-slate-400" />
                               <span>{formattedDate}</span>
                             </span>
                             <span className="bg-slate-100 text-slate-600 font-semibold px-2 py-0.5 rounded-md text-[11px]">
-                              {answers.length} {answers.length === 1 ? 'campo' : 'campos'}
+                              {answers.length} {answers.length === 1 ? 'campo preenchido' : 'campos preenchidos'}
                             </span>
                             <button
                               onClick={() => handleDeleteSingleResponse(resp.id)}
@@ -851,9 +913,22 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                                   </p>
                                 </div>
                                 <div className="pt-1.5 border-t border-slate-200/50">
-                                  <p className="text-xs font-medium text-slate-900 bg-white p-2 rounded-lg border border-slate-200/50 break-words">
-                                    {item.value}
-                                  </p>
+                                  {item.badges && item.badges.length > 0 ? (
+                                    <div className="flex flex-wrap gap-1.5">
+                                      {item.badges.map((badge, bIdx) => (
+                                        <span
+                                          key={bIdx}
+                                          className="inline-flex items-center text-xs font-medium text-indigo-700 bg-indigo-50/90 border border-indigo-200 px-2.5 py-1 rounded-lg shadow-xs"
+                                        >
+                                          ✓ {badge}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <p className="text-xs font-medium text-slate-900 bg-white p-2 rounded-lg border border-slate-200/50 break-words">
+                                      {item.value}
+                                    </p>
+                                  )}
                                 </div>
                               </div>
                             ))}
