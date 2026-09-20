@@ -552,6 +552,22 @@ export async function getFormResponses(formId: string) {
   return responses || [];
 }
 
+export async function deleteFormResponse(responseId: string): Promise<boolean> {
+  // Garantir que as respostas detalhadas sejam removidas
+  await supabase.from('answers').delete().eq('response_id', responseId);
+  const { error } = await supabase
+    .from('responses')
+    .delete()
+    .eq('id', responseId);
+
+  if (error) {
+    console.error('Error deleting response:', error);
+    throw error;
+  }
+
+  return true;
+}
+
 export async function deleteForm(formId: string): Promise<boolean> {
   const { error } = await supabase
     .from('forms')

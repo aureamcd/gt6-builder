@@ -7,7 +7,7 @@ import {
 import { Form, Section, Question, QuestionType, Option, FormComment } from "@/types/form";
 import {
   saveFormState, getFormById, generateShareToken, getComments, getFormResponses,
-  deleteForm, registerAccessedForm
+  deleteFormResponse, deleteForm, registerAccessedForm
 } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
@@ -129,6 +129,25 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
       console.error("Erro ao buscar respostas:", err);
     } finally {
       setIsLoadingResponses(false);
+    }
+  };
+  const [deletingResponseId, setDeletingResponseId] = useState<string | null>(null);
+
+  const handleDeleteSingleResponse = async (responseId: string) => {
+    if (!responseId) return;
+    if (!window.confirm("Tem certeza que deseja excluir esta resposta específica? Esta ação não pode ser desfeita.")) {
+      return;
+    }
+    setDeletingResponseId(responseId);
+    try {
+      await deleteFormResponse(responseId);
+      setResponsesList(prev => prev.filter(r => r.id !== responseId));
+      showToast("Resposta excluída com sucesso.", "success", "Resposta Apagada");
+    } catch (err: any) {
+      console.error("Erro ao excluir resposta:", err);
+      showToast(err?.message || "Não foi possível excluir a resposta.", "error", "Erro ao Excluir");
+    } finally {
+      setDeletingResponseId(null);
     }
   };
 
@@ -795,6 +814,18 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                             <span className="bg-slate-100 text-slate-600 font-semibold px-2 py-0.5 rounded-md text-[11px]">
                               {answers.length} {answers.length === 1 ? 'campo' : 'campos'}
                             </span>
+                            <button
+                              onClick={() => handleDeleteSingleResponse(resp.id)}
+                              disabled={deletingResponseId === resp.id}
+                              className="flex items-center space-x-1 text-slate-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-lg border border-transparent hover:border-red-200 transition-all cursor-pointer disabled:opacity-50 ml-1"
+                              title="Excluir apenas esta resposta"
+                            >
+                              {deletingResponseId === resp.id ? (
+                                <Loader2 size={14} className="animate-spin text-red-500" />
+                              ) : (
+                                <Trash2 size={14} />
+                              )}
+                            </button>
                           </div>
                         </div>
 
