@@ -641,7 +641,7 @@ function QuestionRenderer({ question, number, value, hasError, onChange, onAnswe
           </div>
         )}
 
-        {question.type === 'DYNAMIC_REPEATER' && (
+        {(question.type as string) === 'DYNAMIC_REPEATER' && (
           <div className="space-y-4">
             {question.options?.map((opt: any) => {
               const isSelected = (value?.selected || []).includes(opt.id);
