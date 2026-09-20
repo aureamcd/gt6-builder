@@ -19,17 +19,26 @@ export default function CommentsPanel({ formId, elementId, elementTitle, isEdito
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const loadComments = async () => {
-    setIsLoading(true);
-    const data = await getComments(formId);
-    // Filter only for this element
-    setComments(data.filter((c: FormComment) => c.element_id === elementId));
-    setIsLoading(false);
-  };
-
   useEffect(() => {
-    loadComments();
-  }, [elementId]);
+    let isMounted = true;
+    async function load() {
+      setIsLoading(true);
+      try {
+        const data = await getComments(formId);
+        if (isMounted) {
+          setComments(data.filter((c: FormComment) => c.element_id === elementId));
+        }
+      } catch (err) {
+        console.error("Erro ao carregar comentários:", err);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    }
+    load();
+    return () => {
+      isMounted = false;
+    };
+  }, [formId, elementId]);
 
   const handleSend = async () => {
     if (!newComment.trim()) return;

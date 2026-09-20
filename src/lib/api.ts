@@ -6,7 +6,8 @@ export function generateUUID() {
     return crypto.randomUUID();
   }
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
     return v.toString(16);
   });
 }
@@ -191,20 +192,19 @@ export async function saveFormState(form: Form) {
 
     if (formError) throw formError;
 
-    // We will save sections, questions and options.
-    const { error: deleteError } = await supabase
-      .from('sections')
-      .delete()
-      .eq('form_id', form.id);
-      
-    if (deleteError) throw deleteError;
+    const sections = form.sections || [];
+    const currentSectionIds = sections.map(s => s.id).filter(Boolean);
 
-    if (!form.sections || form.sections.length === 0) return { success: true };
+    // Se o formulário não tiver mais seções, remove todas as seções dele
+    if (currentSectionIds.length === 0) {
+      await supabase.from('sections').delete().eq('form_id', form.id);
+      return { success: true };
+    }
 
-    // 2. Insert Sections
-    const sectionsData = form.sections.map(s => ({
+    // 2. Upsert Sections
+    const sectionsData = sections.map(s => ({
       id: s.id,
-      form_id: s.form_id,
+      form_id: s.form_id || form.id,
       title: s.title,
       description: s.description,
       video_url: s.video_url || null,
@@ -218,11 +218,21 @@ export async function saveFormState(form: Form) {
 
     if (sectionsError) throw sectionsError;
 
-    // 3. Insert Questions
+    // Remover somente as seções que foram explicitamente excluídas pelo usuário
+    await supabase
+      .from('sections')
+      .delete()
+      .eq('form_id', form.id)
+      .not('id', 'in', `(${currentSectionIds.join(',')})`);
+
+    // 3. Upsert Questions
     const questionsData: any[] = [];
-    form.sections.forEach(sec => {
+    const currentQuestionIds: string[] = [];
+
+    sections.forEach(sec => {
       if (sec.questions) {
         sec.questions.forEach(q => {
+          currentQuestionIds.push(q.id);
           questionsData.push({
             id: q.id,
             section_id: sec.id,
@@ -251,13 +261,30 @@ export async function saveFormState(form: Form) {
       if (questionsError) throw questionsError;
     }
 
-    // 4. Insert Options
+    // Remover somente as perguntas que foram explicitamente excluídas pelo usuário
+    if (currentQuestionIds.length > 0) {
+      await supabase
+        .from('questions')
+        .delete()
+        .in('section_id', currentSectionIds)
+        .not('id', 'in', `(${currentQuestionIds.join(',')})`);
+    } else {
+      await supabase
+        .from('questions')
+        .delete()
+        .in('section_id', currentSectionIds);
+    }
+
+    // 4. Upsert Options
     const optionsData: any[] = [];
-    form.sections.forEach(sec => {
+    const currentOptionIds: string[] = [];
+
+    sections.forEach(sec => {
       if (sec.questions) {
         sec.questions.forEach(q => {
           if (q.options) {
             q.options.forEach((opt, idx) => {
+              currentOptionIds.push(opt.id);
               optionsData.push({
                 id: opt.id,
                 question_id: q.id,
@@ -279,6 +306,22 @@ export async function saveFormState(form: Form) {
       if (optionsError) throw optionsError;
     }
 
+    // Remover somente as opções que foram explicitamente excluídas pelo usuário
+    if (currentQuestionIds.length > 0) {
+      if (currentOptionIds.length > 0) {
+        await supabase
+          .from('options')
+          .delete()
+          .in('question_id', currentQuestionIds)
+          .not('id', 'in', `(${currentOptionIds.join(',')})`);
+      } else {
+        await supabase
+          .from('options')
+          .delete()
+          .in('question_id', currentQuestionIds);
+      }
+    }
+
     return { success: true };
   } catch (error) {
     console.error('Error saving form to DB:', error);
@@ -298,12 +341,13 @@ export async function generateShareToken(formId: string): Promise<string> {
 }
 
 export async function getFormByShareToken(token: string): Promise<Form | null> {
-  let { data: sourceForm, error: formError } = await supabase
+  const { data: byToken } = await supabase
     .from('forms')
     .select('*')
     .eq('share_token', token)
     .single();
     
+  let sourceForm = byToken;
   if (!sourceForm) {
     const { data: byId } = await supabase
       .from('forms')

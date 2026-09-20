@@ -1,9 +1,8 @@
-"use client";
-
-import React, { useState, useEffect, use, useRef } from "react";
+import React, { useState, useEffect, use, useRef, useMemo } from "react";
 import {
   Plus, Layers, Trash2, X, Loader2, MessageSquare, BarChart3, Inbox,
-  CheckCircle2, AlertCircle
+  CheckCircle2, AlertCircle, RefreshCw, ExternalLink, FileSpreadsheet,
+  Clock, Hash, HelpCircle
 } from "lucide-react";
 import { Form, Section, Question, QuestionType, Option, FormComment } from "@/types/form";
 import {
@@ -394,6 +393,29 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
     }) : prev);
   };
 
+  const deleteSection = (sectionId: string) => {
+    if (!schema) return;
+    const remainingSections = (schema.sections || []).filter(s => s.id !== sectionId);
+    setSchema(prev => prev ? ({
+      ...prev,
+      sections: remainingSections
+    }) : prev);
+
+    if (activeSectionId === sectionId) {
+      if (remainingSections.length > 0) {
+        setActiveSectionId(remainingSections[0].id);
+      } else {
+        setActiveSectionId("");
+      }
+    }
+
+    if (selectedElementType === 'section') {
+      setSelectedElementType(null);
+    }
+
+    showToast("Seção excluída com sucesso.", "success", "Seção Excluída");
+  };
+
   const addSection = () => {
     if (!schema) return;
     const newSectionId = generateId();
@@ -410,6 +432,73 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
       sections: [...(prev.sections || []), newSection]
     }) : prev);
     setActiveSectionId(newSectionId);
+  };
+
+  // Mapeamento de perguntas e seções para renderização enriquecida das respostas
+  const questionMap = useMemo(() => {
+    const map = new Map<string, { label: string; sectionTitle: string; type: string }>();
+    if (!schema?.sections) return map;
+    schema.sections.forEach(sec => {
+      sec.questions?.forEach(q => {
+        map.set(q.id, {
+          label: q.label || 'Pergunta sem título',
+          sectionTitle: sec.title || 'Seção',
+          type: q.type
+        });
+      });
+    });
+    return map;
+  }, [schema]);
+
+  // Função normalizadora para converter respostas (array do Supabase ou objeto) em lista legível
+  const getNormalizedAnswers = (resp: any): { questionId: string; label: string; sectionTitle?: string; value: string }[] => {
+    if (!resp) return [];
+
+    // Se resp.answers for array vindo do Supabase (relacionamento com a tabela answers)
+    if (Array.isArray(resp.answers)) {
+      return resp.answers.map((a: any) => {
+        const qInfo = questionMap.get(a.question_id);
+        let valStr = '';
+        if (a.answer_text !== null && a.answer_text !== undefined && a.answer_text !== '') {
+          valStr = a.answer_text;
+        } else if (a.answer_json !== null && a.answer_json !== undefined) {
+          valStr = Array.isArray(a.answer_json)
+            ? a.answer_json.join(', ')
+            : typeof a.answer_json === 'object'
+              ? JSON.stringify(a.answer_json)
+              : String(a.answer_json);
+        }
+        return {
+          questionId: a.question_id,
+          label: qInfo?.label || `Pergunta (${a.question_id ? a.question_id.slice(0, 8) : 'Geral'})`,
+          sectionTitle: qInfo?.sectionTitle,
+          value: valStr || '(Em branco)'
+        };
+      });
+    }
+
+    // Se resp.answers for um objeto de chave-valor { [qId]: val }
+    if (resp.answers && typeof resp.answers === 'object') {
+      return Object.entries(resp.answers).map(([qId, val]: [string, any]) => {
+        const qInfo = questionMap.get(qId);
+        let valStr = '';
+        if (Array.isArray(val)) {
+          valStr = val.join(', ');
+        } else if (typeof val === 'object' && val !== null) {
+          valStr = JSON.stringify(val);
+        } else {
+          valStr = val !== undefined && val !== null ? String(val) : '';
+        }
+        return {
+          questionId: qId,
+          label: qInfo?.label || `Pergunta (${qId.slice(0, 8)})`,
+          sectionTitle: qInfo?.sectionTitle,
+          value: valStr || '(Em branco)'
+        };
+      });
+    }
+
+    return [];
   };
 
   const updateQuestionProperty = (sectionId: string, questionId: string, key: keyof Question, value: any) => {
@@ -620,46 +709,128 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                     Visualização em tempo real dos formulários submetidos por respondentes.
                   </p>
                 </div>
-                <div className="bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-2 text-center shrink-0">
-                  <span className="text-2xl font-black text-indigo-600 block">{responsesList.length}</span>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-800">Total de Envios</span>
+                <div className="flex items-center space-x-3 shrink-0">
+                  <button
+                    onClick={() => fetchResponses()}
+                    disabled={isLoadingResponses}
+                    className="flex items-center space-x-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-xl transition-colors cursor-pointer disabled:opacity-50"
+                    title="Atualizar lista de respostas"
+                  >
+                    <RefreshCw size={14} className={isLoadingResponses ? "animate-spin text-indigo-600" : ""} />
+                    <span>Atualizar</span>
+                  </button>
+                  {schema?.share_token && (
+                    <a
+                      href={`/f/${schema.share_token}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center space-x-1.5 px-3 py-2 text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl transition-colors"
+                      title="Abrir formulário público para testar respostas"
+                    >
+                      <ExternalLink size={14} />
+                      <span>Testar Envio</span>
+                    </a>
+                  )}
+                  <div className="bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-2 text-center">
+                    <span className="text-2xl font-black text-indigo-600 block">{responsesList.length}</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-800">Total de Envios</span>
+                  </div>
                 </div>
               </div>
 
               {isLoadingResponses ? (
-                <div className="flex justify-center p-12"><Loader2 className="animate-spin text-indigo-600" size={32} /></div>
+                <div className="flex flex-col items-center justify-center p-16 space-y-3">
+                  <Loader2 className="animate-spin text-indigo-600" size={36} />
+                  <p className="text-sm font-medium text-slate-500">Carregando respostas...</p>
+                </div>
               ) : responsesList.length === 0 ? (
-                <div className="bg-white rounded-2xl p-12 border border-slate-200 text-center space-y-3 shadow-xs">
-                  <div className="w-12 h-12 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center mx-auto">
-                    <Inbox size={24} />
+                <div className="bg-white rounded-2xl p-12 border border-slate-200 text-center space-y-4 shadow-xs">
+                  <div className="w-14 h-14 bg-indigo-50 text-indigo-500 rounded-2xl flex items-center justify-center mx-auto shadow-inner">
+                    <Inbox size={28} />
                   </div>
-                  <h3 className="font-bold text-slate-700 text-base">Nenhuma resposta registrada ainda</h3>
-                  <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                    Compartilhe o link público do formulário com os usuários para começar a coletar dados.
-                  </p>
+                  <div className="space-y-1">
+                    <h3 className="font-bold text-slate-800 text-lg">Nenhuma resposta registrada ainda</h3>
+                    <p className="text-sm text-slate-500 max-w-md mx-auto">
+                      Compartilhe o link do formulário com os usuários para começar a coletar dados. As novas submissões aparecerão aqui automaticamente.
+                    </p>
+                  </div>
+                  {schema?.share_token && (
+                    <div className="pt-2">
+                      <a
+                        href={`/f/${schema.share_token}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center space-x-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold shadow-sm transition-all"
+                      >
+                        <ExternalLink size={16} />
+                        <span>Abrir Formulário para Responder</span>
+                      </a>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {responsesList.map((resp, i) => (
-                    <div key={resp.id || i} className="bg-white rounded-xl p-5 border border-slate-200 shadow-xs space-y-3">
-                      <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                        <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full">
-                          Resposta #{responsesList.length - i}
-                        </span>
-                        <span className="text-xs text-slate-400">
-                          {new Date(resp.created_at).toLocaleString('pt-BR')}
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                        {Object.entries(resp.answers || {}).map(([qId, val]: [string, any]) => (
-                          <div key={qId} className="bg-slate-50 p-2.5 rounded-lg border border-slate-200/60">
-                            <span className="font-mono text-[10px] text-slate-400 block mb-0.5">{qId}</span>
-                            <span className="font-semibold text-slate-700">{Array.isArray(val) ? val.join(', ') : String(val)}</span>
+                  {responsesList.map((resp, i) => {
+                    const answers = getNormalizedAnswers(resp);
+                    const formattedDate = resp.submitted_at || resp.created_at
+                      ? new Date(resp.submitted_at || resp.created_at).toLocaleString('pt-BR')
+                      : 'Data não informada';
+
+                    return (
+                      <div key={resp.id || i} className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs hover:border-slate-300 transition-all space-y-4">
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                          <div className="flex items-center space-x-2">
+                            <span className="text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-full">
+                              Envio #{responsesList.length - i}
+                            </span>
+                            <span className="text-xs text-slate-400 font-mono">
+                              ID: {resp.id ? resp.id.slice(0, 8) : `#${i + 1}`}
+                            </span>
                           </div>
-                        ))}
+                          <div className="flex items-center space-x-3 text-xs text-slate-500">
+                            <span className="flex items-center space-x-1">
+                              <Clock size={13} className="text-slate-400" />
+                              <span>{formattedDate}</span>
+                            </span>
+                            <span className="bg-slate-100 text-slate-600 font-semibold px-2 py-0.5 rounded-md text-[11px]">
+                              {answers.length} {answers.length === 1 ? 'campo' : 'campos'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {answers.length === 0 ? (
+                          <div className="p-4 bg-slate-50 rounded-xl text-center text-xs text-slate-400">
+                            Nenhum campo respondido registrado para este envio.
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                            {answers.map((item, idx) => (
+                              <div
+                                key={item.questionId || idx}
+                                className="bg-slate-50/80 hover:bg-slate-50 p-3.5 rounded-xl border border-slate-200/70 transition-colors flex flex-col justify-between space-y-2"
+                              >
+                                <div>
+                                  {item.sectionTitle && (
+                                    <span className="text-[10px] uppercase font-bold tracking-wider text-indigo-600 bg-indigo-50/60 px-1.5 py-0.5 rounded mb-1 inline-block">
+                                      {item.sectionTitle}
+                                    </span>
+                                  )}
+                                  <p className="text-xs font-semibold text-slate-800 leading-snug">
+                                    {item.label}
+                                  </p>
+                                </div>
+                                <div className="pt-1.5 border-t border-slate-200/50">
+                                  <p className="text-xs font-medium text-slate-900 bg-white p-2 rounded-lg border border-slate-200/50 break-words">
+                                    {item.value}
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
