@@ -978,7 +978,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                           : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                       }`}
                     >
-                      <span>Seção {index + 1}: {sec.title}</span>
+                      <span>Seção {index + 1}</span>
                       <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${activeSectionId === sec.id ? 'bg-indigo-700 text-indigo-100' : 'bg-slate-100 text-slate-500'}`}>
                         {calculateSectionTime(sec)}
                       </span>

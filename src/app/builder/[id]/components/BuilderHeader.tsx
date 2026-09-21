@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
-  Undo2, Redo2, Menu, ArrowLeft, BarChart3, Share2, FileDown, ExternalLink, Save, Loader2
+  Undo2, Redo2, Menu, ArrowLeft, BarChart3, Share2, FileDown, ExternalLink, Save, Loader2, MoreVertical
 } from "lucide-react";
 import { Form } from "@/types/form";
 
@@ -50,14 +50,41 @@ export function BuilderHeader({
   fetchResponses,
   id
 }: BuilderHeaderProps) {
+  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+  const moreMenuRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Fechar menu ao clicar fora
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(event.target as Node)) {
+        setIsMoreMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   return (
-    <header className="h-16 bg-white border-b border-slate-200 px-2 sm:px-4 shadow-sm shrink-0 flex items-center justify-between gap-1 sm:gap-2 lg:gap-3 overflow-hidden">
+    <header className="relative z-30 h-16 bg-white border-b border-slate-200 px-2 sm:px-4 shadow-sm shrink-0 flex items-center justify-between gap-1 sm:gap-2 lg:gap-3">
+      {/* Lado Esquerdo: Voltar primeiro, depois Undo/Redo e Título */}
       <div className="flex items-center space-x-1 sm:space-x-1.5 shrink min-w-0">
+        <a 
+          href="/" 
+          className="inline-flex items-center text-xs font-bold text-slate-700 hover:text-indigo-600 bg-slate-100 hover:bg-indigo-50 px-2.5 py-1.5 rounded-lg transition-colors whitespace-nowrap shrink-0 gap-1.5 border border-slate-200" 
+          title="Voltar para Meus Questionários"
+        >
+          <ArrowLeft size={15} />
+          <span className="hidden sm:inline">Questionários</span>
+        </a>
+
+        <div className="h-4 w-[1px] bg-slate-200 mx-1 shrink-0 hidden sm:block"></div>
+
         <button
           onClick={handleUndo}
           disabled={!canUndo}
           title="Desfazer (Ctrl+Z)"
-          className="flex items-center justify-center p-1 sm:p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg disabled:opacity-30 disabled:hover:text-slate-500 disabled:hover:bg-transparent transition-colors shrink-0"
+          className="flex items-center justify-center p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg disabled:opacity-30 disabled:hover:text-slate-500 disabled:hover:bg-transparent transition-colors shrink-0 cursor-pointer"
         >
           <Undo2 size={17} />
         </button>
@@ -65,38 +92,32 @@ export function BuilderHeader({
           onClick={handleRedo}
           disabled={!canRedo}
           title="Refazer (Ctrl+Y)"
-          className="flex items-center justify-center p-1 sm:p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg disabled:opacity-30 disabled:hover:text-slate-500 disabled:hover:bg-transparent transition-colors shrink-0"
+          className="flex items-center justify-center p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg disabled:opacity-30 disabled:hover:text-slate-500 disabled:hover:bg-transparent transition-colors shrink-0 cursor-pointer"
         >
           <Redo2 size={17} />
         </button>
+
         <button
           onClick={() => setIsMobileMenuOpen(true)}
-          className="md:hidden p-1.5 text-slate-600 hover:bg-slate-100 rounded-md shrink-0"
-          title="Menu"
+          className="md:hidden p-1.5 text-slate-600 hover:bg-slate-100 rounded-md shrink-0 cursor-pointer"
+          title="Menu Principal"
         >
           <Menu size={17} />
         </button>
-        <a 
-          href="/" 
-          className="inline-flex items-center text-xs font-semibold text-slate-700 hover:text-indigo-600 bg-slate-100 hover:bg-indigo-50 px-2 py-1.5 rounded-lg transition-colors whitespace-nowrap shrink-0 gap-1" 
-          title="Voltar para Questionários"
-        >
-          <ArrowLeft size={14} />
-          <span className="hidden 2xl:inline">Questionários</span>
-        </a>
+
         <input
           value={schema.title || ''}
           onChange={(e) => setSchema(prev => prev ? { ...prev, title: e.target.value } : prev)}
-          className="font-bold text-slate-800 text-xs sm:text-sm md:text-base bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-500 focus:outline-none px-1 py-1 w-20 sm:w-28 md:w-36 lg:w-44 truncate min-w-[60px]"
-          placeholder="Título..."
+          className="font-bold text-slate-800 text-xs sm:text-sm md:text-base bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-500 focus:outline-none px-1 py-1 w-24 sm:w-36 md:w-44 lg:w-56 truncate min-w-[70px]"
+          placeholder="Título do formulário..."
         />
       </div>
 
-      {/* Tab Switcher (Construtor / Respostas) */}
+      {/* Centro: Alternador de Abas (Construtor / Respostas) */}
       <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 shrink-0">
         <button
           onClick={() => setActiveTab('builder')}
-          className={`flex items-center space-x-1 px-2 sm:px-2.5 py-1.5 text-xs font-semibold rounded-md transition-all ${activeTab === 'builder' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+          className={`flex items-center space-x-1 px-2.5 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${activeTab === 'builder' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
           title="Construtor"
         >
           <span className="hidden sm:inline">Construtor</span>
@@ -104,7 +125,7 @@ export function BuilderHeader({
         </button>
         <button
           onClick={() => { setActiveTab('responses'); fetchResponses(); }}
-          className={`flex items-center space-x-1 px-2 sm:px-2.5 py-1.5 text-xs font-semibold rounded-md transition-all ${activeTab === 'responses' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+          className={`flex items-center space-x-1 px-2.5 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${activeTab === 'responses' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
           title="Respostas"
         >
           <BarChart3 size={13} />
@@ -115,8 +136,9 @@ export function BuilderHeader({
         </button>
       </div>
 
+      {/* Lado Direito: Ações Principais (Auto-save, Compartilhar, Salvar) + Menu Três Pontinhos */}
       <div className="flex items-center space-x-1 sm:space-x-1.5 shrink-0">
-        {/* Online Collaborators Badge */}
+        {/* Colaboradores Online */}
         {onlineCollaborators.length > 0 && (
           <div className="flex items-center space-x-1.5 bg-indigo-50/95 border border-indigo-200/90 px-2 py-1 rounded-lg shrink-0 shadow-xs">
             <div className="flex items-center -space-x-1.5">
@@ -137,7 +159,7 @@ export function BuilderHeader({
           </div>
         )}
 
-        {/* Auto-save Button */}
+        {/* 1. Auto-save Button */}
         <button
           onClick={() => setIsAutoSaveEnabled(!isAutoSaveEnabled)}
           className={`flex items-center justify-center space-x-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors border shadow-xs shrink-0 cursor-pointer ${
@@ -155,44 +177,85 @@ export function BuilderHeader({
             {isAutoSaveEnabled ? (isSaving ? 'Salvando...' : 'Auto-save') : 'Auto-save OFF'}
           </span>
         </button>
-        <button
-          onClick={onShareClick}
-          className="flex items-center justify-center space-x-1 px-2 sm:px-2.5 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg shadow-sm hover:bg-slate-50 transition-colors shrink-0 whitespace-nowrap"
-          title="Compartilhar"
-        >
-          <Share2 size={14} />
-          <span className="hidden xl:inline">Compartilhar</span>
-        </button>
-        <label className="cursor-pointer flex items-center justify-center space-x-1 px-2 sm:px-2.5 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg shadow-sm hover:bg-slate-50 transition-colors shrink-0 whitespace-nowrap" title="Importar XML">
-          <FileDown size={14} className="rotate-180" />
-          <span className="hidden xl:inline">Importar XML</span>
-          <input type="file" accept=".xml" className="hidden" onChange={onImportXML} />
-        </label>
-        <button
-          onClick={onExportXML}
-          className="flex items-center justify-center space-x-1 px-2 sm:px-2.5 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg shadow-sm hover:bg-slate-50 transition-colors shrink-0 whitespace-nowrap"
-          title="Exportar XML"
-        >
-          <FileDown size={14} />
-          <span className="hidden xl:inline">Exportar XML</span>
-        </button>
+
+        {/* 2. Pré-visualização Button */}
         <button
           onClick={() => window.open(`/preview/${id}`, '_blank')}
-          className="flex items-center justify-center space-x-1 px-2 sm:px-2.5 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg shadow-sm hover:bg-slate-50 transition-colors shrink-0 whitespace-nowrap"
-          title="Pré-visualizar"
+          className="flex items-center justify-center space-x-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg shadow-sm hover:bg-slate-50 transition-colors shrink-0 cursor-pointer"
+          title="Pré-visualizar Questionário"
         >
-          <ExternalLink size={14} />
-          <span className="hidden xl:inline">Pré-visualizar</span>
+          <ExternalLink size={14} className="text-blue-600" />
+          <span className="hidden md:inline font-semibold">Pré-visualizar</span>
         </button>
+
+        {/* 3. Compartilhar Button */}
         <button
-          onClick={onSaveClick}
-          disabled={isSaving}
-          className={`flex items-center justify-center space-x-1.5 px-2.5 sm:px-3 py-1.5 text-xs sm:text-sm font-medium text-white rounded-lg shadow-sm transition-colors shrink-0 whitespace-nowrap ${isSaving ? 'bg-indigo-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'}`}
-          title="Salvar Formulário"
+          onClick={onShareClick}
+          className="flex items-center justify-center space-x-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg shadow-sm hover:bg-slate-50 transition-colors shrink-0 cursor-pointer"
+          title="Compartilhar Questionário"
         >
-          {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-          <span>{isSaving ? 'Salvando...' : 'Salvar'}</span>
+          <Share2 size={14} className="text-indigo-600" />
+          <span className="hidden md:inline font-semibold">Compartilhar</span>
         </button>
+
+        {/* 4. Menu Três Pontinhos (Salvar, Exportar XML, Importar XML) */}
+        <div className="relative shrink-0" ref={moreMenuRef}>
+          <button
+            onClick={() => setIsMoreMenuOpen(!isMoreMenuOpen)}
+            className="flex items-center justify-center p-1.5 text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer border border-slate-200"
+            title="Mais Opções"
+          >
+            <MoreVertical size={16} />
+          </button>
+
+          {isMoreMenuOpen && (
+            <div className="absolute right-0 top-full mt-1.5 w-48 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
+              <button
+                onClick={() => {
+                  onSaveClick();
+                  setIsMoreMenuOpen(false);
+                }}
+                disabled={isSaving}
+                className="w-full text-left px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center space-x-2 cursor-pointer transition-colors disabled:opacity-50"
+              >
+                {isSaving ? <Loader2 size={14} className="animate-spin text-indigo-600" /> : <Save size={14} className="text-indigo-600" />}
+                <span className="font-semibold text-slate-800">{isSaving ? 'Salvando...' : 'Salvar'}</span>
+              </button>
+
+              <div className="h-[1px] bg-slate-100 my-1"></div>
+
+              <button
+                onClick={() => {
+                  onExportXML();
+                  setIsMoreMenuOpen(false);
+                }}
+                className="w-full text-left px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center space-x-2 cursor-pointer transition-colors"
+              >
+                <FileDown size={14} className="text-emerald-600" />
+                <span>Exportar XML</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  fileInputRef.current?.click();
+                  setIsMoreMenuOpen(false);
+                }}
+                className="w-full text-left px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center space-x-2 cursor-pointer transition-colors"
+              >
+                <FileDown size={14} className="rotate-180 text-purple-600" />
+                <span>Importar XML</span>
+              </button>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".xml"
+                className="hidden"
+                onChange={onImportXML}
+              />
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );

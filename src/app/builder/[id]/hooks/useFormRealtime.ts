@@ -27,10 +27,13 @@ export function useFormRealtime(options: UseFormRealtimeOptions) {
   const [lastSyncedBy, setLastSyncedBy] = useState<string | null>(null);
 
   useEffect(() => {
+    let isMounted = true;
     let channel: any;
 
     async function initRealtime() {
       const { data: { session } } = await supabase.auth.getSession();
+      if (!isMounted) return;
+
       const user = session?.user;
       if (user) {
         setCurrentUser(user);
@@ -40,7 +43,17 @@ export function useFormRealtime(options: UseFormRealtimeOptions) {
       const colors = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#3b82f6', '#14b8a6'];
       const userColor = colors[Math.floor(Math.random() * colors.length)];
 
-      channel = supabase.channel(`form_builder_realtime_${id}`, {
+      const channelName = `form_builder_realtime_${id}`;
+
+      // Garantir que não há canais antigos presos na memória (útil no Strict Mode do React)
+      const existingChannels = supabase.getChannels();
+      existingChannels.forEach(c => {
+        if (c.topic === `realtime:${channelName}` || c.topic === channelName) {
+          supabase.removeChannel(c);
+        }
+      });
+
+      channel = supabase.channel(channelName, {
         config: {
           broadcast: { self: false },
           presence: { key: clientIdRef.current }
@@ -56,7 +69,7 @@ export function useFormRealtime(options: UseFormRealtimeOptions) {
           onRemoteSchemaUpdate(payload.schema);
           setLastSyncedBy(payload.senderName || 'Colaborador');
           setTimeout(() => {
-            setLastSyncedBy(null);
+            if (isMounted) setLastSyncedBy(null);
           }, 3000);
           setTimeout(() => {
             isRemoteUpdateRef.current = false;
@@ -73,6 +86,7 @@ export function useFormRealtime(options: UseFormRealtimeOptions) {
       // 3. Acompanhar colaboradores online (Presence)
       channel
         .on('presence', { event: 'sync' }, () => {
+          if (!isMounted) return;
           const state = channel.presenceState();
           const users: any[] = [];
           Object.values(state).forEach((presences: any) => {
@@ -85,6 +99,7 @@ export function useFormRealtime(options: UseFormRealtimeOptions) {
           setOnlineCollaborators(users);
         })
         .on('presence', { event: 'join' }, ({ newPresences }: any) => {
+          if (!isMounted) return;
           newPresences.forEach((p: any) => {
             if (p.clientId !== clientIdRef.current) {
               showToast(`${p.name || 'Outro usuário'} entrou na edição simultânea.`, 'info', 'Colaborador Conectado');
@@ -93,7 +108,7 @@ export function useFormRealtime(options: UseFormRealtimeOptions) {
         });
 
       channel.subscribe(async (status: string) => {
-        if (status === 'SUBSCRIBED') {
+        if (status === 'SUBSCRIBED' && isMounted) {
           await channel.track({
             clientId: clientIdRef.current,
             name: userName,
@@ -110,6 +125,7 @@ export function useFormRealtime(options: UseFormRealtimeOptions) {
     }
 
     return () => {
+      isMounted = false;
       if (channel) {
         supabase.removeChannel(channel);
       }
