@@ -2,7 +2,7 @@ import React, { useState, useEffect, use, useRef, useMemo } from "react";
 import {
   Plus, Layers, Trash2, X, Loader2, MessageSquare, BarChart3, Inbox,
   CheckCircle2, AlertCircle, RefreshCw, ExternalLink, FileSpreadsheet,
-  Clock, Hash, HelpCircle
+  Clock, Hash, HelpCircle, Download, ChevronDown, FileText
 } from "lucide-react";
 import { Form, Section, Question, QuestionType, Option, FormComment } from "@/types/form";
 import {
@@ -76,6 +76,20 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
   const [formComments, setFormComments] = useState<FormComment[]>([]);
   const [activeCommentElement, setActiveCommentElement] = useState<{ id: string; title: string } | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info'; title?: string } | null>(null);
+
+  // Estados de Exportação de Respostas
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
+        setIsExportMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Estados de Bloqueio Privado
   const [isUnlocked, setIsUnlocked] = useState(false);
@@ -585,6 +599,139 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
     return [];
   };
 
+  const exportResponsesAsCSV = () => {
+    if (!responsesList || responsesList.length === 0) {
+      showToast("Não há respostas registradas para exportar.", "info", "Aviso");
+      return;
+    }
+
+    try {
+      // 1. Mapear todas as colunas de perguntas (do schema + dinâmicas)
+      const questionColumns: { id: string; header: string }[] = [];
+
+      schema?.sections?.forEach((sec, sIdx) => {
+        sec.questions?.forEach((q, qIdx) => {
+          const cleanLabel = (q.label || `Pergunta ${qIdx + 1}`).replace(/[\r\n]+/g, ' ').trim();
+          const cleanSec = (sec.title || `Seção ${sIdx + 1}`).replace(/[\r\n]+/g, ' ').trim();
+          questionColumns.push({
+            id: q.id,
+            header: `[${cleanSec}] ${cleanLabel}`
+          });
+        });
+      });
+
+      // Mapear também perguntas dinâmicas (ex.: repetições) presentes nas respostas
+      responsesList.forEach(resp => {
+        const answers = getNormalizedAnswers(resp);
+        answers.forEach(a => {
+          if (!questionColumns.some(col => col.id === a.questionId)) {
+            const cleanSec = a.sectionTitle ? `[${a.sectionTitle.replace(/[\r\n]+/g, ' ').trim()}] ` : '';
+            const cleanLabel = (a.label || a.questionId).replace(/[\r\n]+/g, ' ').trim();
+            questionColumns.push({
+              id: a.questionId,
+              header: `${cleanSec}${cleanLabel}`
+            });
+          }
+        });
+      });
+
+      // 2. Montar linha de cabeçalho
+      const headerRow = [
+        'ID do Envio',
+        'Data e Hora do Envio',
+        ...questionColumns.map(c => c.header)
+      ].map(h => `"${String(h).replace(/"/g, '""')}"`).join(';');
+
+      // 3. Montar linhas de respostas
+      const dataRows = responsesList.map((resp, idx) => {
+        const answers = getNormalizedAnswers(resp);
+        const answerMap = new Map<string, string>();
+        answers.forEach(a => {
+          answerMap.set(a.questionId, a.value);
+        });
+
+        const formattedDate = resp.submitted_at || resp.created_at
+          ? new Date(resp.submitted_at || resp.created_at).toLocaleString('pt-BR')
+          : 'Data não informada';
+
+        const rowId = resp.id || `Envio #${responsesList.length - idx}`;
+
+        const rowValues = [
+          rowId,
+          formattedDate,
+          ...questionColumns.map(col => answerMap.get(col.id) || '')
+        ];
+
+        return rowValues.map(val => `"${String(val ?? '').replace(/"/g, '""')}"`).join(';');
+      });
+
+      // 4. Gerar arquivo CSV com BOM UTF-8 (\uFEFF) para abrir no Excel em português com acentuação correta
+      const csvContent = '\uFEFF' + [headerRow, ...dataRows].join('\r\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const formTitleClean = (schema?.title || 'formulario').toLowerCase().replace(/[^a-z0-9]/gi, '_');
+      const dateStr = new Date().toISOString().slice(0, 10);
+      link.href = url;
+      link.setAttribute('download', `respostas_${formTitleClean}_${dateStr}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      showToast("Planilha CSV exportada com sucesso!", "success", "Exportação Concluída");
+    } catch (err) {
+      console.error("Erro ao exportar CSV:", err);
+      showToast("Falha ao gerar o arquivo CSV.", "error", "Erro");
+    }
+  };
+
+  const exportResponsesAsJSON = () => {
+    if (!responsesList || responsesList.length === 0) {
+      showToast("Não há respostas registradas para exportar.", "info", "Aviso");
+      return;
+    }
+
+    try {
+      const exportData = responsesList.map((resp, idx) => {
+        const answers = getNormalizedAnswers(resp);
+        return {
+          id: resp.id || `envio_${responsesList.length - idx}`,
+          data_envio: resp.submitted_at || resp.created_at || null,
+          data_envio_formatada: resp.submitted_at || resp.created_at
+            ? new Date(resp.submitted_at || resp.created_at).toLocaleString('pt-BR')
+            : null,
+          total_campos_respondidos: answers.length,
+          respostas: answers.map(a => ({
+            pergunta_id: a.questionId,
+            secao: a.sectionTitle || null,
+            pergunta: a.label,
+            resposta: a.value,
+            opcoes_marcadas: a.badges || []
+          }))
+        };
+      });
+
+      const jsonStr = JSON.stringify(exportData, null, 2);
+      const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const formTitleClean = (schema?.title || 'formulario').toLowerCase().replace(/[^a-z0-9]/gi, '_');
+      const dateStr = new Date().toISOString().slice(0, 10);
+      link.href = url;
+      link.setAttribute('download', `respostas_${formTitleClean}_${dateStr}.json`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      showToast("Arquivo JSON exportado com sucesso!", "success", "Exportação Concluída");
+    } catch (err) {
+      console.error("Erro ao exportar JSON:", err);
+      showToast("Falha ao gerar o arquivo JSON.", "error", "Erro");
+    }
+  };
+
   const updateQuestionProperty = (sectionId: string, questionId: string, key: keyof Question, value: any) => {
     setSchema(prev => prev ? ({
       ...prev,
@@ -669,10 +816,46 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
       try {
         const xmlContent = event.target?.result as string;
         const parsedSchema = parseFormFromXML(xmlContent);
-        setSchema(parsedSchema);
-        showToast("Estrutura carregada via XML com sucesso.", "success", "XML Importado");
+
+        // Preservar o ID e propriedades de acesso do formulário atual no banco
+        const updatedSchema: Form = {
+          ...parsedSchema,
+          id, // Mantém o ID da rota atual
+          user_id: schema?.user_id || parsedSchema.user_id,
+          share_token: schema?.share_token || parsedSchema.share_token,
+          sections: (parsedSchema.sections || []).map((sec, sIdx) => ({
+            ...sec,
+            form_id: id,
+            order_index: typeof sec.order_index === 'number' ? sec.order_index : sIdx,
+            questions: (sec.questions || []).map((q, qIdx) => ({
+              ...q,
+              section_id: sec.id,
+              order_index: typeof q.order_index === 'number' ? q.order_index : qIdx
+            }))
+          }))
+        };
+
+        setSchema(updatedSchema);
+
+        // Ativar a primeira seção do formulário importado imediatamente
+        if (updatedSchema.sections && updatedSchema.sections.length > 0) {
+          const firstSecId = updatedSchema.sections[0].id;
+          setActiveSectionId(firstSecId);
+          setSelectedElementType('section');
+          setSelectedQuestionId(null);
+        } else {
+          setActiveSectionId('');
+          setSelectedElementType(null);
+          setSelectedQuestionId(null);
+        }
+
+        // Mudar para a aba de edição do construtor
+        setActiveTab('builder');
+
+        showToast("Estrutura do formulário carregada via XML com sucesso!", "success", "XML Importado");
       } catch (err: any) {
-        showToast("Falha ao analisar XML: " + err.message, "error", "Erro");
+        console.error("Erro ao importar XML:", err);
+        showToast("Falha ao importar XML: " + err.message, "error", "Erro");
       }
     };
     reader.readAsText(file);
@@ -803,18 +986,57 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                     <RefreshCw size={14} className={isLoadingResponses ? "animate-spin text-indigo-600" : ""} />
                     <span>Atualizar</span>
                   </button>
-                  {schema?.share_token && (
-                    <a
-                      href={`/f/${schema.share_token}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center space-x-1.5 px-3 py-2 text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl transition-colors"
-                      title="Abrir formulário público para testar respostas"
+                  {/* Menu Dropdown de Exportação de Respostas */}
+                  <div className="relative" ref={exportMenuRef}>
+                    <button
+                      onClick={() => setIsExportMenuOpen(prev => !prev)}
+                      disabled={responsesList.length === 0}
+                      className="flex items-center space-x-1.5 px-3.5 py-2 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl transition-all shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                      title={responsesList.length === 0 ? "Nenhuma resposta registrada para exportar" : "Exportar dados das respostas"}
                     >
-                      <ExternalLink size={14} />
-                      <span>Testar Envio</span>
-                    </a>
-                  )}
+                      <Download size={14} />
+                      <span>Exportar Dados</span>
+                      <ChevronDown size={13} className={`transition-transform duration-200 ${isExportMenuOpen ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {isExportMenuOpen && (
+                      <div className="absolute right-0 mt-1.5 w-56 bg-white rounded-2xl shadow-xl border border-slate-200 py-1.5 z-30 animate-in fade-in zoom-in-95 duration-150">
+                        <div className="px-3.5 py-1.5 border-b border-slate-100">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Opções de Exportação</span>
+                        </div>
+                        <button
+                          onClick={() => {
+                            exportResponsesAsCSV();
+                            setIsExportMenuOpen(false);
+                          }}
+                          className="w-full text-left px-3.5 py-2.5 text-xs text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 flex items-center space-x-2.5 transition-colors cursor-pointer group"
+                        >
+                          <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 group-hover:bg-emerald-100 flex items-center justify-center shrink-0">
+                            <FileSpreadsheet size={15} />
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="font-semibold text-slate-800 group-hover:text-emerald-800">Exportar CSV (Excel)</span>
+                            <span className="text-[10px] text-slate-400">Compatível com Excel e Planilhas</span>
+                          </div>
+                        </button>
+                        <button
+                          onClick={() => {
+                            exportResponsesAsJSON();
+                            setIsExportMenuOpen(false);
+                          }}
+                          className="w-full text-left px-3.5 py-2.5 text-xs text-slate-700 hover:bg-indigo-50 hover:text-indigo-800 flex items-center space-x-2.5 transition-colors cursor-pointer group"
+                        >
+                          <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 group-hover:bg-indigo-100 flex items-center justify-center shrink-0">
+                            <FileText size={15} />
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="font-semibold text-slate-800 group-hover:text-indigo-800">Exportar JSON</span>
+                            <span className="text-[10px] text-slate-400">Dados brutos estruturados</span>
+                          </div>
+                        </button>
+                      </div>
+                    )}
+                  </div>
                   <div className="bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-2 text-center">
                     <span className="text-2xl font-black text-indigo-600 block">{responsesList.length}</span>
                     <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-800">Total de Envios</span>

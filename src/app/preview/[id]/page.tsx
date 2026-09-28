@@ -328,11 +328,11 @@ export default function PreviewPage({ params }: { params: Promise<{ id: string }
 
         {/* Navigation Buttons */}
         {sections.length > 0 && (
-          <div className="flex items-center justify-between mt-4 pb-12">
+          <div className="mt-6 sm:mt-8 flex flex-col-reverse sm:flex-row items-center justify-between gap-3 pb-12">
             <button
               onClick={() => setActiveSectionIndex(prev => Math.max(0, prev - 1))}
               disabled={activeSectionIndex === 0}
-              className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-colors ${activeSectionIndex === 0 ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 shadow-sm'}`}
+              className={`w-full sm:w-auto flex items-center justify-center space-x-2 px-6 py-3 rounded-lg font-medium transition-colors ${activeSectionIndex === 0 ? 'bg-slate-100 text-slate-400 cursor-not-allowed hidden sm:flex opacity-0 pointer-events-none' : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 shadow-sm'}`}
             >
               <ChevronLeft size={20} />
               <span>Anterior</span>
@@ -341,7 +341,7 @@ export default function PreviewPage({ params }: { params: Promise<{ id: string }
               onClick={handleNextSection}
               disabled={isCurrentSectionLocked}
               title={isCurrentSectionLocked ? "Assista ao vídeo para prosseguir" : ""}
-              className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-colors ${isCurrentSectionLocked ? 'bg-indigo-400 text-white cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm'}`}
+              className={`w-full sm:w-auto flex items-center justify-center space-x-2 px-6 py-3 rounded-lg font-medium transition-colors ml-auto ${isCurrentSectionLocked ? 'bg-indigo-400 text-white cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm'}`}
             >
               <span>{isCurrentSectionLocked ? 'Vídeo Bloqueado' : (activeSectionIndex === sections.length - 1 ? 'Enviar Formulário' : 'Próxima')}</span>
               {activeSectionIndex !== sections.length - 1 && <ChevronRight size={20} />}
