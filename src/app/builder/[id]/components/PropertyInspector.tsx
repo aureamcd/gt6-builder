@@ -231,6 +231,30 @@ export function PropertyInspector({
           {/* --- QUESTION PROPERTIES --- */}
           {selectedElementType === 'question' && selectedQuestion && (
             <>
+              {/* Question Label / Title */}
+              <div className="space-y-2 pb-4 border-b border-slate-100">
+                <label className="text-sm font-medium text-slate-700">Título da Pergunta</label>
+                <input
+                  type="text"
+                  value={selectedQuestion.label || ''}
+                  onChange={(e) => updateQuestionProperty(activeSectionId, selectedQuestion.id, 'label', e.target.value)}
+                  className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-md px-3 py-2 outline-none"
+                  placeholder="Escreva sua pergunta aqui..."
+                />
+              </div>
+
+              {/* Question Description */}
+              <div className="space-y-2 pb-4 border-b border-slate-100">
+                <label className="text-sm font-medium text-slate-700">Descrição Opcional</label>
+                <textarea
+                  value={selectedQuestion.description || ''}
+                  onChange={(e) => updateQuestionProperty(activeSectionId, selectedQuestion.id, 'description', e.target.value)}
+                  rows={2}
+                  className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-md px-3 py-2 outline-none resize-none"
+                  placeholder="Texto auxiliar para a pergunta..."
+                />
+              </div>
+
               {/* Question Type Changer */}
               <div className="space-y-2 pb-4 border-b border-slate-100">
                 <label className="text-sm font-medium text-slate-700">Tipo de Pergunta</label>

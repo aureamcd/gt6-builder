@@ -181,21 +181,21 @@ export function BuilderHeader({
         {/* 2. Pré-visualização Button */}
         <button
           onClick={() => window.open(`/preview/${id}`, '_blank')}
-          className="flex items-center justify-center space-x-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg shadow-sm hover:bg-slate-50 transition-colors shrink-0 cursor-pointer"
+          className="hidden md:flex items-center justify-center space-x-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg shadow-sm hover:bg-slate-50 transition-colors shrink-0 cursor-pointer"
           title="Pré-visualizar Questionário"
         >
           <ExternalLink size={14} className="text-blue-600" />
-          <span className="hidden md:inline font-semibold">Pré-visualizar</span>
+          <span className="font-semibold">Pré-visualizar</span>
         </button>
 
         {/* 3. Compartilhar Button */}
         <button
           onClick={onShareClick}
-          className="flex items-center justify-center space-x-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg shadow-sm hover:bg-slate-50 transition-colors shrink-0 cursor-pointer"
+          className="hidden md:flex items-center justify-center space-x-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg shadow-sm hover:bg-slate-50 transition-colors shrink-0 cursor-pointer"
           title="Compartilhar Questionário"
         >
           <Share2 size={14} className="text-indigo-600" />
-          <span className="hidden md:inline font-semibold">Compartilhar</span>
+          <span className="font-semibold">Compartilhar</span>
         </button>
 
         {/* 4. Menu Três Pontinhos (Salvar, Exportar XML, Importar XML) */}
@@ -220,6 +220,31 @@ export function BuilderHeader({
               >
                 {isSaving ? <Loader2 size={14} className="animate-spin text-indigo-600" /> : <Save size={14} className="text-indigo-600" />}
                 <span className="font-semibold text-slate-800">{isSaving ? 'Salvando...' : 'Salvar'}</span>
+              </button>
+
+              <div className="h-[1px] bg-slate-100 my-1 md:hidden"></div>
+
+              {/* Mobile Only: Preview & Share */}
+              <button
+                onClick={() => {
+                  window.open(`/preview/${id}`, '_blank');
+                  setIsMoreMenuOpen(false);
+                }}
+                className="w-full md:hidden text-left px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center space-x-2 cursor-pointer transition-colors"
+              >
+                <ExternalLink size={14} className="text-blue-600" />
+                <span>Pré-visualizar</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  onShareClick();
+                  setIsMoreMenuOpen(false);
+                }}
+                className="w-full md:hidden text-left px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center space-x-2 cursor-pointer transition-colors"
+              >
+                <Share2 size={14} className="text-indigo-600" />
+                <span>Compartilhar</span>
               </button>
 
               <div className="h-[1px] bg-slate-100 my-1"></div>
