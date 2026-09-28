@@ -161,7 +161,7 @@ export default function PreviewPage({ params }: { params: Promise<{ id: string }
     const { isValid, missingIds } = validateCurrentSection();
     if (!isValid) {
       setUnansweredIds(missingIds);
-      const firstEl = document.getElementById(`prev_q_${missingIds[0]}`);
+      const firstEl = document.getElementById(`q_wrapper_${missingIds[0]}`);
       if (firstEl) {
         firstEl.scrollIntoView({ behavior: "smooth", block: "center" });
       }

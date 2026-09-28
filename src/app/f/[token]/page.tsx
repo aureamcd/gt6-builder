@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, use } from "react";
+import React, { useState, useEffect, use, useRef } from "react";
 import { Form, Section, Question } from "../../../types/form";
 import { getFormByShareToken, submitFormResponse } from "../../../lib/api";
 import { supabase, getFriendlyErrorMessage } from "../../../lib/supabase";
@@ -8,6 +8,39 @@ import { useToast } from "../../../context/ToastContext";
 import { Loader2, ChevronRight, ChevronLeft, Calendar, UploadCloud, FileText, Headphones, Video, Lock, Key, ArrowRight, ShieldCheck, AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import QuestionRenderer from "../../../components/QuestionRenderer";
+
+const calculateSectionTimeRaw = (section: Section) => {
+  let seconds = 0;
+  if (section.video_url) {
+    seconds += (section.unlock_at_seconds !== undefined && section.unlock_at_seconds !== null ? section.unlock_at_seconds : 60);
+  }
+  section.questions?.forEach(q => {
+    switch(q.type) {
+      case 'TEXT_SHORT': seconds += 15; break;
+      case 'TEXT_LONG': seconds += 45; break;
+      case 'RADIO_SINGLE': seconds += 10; break;
+      case 'CHECKBOX_MULTIPLE': seconds += 15; break;
+      case 'GRID_LIKERT': seconds += 30; break;
+      case 'DROPDOWN': seconds += 10; break;
+      case 'DATE_TIME': seconds += 15; break;
+      case 'FILE_UPLOAD': seconds += 30; break;
+      case 'MEDIA_VIDEO': seconds += (q.sub_question_template?.unlock_at_seconds !== undefined && q.sub_question_template?.unlock_at_seconds !== null ? q.sub_question_template.unlock_at_seconds : 60); break;
+      case 'MEDIA_AUDIO': seconds += 30; break;
+      case 'MEDIA_IMAGE': seconds += 10; break;
+      case 'TEXT_MARKDOWN': seconds += 15; break;
+      default: seconds += 10;
+    }
+  });
+  return seconds;
+};
+
+const formatTime = (seconds: number) => {
+  if (seconds === 0) return "0s";
+  if (seconds < 60) return `${seconds}s`;
+  const mins = Math.floor(seconds / 60);
+  const remainingSecs = seconds % 60;
+  return `${mins}m ${remainingSecs > 0 ? remainingSecs + 's' : ''}`;
+};
 
 export default function PublicFormPage({ params }: { params: Promise<{ token: string }> }) {
   const router = useRouter();
@@ -188,6 +221,8 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
     }
   };
 
+  const totalTimeSeconds = schema?.sections?.reduce((acc, sec) => acc + calculateSectionTimeRaw(sec), 0) || 0;
+
   const validateCurrentSection = () => {
     if (!currentSection || !currentSection.questions) return { isValid: true, missingIds: [] };
     const missingIds: string[] = [];
@@ -204,6 +239,11 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
   };
 
   const handleNextSection = () => {
+    if (isCurrentSectionLocked) {
+      toast.warning("Por favor, assista ao vídeo explicativo até o tempo necessário para prosseguir.", "Vídeo Obrigatório");
+      return;
+    }
+
     const { isValid, missingIds } = validateCurrentSection();
     if (!isValid) {
       setUnansweredIds(missingIds);
@@ -222,6 +262,11 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
   };
 
   const handleSubmitResponse = async () => {
+    if (isCurrentSectionLocked) {
+      toast.warning("Por favor, assista ao vídeo explicativo até o tempo necessário para prosseguir.", "Vídeo Obrigatório");
+      return;
+    }
+
     const { isValid, missingIds } = validateCurrentSection();
     if (!isValid) {
       setUnansweredIds(missingIds);
@@ -297,7 +342,14 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
         {sections.length > 0 && (
           <div className="bg-white rounded-xl shadow-sm p-4 border border-slate-200 mb-6">
             <div className="flex items-center justify-between text-sm font-medium text-slate-500 mb-2">
-              <span>{answeredQuestionsCount} de {totalQuestions} perguntas respondidas</span>
+              <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+                <span>{answeredQuestionsCount} de {totalQuestions} perguntas respondidas</span>
+                {schema?.settings?.show_estimated_time && totalTimeSeconds > 0 && (
+                  <span className="flex items-center gap-1 bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full text-xs" title="Tempo estimado para todo o formulário">
+                    ⏱️ ~{formatTime(totalTimeSeconds)} no total
+                  </span>
+                )}
+              </div>
               <span>{progressPercentage}% concluído</span>
             </div>
             <div className="w-full bg-slate-100 rounded-full h-2.5">
@@ -314,7 +366,14 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
             {/* Section Header & Context Card */}
             <div className="bg-slate-50 border-b border-slate-200 p-6 sm:p-8">
-              <h2 className="text-2xl font-bold text-slate-800">{currentSection.title || `Seção ${activeSectionIndex + 1}`}</h2>
+              <div>
+                <h2 className="text-2xl font-bold text-slate-800">{currentSection.title || `Seção ${activeSectionIndex + 1}`}</h2>
+                {schema?.settings?.show_estimated_time && (
+                  <div className="mt-2 flex items-center gap-1 text-sm font-medium text-slate-500" title="Tempo estimado para esta seção">
+                    ⏱️ ~{formatTime(calculateSectionTimeRaw(currentSection))}
+                  </div>
+                )}
+              </div>
               {currentSection.description && (
                 <div className="mt-4 p-4 bg-indigo-50 border border-indigo-100 rounded-lg text-indigo-900 whitespace-pre-wrap">
                   {currentSection.description}
@@ -339,6 +398,13 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
                       controls
                       onTimeUpdate={(e) => {
                         const video = e.currentTarget;
+                        const maxTime = maxTimeRef.current[currentSection.id] || 0;
+                        if (video.currentTime > maxTime + 1) {
+                          video.currentTime = maxTime;
+                        } else if (video.currentTime > maxTime) {
+                          maxTimeRef.current[currentSection.id] = video.currentTime;
+                        }
+
                         if (currentSection.unlock_at_seconds) {
                           handleVideoTimeUpdate(currentSection.id, video.currentTime, currentSection.unlock_at_seconds);
                         }
@@ -372,6 +438,11 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
                   onAnswerChange={handleAnswerChange}
                   answers={answers}
                   schema={schema}
+                  onVideoTimeUpdate={(time) => {
+                    if (q.sub_question_template?.unlock_at_seconds) {
+                      handleVideoTimeUpdate(q.id, time, q.sub_question_template.unlock_at_seconds);
+                    }
+                  }}
                 />
               ))}
               </div>
@@ -400,18 +471,21 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
           {activeSectionIndex < sections.length - 1 ? (
             <button 
               onClick={handleNextSection}
-              className="w-full sm:w-auto flex items-center justify-center space-x-2 px-8 py-3 rounded-xl font-semibold transition-colors bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm ml-auto cursor-pointer"
+              disabled={isCurrentSectionLocked}
+              title={isCurrentSectionLocked ? "Assista ao vídeo para prosseguir" : ""}
+              className={`w-full sm:w-auto flex items-center justify-center space-x-2 px-8 py-3 rounded-xl font-semibold transition-colors ml-auto ${isCurrentSectionLocked ? 'bg-indigo-400 text-white cursor-not-allowed opacity-75' : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm cursor-pointer'}`}
             >
-              <span>Próxima Seção</span>
+              <span>{isCurrentSectionLocked ? 'Vídeo Bloqueado' : 'Próxima Seção'}</span>
               <ChevronRight size={18} />
             </button>
           ) : (
             <button 
               onClick={handleSubmitResponse}
-              disabled={isSubmitting}
-              className={`w-full sm:w-auto flex items-center justify-center space-x-2 px-8 py-3.5 rounded-xl font-bold transition-colors ml-auto cursor-pointer ${isSubmitting ? 'bg-indigo-400 text-white cursor-wait' : 'bg-green-600 text-white hover:bg-green-700 shadow-md shadow-green-200'}`}
+              disabled={isSubmitting || isCurrentSectionLocked}
+              title={isCurrentSectionLocked ? "Assista ao vídeo para prosseguir" : ""}
+              className={`w-full sm:w-auto flex items-center justify-center space-x-2 px-8 py-3.5 rounded-xl font-bold transition-colors ml-auto ${isCurrentSectionLocked ? 'bg-slate-400 text-white cursor-not-allowed opacity-75' : (isSubmitting ? 'bg-indigo-400 text-white cursor-wait' : 'bg-green-600 text-white hover:bg-green-700 shadow-md shadow-green-200 cursor-pointer')}`}
             >
-              <span>{isSubmitting ? 'Enviando...' : 'Finalizar e Enviar Respostas'}</span>
+              <span>{isCurrentSectionLocked ? 'Vídeo Bloqueado' : (isSubmitting ? 'Enviando...' : 'Finalizar e Enviar Respostas')}</span>
             </button>
           )}
         </div>
