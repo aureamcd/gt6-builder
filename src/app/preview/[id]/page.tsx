@@ -4,7 +4,7 @@ import React, { useState, useEffect, use, useRef } from "react";
 import { Form, Section, Question } from "../../../types/form";
 import { getFormById } from "../../../lib/api";
 import { supabase } from "../../../lib/supabase";
-import { Loader2, ChevronRight, ChevronLeft, Calendar, UploadCloud, FileText, Headphones, Video, MessageSquare } from "lucide-react";
+import { Loader2, ChevronRight, ChevronLeft, Calendar, UploadCloud, FileText, Headphones, Video, MessageSquare, ArrowLeft, Eye, Info, CheckCircle2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import CommentsPanel from "../../../components/CommentsPanel";
 import QuestionRenderer from "../../../components/QuestionRenderer";
@@ -171,7 +171,10 @@ export default function PreviewPage({ params }: { params: Promise<{ id: string }
     setUnansweredIds([]);
     
     if (activeSectionIndex === sections.length - 1) {
-      toast.success("Pré-visualização concluída! Em produção, as respostas serão gravadas no banco.", "Fim da Pré-visualização");
+      toast.success("Simulação finalizada! Nenhuma resposta foi gravada no banco de dados. Redirecionando para o editor...", "Fim da Pré-visualização");
+      setTimeout(() => {
+        router.push(`/builder/${id}`);
+      }, 1500);
     } else {
       setActiveSectionIndex(prev => Math.min(sections.length - 1, prev + 1));
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -181,17 +184,63 @@ export default function PreviewPage({ params }: { params: Promise<{ id: string }
   return (
     <div className="min-h-screen bg-slate-50 font-sans flex flex-col">
       {/* Header */}
-      <header className="bg-indigo-600 text-white py-6 px-4 shadow-md sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <div>
-            <span className="text-xs font-bold uppercase tracking-wider text-indigo-200">Modo de Pré-visualização</span>
-            <h1 className="text-2xl font-bold mt-1">{schema.title || "Formulário Sem Título"}</h1>
+      <header className="bg-indigo-600 text-white py-4 px-4 sm:px-6 shadow-md sticky top-0 z-20">
+        <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <button
+              onClick={() => router.push(`/builder/${id}`)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-700/90 hover:bg-indigo-800 text-white rounded-lg text-xs sm:text-sm font-semibold transition-colors border border-indigo-400/40 shadow-xs shrink-0 cursor-pointer"
+              title="Voltar ao Construtor"
+            >
+              <ArrowLeft size={16} />
+              <span>Voltar ao Editor</span>
+            </button>
+            <button
+              onClick={() => router.push('/')}
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-indigo-800/60 hover:bg-indigo-800 text-indigo-100 hover:text-white rounded-lg text-xs sm:text-sm font-medium transition-colors border border-indigo-400/20 shadow-xs shrink-0 cursor-pointer"
+              title="Ir para o menu principal de formulários"
+            >
+              <span>Menu Principal</span>
+            </button>
+            <div className="min-w-0 pl-1">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-bold uppercase tracking-wider bg-indigo-500/80 px-2 py-0.5 rounded text-indigo-100 flex items-center gap-1">
+                  <Eye size={12} /> Pré-visualização
+                </span>
+                <span className="hidden md:inline text-xs text-indigo-200 truncate">
+                  (Modo Simulação)
+                </span>
+              </div>
+              <h1 className="text-lg sm:text-xl font-bold text-white truncate">
+                {schema.title || "Formulário Sem Título"}
+              </h1>
+            </div>
           </div>
+          
+          <button
+            onClick={() => router.push(`/builder/${id}`)}
+            className="hidden lg:inline-flex text-xs text-indigo-100 hover:text-white underline underline-offset-2 shrink-0 cursor-pointer"
+          >
+            Editar Perguntas
+          </button>
         </div>
       </header>
 
       {/* Main Content */}
       <main className="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex flex-col gap-6">
+        
+        {/* Informative Banner */}
+        <div className="bg-indigo-50/90 border border-indigo-200 rounded-xl p-3.5 sm:p-4 flex items-start gap-3 shadow-xs">
+          <Info size={20} className="text-indigo-600 shrink-0 mt-0.5" />
+          <div className="text-xs sm:text-sm text-indigo-950">
+            <p className="font-semibold text-indigo-900">
+              Você está no Modo de Teste e Pré-visualização
+            </p>
+            <p className="text-indigo-700/90 mt-0.5 leading-relaxed">
+              Aqui você pode navegar e simular o preenchimento do formulário exatamente como seu respondente verá. As respostas inseridas aqui <strong>não são salvas no banco de dados</strong>.
+            </p>
+          </div>
+        </div>
         
         {/* Progress Indicator */}
         {sections.length > 0 && (
@@ -343,7 +392,8 @@ export default function PreviewPage({ params }: { params: Promise<{ id: string }
               title={isCurrentSectionLocked ? "Assista ao vídeo para prosseguir" : ""}
               className={`w-full sm:w-auto flex items-center justify-center space-x-2 px-6 py-3 rounded-lg font-medium transition-colors ml-auto ${isCurrentSectionLocked ? 'bg-indigo-400 text-white cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm'}`}
             >
-              <span>{isCurrentSectionLocked ? 'Vídeo Bloqueado' : (activeSectionIndex === sections.length - 1 ? 'Enviar Formulário' : 'Próxima')}</span>
+              {activeSectionIndex === sections.length - 1 && <CheckCircle2 size={18} />}
+              <span>{isCurrentSectionLocked ? 'Vídeo Bloqueado' : (activeSectionIndex === sections.length - 1 ? 'Concluir Simulação' : 'Próxima')}</span>
               {activeSectionIndex !== sections.length - 1 && <ChevronRight size={20} />}
             </button>
           </div>
