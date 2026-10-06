@@ -17,6 +17,7 @@
     "test:multiuser": "playwright test e2e/multi-user-sharing.spec.ts --headed --project=\"Desktop Chrome\"",
     "test:campos": "playwright test e2e/all-field-types-complete.spec.ts --project=\"Desktop Chrome\" --workers=1",
     "test:campos:headed": "playwright test e2e/all-field-types-complete.spec.ts --headed --project=\"Desktop Chrome\" --workers=1",
+    "test:preview": "playwright test e2e/preview-complete.spec.ts --headed --project=\"Desktop Chrome\"",
     "test:tudo": "playwright test --headed --project=\"Desktop Chrome\" --workers=1"
   },
   "dependencies": {
