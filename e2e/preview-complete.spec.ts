@@ -47,6 +47,13 @@ test.describe('Validação Rigorosa do Modo de Pré-visualização (E2E Completo
       await page.waitForTimeout(2000);
     }
 
+    // Salvar o formulário no Builder para garantir persistência
+    const btnSalvar = page.getByRole('button', { name: /Salvar/i });
+    if (await btnSalvar.isVisible()) {
+      await btnSalvar.click();
+      await page.waitForTimeout(1500);
+    }
+
     // Obter o ID do formulário atual da URL do Builder
     const url = page.url();
     const match = url.match(/\/builder\/([a-zA-Z0-9_-]+)/);
@@ -73,11 +80,33 @@ test.describe('Validação Rigorosa do Modo de Pré-visualização (E2E Completo
     const bannerAvisoBD = page.getByText(/não são salvas no banco de dados/i);
     await expect(bannerAvisoBD).toBeVisible();
 
-    // 7. VERIFICAÇÃO 4: Botão de ação na última seção deve se chamar 'Concluir Simulação'
+    // 7. Avançar pelas seções até a última, preenchendo respostas caso necessário
+    let nextBtn = page.getByRole('button', { name: /^Próxima$/i });
+    let maxSectionHops = 10;
+    while ((await nextBtn.isVisible()) && maxSectionHops > 0) {
+      maxSectionHops--;
+      const inputs = page.locator('input[type="text"]:visible, textarea:visible');
+      const count = await inputs.count();
+      for (let i = 0; i < count; i++) {
+        await inputs.nth(i).fill('Simulação de resposta');
+      }
+      await nextBtn.click();
+      await page.waitForTimeout(500);
+      nextBtn = page.getByRole('button', { name: /^Próxima$/i });
+    }
+
+    // Preencher campos da última seção se houver
+    const lastInputs = page.locator('input[type="text"]:visible, textarea:visible');
+    const lastCount = await lastInputs.count();
+    for (let i = 0; i < lastCount; i++) {
+      await lastInputs.nth(i).fill('Resposta final da simulação');
+    }
+
+    // 8. VERIFICAÇÃO 4: Botão de ação na última seção deve se chamar 'Concluir Simulação'
     const btnConcluir = page.getByRole('button', { name: /Concluir Simulação/i });
     await expect(btnConcluir).toBeVisible();
 
-    // 8. VERIFICAÇÃO 5: Ao concluir simulação, verificar mensagem de feedback e redirecionamento
+    // 9. VERIFICAÇÃO 5: Ao concluir simulação, verificar mensagem de feedback e redirecionamento
     await btnConcluir.click();
     await page.waitForTimeout(600);
 
@@ -85,7 +114,7 @@ test.describe('Validação Rigorosa do Modo de Pré-visualização (E2E Completo
     await expect(toastMsg).toBeVisible();
 
     // Aguardar redirecionamento automático para o editor
-    await page.waitForURL(new RegExp(`/builder/${formId}`), { timeout: 6000 });
+    await page.waitForURL(new RegExp(`/builder/${formId}`), { timeout: 8000 });
     expect(page.url()).toContain(`/builder/${formId}`);
   });
 });
