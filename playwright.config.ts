@@ -31,7 +31,7 @@ export default defineConfig({
     },
   ],
   // If we are testing against a remote deployment (like Vercel), don't start the local webserver
-  webServer: process.env.BASE_URL
+  webServer: (process.env.BASE_URL && !process.env.BASE_URL.includes('localhost')) || process.argv.some(arg => arg.includes('vercel.app'))
     ? undefined
     : {
         command: 'npm run dev',
