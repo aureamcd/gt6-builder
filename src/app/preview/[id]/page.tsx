@@ -4,7 +4,7 @@ import React, { useState, useEffect, use, useRef } from "react";
 import { Form, Section, Question } from "../../../types/form";
 import { getFormById } from "../../../lib/api";
 import { supabase } from "../../../lib/supabase";
-import { Loader2, ChevronRight, ChevronLeft, Calendar, UploadCloud, FileText, Headphones, Video, MessageSquare, ArrowLeft, Eye, Info, CheckCircle2 } from "lucide-react";
+import { Loader2, ChevronRight, ChevronLeft, Calendar, UploadCloud, FileText, Headphones, Video, MessageSquare, ArrowLeft, Eye, Info, CheckCircle2, Home } from "lucide-react";
 import { useRouter } from "next/navigation";
 import CommentsPanel from "../../../components/CommentsPanel";
 import QuestionRenderer from "../../../components/QuestionRenderer";
@@ -184,52 +184,74 @@ export default function PreviewPage({ params }: { params: Promise<{ id: string }
   return (
     <div className="min-h-screen bg-slate-50 font-sans flex flex-col">
       {/* Header */}
-      <header className="bg-indigo-600 text-white py-4 px-4 sm:px-6 shadow-md sticky top-0 z-20">
-        <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+      <header className="bg-slate-900/95 backdrop-blur-md text-white border-b border-slate-800 sticky top-0 z-30 shadow-md">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3 sm:gap-4">
+          
+          {/* Navigation Action Buttons */}
+          <div className="flex items-center gap-2 sm:gap-2.5">
             <button
               onClick={() => router.push(`/builder/${id}`)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-700/90 hover:bg-indigo-800 text-white rounded-lg text-xs sm:text-sm font-semibold transition-colors border border-indigo-400/40 shadow-xs shrink-0 cursor-pointer"
-              title="Voltar ao Construtor"
+              className="inline-flex items-center gap-2 px-3 sm:px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs sm:text-sm font-semibold transition-all shadow-xs hover:shadow-indigo-500/20 active:scale-95 cursor-pointer"
+              title="Voltar para a edição do formulário"
             >
               <ArrowLeft size={16} />
               <span>Voltar ao Editor</span>
             </button>
             <button
               onClick={() => router.push('/')}
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-indigo-800/60 hover:bg-indigo-800 text-indigo-100 hover:text-white rounded-lg text-xs sm:text-sm font-medium transition-colors border border-indigo-400/20 shadow-xs shrink-0 cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg text-xs sm:text-sm font-medium transition-colors border border-slate-700/60 cursor-pointer"
               title="Ir para o menu principal de formulários"
             >
-              <span>Menu Principal</span>
+              <Home size={15} />
+              <span className="hidden sm:inline">Menu Principal</span>
             </button>
-            <div className="min-w-0 pl-1">
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-bold uppercase tracking-wider bg-indigo-500/80 px-2 py-0.5 rounded text-indigo-100 flex items-center gap-1">
-                  <Eye size={12} /> Pré-visualização
-                </span>
-                <span className="hidden md:inline text-xs text-indigo-200 truncate">
-                  (Modo Simulação)
-                </span>
-              </div>
-              <h1 className="text-lg sm:text-xl font-bold text-white truncate">
-                {schema.title || "Formulário Sem Título"}
-              </h1>
+          </div>
+
+          {/* Right Status Badge */}
+          <div className="flex items-center">
+            <div className="flex items-center gap-2 bg-slate-800/90 border border-slate-700/80 px-2.5 sm:px-3 py-1 rounded-full text-xs text-slate-200 shadow-inner">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span className="font-semibold">Pré-visualização</span>
+              <span className="hidden md:inline text-slate-400 border-l border-slate-700 pl-2 text-[11px]">Simulação Ativa</span>
             </div>
           </div>
+
         </div>
       </header>
 
       {/* Main Content */}
       <main className="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex flex-col gap-6">
         
+        {/* Form Title & Context Card */}
+        <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200/90 shadow-sm relative overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"></div>
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-700 px-2.5 py-0.5 rounded-md border border-indigo-100/80 flex items-center gap-1">
+                <Eye size={12} /> Teste de Formulário
+              </span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+              {schema.title || "Formulário Sem Título"}
+            </h1>
+            {schema.description && (
+              <p className="text-slate-600 text-sm sm:text-base leading-relaxed mt-1 whitespace-pre-wrap">
+                {schema.description}
+              </p>
+            )}
+          </div>
+        </div>
+
         {/* Informative Banner */}
-        <div className="bg-indigo-50/90 border border-indigo-200 rounded-xl p-3.5 sm:p-4 flex items-start gap-3 shadow-xs">
-          <Info size={20} className="text-indigo-600 shrink-0 mt-0.5" />
+        <div className="bg-gradient-to-r from-indigo-50/90 via-sky-50/50 to-indigo-50/90 border border-indigo-100/90 rounded-2xl p-4 sm:p-4.5 flex items-start gap-3.5 shadow-xs">
+          <div className="p-2 bg-indigo-600/10 text-indigo-600 rounded-xl shrink-0 mt-0.5">
+            <Info size={18} />
+          </div>
           <div className="text-xs sm:text-sm text-indigo-950">
-            <p className="font-semibold text-indigo-900">
+            <p className="font-bold text-indigo-900">
               Você está no Modo de Teste e Pré-visualização
             </p>
-            <p className="text-indigo-700/90 mt-0.5 leading-relaxed">
+            <p className="text-indigo-800/80 mt-0.5 leading-relaxed">
               Aqui você pode navegar e simular o preenchimento do formulário exatamente como seu respondente verá. As respostas inseridas aqui <strong>não são salvas no banco de dados</strong>.
             </p>
           </div>
