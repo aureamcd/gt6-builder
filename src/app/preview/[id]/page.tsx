@@ -216,13 +216,6 @@ export default function PreviewPage({ params }: { params: Promise<{ id: string }
               </h1>
             </div>
           </div>
-          
-          <button
-            onClick={() => router.push(`/builder/${id}`)}
-            className="hidden lg:inline-flex text-xs text-indigo-100 hover:text-white underline underline-offset-2 shrink-0 cursor-pointer"
-          >
-            Editar Perguntas
-          </button>
         </div>
       </header>
 
