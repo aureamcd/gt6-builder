@@ -88,20 +88,33 @@ export function useFormRealtime(options: UseFormRealtimeOptions) {
         .on('presence', { event: 'sync' }, () => {
           if (!isMounted) return;
           const state = channel.presenceState();
-          const users: any[] = [];
+          const seenKeys = new Set<string>();
+          const otherUsers: any[] = [];
+
           Object.values(state).forEach((presences: any) => {
             presences.forEach((p: any) => {
-              if (p.clientId !== clientIdRef.current) {
-                users.push(p);
+              const isSelf = (user?.id && p.userId === user.id) || 
+                             (userEmail && p.email === userEmail) || 
+                             p.clientId === clientIdRef.current;
+              
+              if (!isSelf) {
+                const userKey = p.userId || p.email || p.clientId;
+                if (!seenKeys.has(userKey)) {
+                  seenKeys.add(userKey);
+                  otherUsers.push(p);
+                }
               }
             });
           });
-          setOnlineCollaborators(users);
+          setOnlineCollaborators(otherUsers);
         })
         .on('presence', { event: 'join' }, ({ newPresences }: any) => {
           if (!isMounted) return;
           newPresences.forEach((p: any) => {
-            if (p.clientId !== clientIdRef.current) {
+            const isSelf = (user?.id && p.userId === user.id) || 
+                           (userEmail && p.email === userEmail) || 
+                           p.clientId === clientIdRef.current;
+            if (!isSelf) {
               showToast(`${p.name || 'Outro usuário'} entrou na edição simultânea.`, 'info', 'Colaborador Conectado');
             }
           });
@@ -111,6 +124,7 @@ export function useFormRealtime(options: UseFormRealtimeOptions) {
         if (status === 'SUBSCRIBED' && isMounted) {
           await channel.track({
             clientId: clientIdRef.current,
+            userId: user?.id || null,
             name: userName,
             email: userEmail,
             color: userColor,
