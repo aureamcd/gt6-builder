@@ -964,100 +964,117 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
 
         {/* Conteúdo Central (Aba Construtor ou Aba Respostas) */}
         {activeTab === 'responses' ? (
-          <div className="flex-1 overflow-y-auto p-4 sm:p-8 bg-slate-50">
-            <div className="max-w-4xl mx-auto space-y-6 pb-24">
-              <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div>
-                  <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                    <BarChart3 className="text-indigo-600" size={24} />
-                    <span>Respostas Recebidas</span>
-                  </h2>
-                  <p className="text-sm text-slate-500 mt-1">
-                    Visualização em tempo real dos formulários submetidos por respondentes.
-                  </p>
+          <div className="flex-1 overflow-y-auto p-4 sm:p-8 bg-slate-50/80">
+            <div className="max-w-5xl mx-auto space-y-6 pb-24">
+              
+              {/* Header Card de Respostas */}
+              <div className="bg-white rounded-2xl p-6 sm:p-7 border border-slate-200/90 shadow-sm relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
+                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"></div>
+                
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center shrink-0 shadow-xs">
+                    <BarChart3 size={24} />
+                  </div>
+                  <div>
+                    <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+                      Respostas Recebidas
+                    </h2>
+                    <p className="text-xs sm:text-sm text-slate-500 mt-1">
+                      Acompanhe em tempo real os formulários submetidos pelos respondentes.
+                    </p>
+                  </div>
                 </div>
-                <div className="flex items-center space-x-3 shrink-0">
-                  <button
-                    onClick={() => fetchResponses()}
-                    disabled={isLoadingResponses}
-                    className="flex items-center space-x-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-xl transition-colors cursor-pointer disabled:opacity-50"
-                    title="Atualizar lista de respostas"
-                  >
-                    <RefreshCw size={14} className={isLoadingResponses ? "animate-spin text-indigo-600" : ""} />
-                    <span>Atualizar</span>
-                  </button>
-                  {/* Menu Dropdown de Exportação de Respostas */}
-                  <div className="relative" ref={exportMenuRef}>
+
+                <div className="flex flex-wrap items-center gap-3 w-full md:w-auto justify-between md:justify-end">
+                  <div className="flex items-center gap-2">
                     <button
-                      onClick={() => setIsExportMenuOpen(prev => !prev)}
-                      disabled={responsesList.length === 0}
-                      className="flex items-center space-x-1.5 px-3.5 py-2 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl transition-all shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                      title={responsesList.length === 0 ? "Nenhuma resposta registrada para exportar" : "Exportar dados das respostas"}
+                      onClick={() => fetchResponses()}
+                      disabled={isLoadingResponses}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-xl transition-all cursor-pointer disabled:opacity-50 active:scale-95"
+                      title="Atualizar lista de respostas"
                     >
-                      <Download size={14} />
-                      <span>Exportar Dados</span>
-                      <ChevronDown size={13} className={`transition-transform duration-200 ${isExportMenuOpen ? 'rotate-180' : ''}`} />
+                      <RefreshCw size={14} className={isLoadingResponses ? "animate-spin text-indigo-600" : ""} />
+                      <span>Atualizar</span>
                     </button>
 
-                    {isExportMenuOpen && (
-                      <div className="absolute right-0 mt-1.5 w-56 bg-white rounded-2xl shadow-xl border border-slate-200 py-1.5 z-30 animate-in fade-in zoom-in-95 duration-150">
-                        <div className="px-3.5 py-1.5 border-b border-slate-100">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Opções de Exportação</span>
+                    {/* Menu Dropdown de Exportação de Respostas */}
+                    <div className="relative" ref={exportMenuRef}>
+                      <button
+                        onClick={() => setIsExportMenuOpen(prev => !prev)}
+                        disabled={responsesList.length === 0}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200/90 rounded-xl transition-all shadow-2xs cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
+                        title={responsesList.length === 0 ? "Nenhuma resposta registrada para exportar" : "Exportar dados das respostas"}
+                      >
+                        <Download size={14} />
+                        <span>Exportar Dados</span>
+                        <ChevronDown size={13} className={`transition-transform duration-200 ${isExportMenuOpen ? 'rotate-180' : ''}`} />
+                      </button>
+
+                      {isExportMenuOpen && (
+                        <div className="absolute right-0 mt-2 w-60 bg-white rounded-2xl shadow-xl border border-slate-200 py-2 z-30 animate-in fade-in zoom-in-95 duration-150">
+                          <div className="px-3.5 py-1 border-b border-slate-100 mb-1">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Opções de Exportação</span>
+                          </div>
+                          <button
+                            onClick={() => {
+                              exportResponsesAsCSV();
+                              setIsExportMenuOpen(false);
+                            }}
+                            className="w-full text-left px-3.5 py-2.5 text-xs text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 flex items-center space-x-2.5 transition-colors cursor-pointer group"
+                          >
+                            <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 group-hover:bg-emerald-100 flex items-center justify-center shrink-0">
+                              <FileSpreadsheet size={16} />
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="font-semibold text-slate-800 group-hover:text-emerald-800">Exportar CSV (Excel)</span>
+                              <span className="text-[10px] text-slate-400">Compatível com Excel e Planilhas</span>
+                            </div>
+                          </button>
+                          <button
+                            onClick={() => {
+                              exportResponsesAsJSON();
+                              setIsExportMenuOpen(false);
+                            }}
+                            className="w-full text-left px-3.5 py-2.5 text-xs text-slate-700 hover:bg-indigo-50 hover:text-indigo-800 flex items-center space-x-2.5 transition-colors cursor-pointer group"
+                          >
+                            <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 group-hover:bg-indigo-100 flex items-center justify-center shrink-0">
+                              <FileText size={16} />
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="font-semibold text-slate-800 group-hover:text-indigo-800">Exportar JSON</span>
+                              <span className="text-[10px] text-slate-400">Dados brutos estruturados</span>
+                            </div>
+                          </button>
                         </div>
-                        <button
-                          onClick={() => {
-                            exportResponsesAsCSV();
-                            setIsExportMenuOpen(false);
-                          }}
-                          className="w-full text-left px-3.5 py-2.5 text-xs text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 flex items-center space-x-2.5 transition-colors cursor-pointer group"
-                        >
-                          <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 group-hover:bg-emerald-100 flex items-center justify-center shrink-0">
-                            <FileSpreadsheet size={15} />
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="font-semibold text-slate-800 group-hover:text-emerald-800">Exportar CSV (Excel)</span>
-                            <span className="text-[10px] text-slate-400">Compatível com Excel e Planilhas</span>
-                          </div>
-                        </button>
-                        <button
-                          onClick={() => {
-                            exportResponsesAsJSON();
-                            setIsExportMenuOpen(false);
-                          }}
-                          className="w-full text-left px-3.5 py-2.5 text-xs text-slate-700 hover:bg-indigo-50 hover:text-indigo-800 flex items-center space-x-2.5 transition-colors cursor-pointer group"
-                        >
-                          <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 group-hover:bg-indigo-100 flex items-center justify-center shrink-0">
-                            <FileText size={15} />
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="font-semibold text-slate-800 group-hover:text-indigo-800">Exportar JSON</span>
-                            <span className="text-[10px] text-slate-400">Dados brutos estruturados</span>
-                          </div>
-                        </button>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
-                  <div className="bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-2 text-center">
-                    <span className="text-2xl font-black text-indigo-600 block">{responsesList.length}</span>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-800">Total de Envios</span>
+
+                  {/* Contador Total */}
+                  <div className="bg-gradient-to-br from-indigo-600 to-indigo-800 text-white rounded-2xl px-5 py-2.5 text-center shadow-xs flex items-center gap-3">
+                    <span className="text-2xl font-black">{responsesList.length}</span>
+                    <div className="text-left">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-200 block leading-tight">Total de</span>
+                      <span className="text-xs font-semibold text-white block leading-tight">Envios</span>
+                    </div>
                   </div>
                 </div>
               </div>
 
               {isLoadingResponses ? (
-                <div className="flex flex-col items-center justify-center p-16 space-y-3">
+                <div className="flex flex-col items-center justify-center p-16 space-y-3 bg-white rounded-2xl border border-slate-200">
                   <Loader2 className="animate-spin text-indigo-600" size={36} />
-                  <p className="text-sm font-medium text-slate-500">Carregando respostas...</p>
+                  <p className="text-sm font-medium text-slate-600">Carregando respostas...</p>
                 </div>
               ) : responsesList.length === 0 ? (
                 <div className="bg-white rounded-2xl p-12 border border-slate-200 text-center space-y-4 shadow-xs">
-                  <div className="w-14 h-14 bg-indigo-50 text-indigo-500 rounded-2xl flex items-center justify-center mx-auto shadow-inner">
-                    <Inbox size={28} />
+                  <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto shadow-inner border border-indigo-100">
+                    <Inbox size={32} />
                   </div>
                   <div className="space-y-1">
-                    <h3 className="font-bold text-slate-800 text-lg">Nenhuma resposta registrada ainda</h3>
+                    <h3 className="font-bold text-slate-900 text-lg">Nenhuma resposta registrada ainda</h3>
                     <p className="text-sm text-slate-500 max-w-md mx-auto">
-                      Compartilhe o link do formulário com os usuários para começar a coletar dados. As novas submissões aparecerão aqui automaticamente.
+                      Compartilhe o link oficial do formulário com seus respondentes para começar a coletar dados.
                     </p>
                   </div>
                   {schema?.share_token && (
@@ -1066,7 +1083,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                         href={`/f/${schema.share_token}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center space-x-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold shadow-sm transition-all"
+                        className="inline-flex items-center space-x-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold shadow-sm transition-all"
                       >
                         <ExternalLink size={16} />
                         <span>Abrir Formulário para Responder</span>
@@ -1075,34 +1092,35 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                   )}
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-5">
                   {responsesList.map((resp, i) => {
                     const answers = getNormalizedAnswers(resp);
                     const formattedDate = resp.submitted_at || resp.created_at
-                      ? new Date(resp.submitted_at || resp.created_at).toLocaleString('pt-BR')
+                      ? new Date(resp.submitted_at || resp.created_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'medium' })
                       : 'Data não informada';
 
                     return (
-                      <div key={resp.id || i} className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs hover:border-slate-300 transition-all space-y-4">
-                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
-                          <div className="flex items-center space-x-2">
-                            <span className="text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-full">
-                              Envio #{responsesList.length - i}
+                      <div key={resp.id || i} className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/90 shadow-sm hover:shadow-md transition-all space-y-4">
+                        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3.5">
+                          <div className="flex items-center space-x-2.5">
+                            <span className="text-xs font-bold text-white bg-gradient-to-r from-indigo-600 to-indigo-700 px-3 py-1 rounded-full shadow-2xs flex items-center gap-1.5">
+                              <span>Envio #{responsesList.length - i}</span>
                             </span>
                           </div>
+                          
                           <div className="flex items-center space-x-3 text-xs text-slate-500">
-                            <span className="flex items-center space-x-1 font-medium">
+                            <span className="flex items-center space-x-1.5 bg-slate-50 border border-slate-200/80 px-2.5 py-1 rounded-lg font-medium text-slate-600">
                               <Clock size={13} className="text-slate-400" />
                               <span>{formattedDate}</span>
                             </span>
-                            <span className="bg-slate-100 text-slate-600 font-semibold px-2 py-0.5 rounded-md text-[11px]">
+                            <span className="bg-indigo-50/80 text-indigo-700 border border-indigo-100/80 font-semibold px-2.5 py-1 rounded-lg text-[11px]">
                               {answers.length} {answers.length === 1 ? 'campo preenchido' : 'campos preenchidos'}
                             </span>
                             <button
                               onClick={() => handleDeleteSingleResponse(resp.id)}
                               disabled={deletingResponseId === resp.id}
                               className="flex items-center space-x-1 text-slate-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-lg border border-transparent hover:border-red-200 transition-all cursor-pointer disabled:opacity-50 ml-1"
-                              title="Excluir apenas esta resposta"
+                              title="Excluir esta resposta"
                             >
                               {deletingResponseId === resp.id ? (
                                 <Loader2 size={14} className="animate-spin text-red-500" />
@@ -1118,38 +1136,38 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                             Nenhum campo respondido registrado para este envio.
                           </div>
                         ) : (
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {answers.map((item, idx) => (
                               <div
                                 key={item.questionId || idx}
-                                className="bg-slate-50/80 hover:bg-slate-50 p-3.5 rounded-xl border border-slate-200/70 transition-colors flex flex-col justify-between space-y-2"
+                                className="bg-slate-50/70 hover:bg-slate-50 rounded-xl p-4 border border-slate-200/80 transition-all flex flex-col justify-between space-y-2.5 shadow-2xs"
                               >
                                 <div>
                                   {item.sectionTitle && (
-                                    <span className="text-[10px] uppercase font-bold tracking-wider text-indigo-600 bg-indigo-50/60 px-1.5 py-0.5 rounded mb-1 inline-block">
+                                    <span className="text-[10px] uppercase font-bold tracking-wider text-indigo-700 bg-indigo-50 border border-indigo-100/90 px-2 py-0.5 rounded-md mb-1.5 inline-block">
                                       {item.sectionTitle}
                                     </span>
                                   )}
-                                  <p className="text-xs font-semibold text-slate-800 leading-snug">
+                                  <p className="text-xs sm:text-sm font-semibold text-slate-800 leading-snug">
                                     {item.label}
                                   </p>
                                 </div>
-                                <div className="pt-1.5 border-t border-slate-200/50">
+                                <div className="pt-2 border-t border-slate-200/60">
                                   {item.badges && item.badges.length > 0 ? (
                                     <div className="flex flex-wrap gap-1.5">
                                       {item.badges.map((badge, bIdx) => (
                                         <span
                                           key={bIdx}
-                                          className="inline-flex items-center text-xs font-medium text-indigo-700 bg-indigo-50/90 border border-indigo-200 px-2.5 py-1 rounded-lg shadow-xs"
+                                          className="inline-flex items-center text-xs font-medium text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg shadow-2xs"
                                         >
                                           ✓ {badge}
                                         </span>
                                       ))}
                                     </div>
                                   ) : (
-                                    <p className="text-xs font-medium text-slate-900 bg-white p-2 rounded-lg border border-slate-200/50 break-words">
+                                    <div className="bg-white border-l-4 border-indigo-500 border-y border-r border-slate-200/80 rounded-r-xl p-2.5 sm:p-3 text-xs sm:text-sm text-slate-900 font-medium shadow-2xs break-words">
                                       {item.value}
-                                    </p>
+                                    </div>
                                   )}
                                 </div>
                               </div>
