@@ -187,8 +187,29 @@ export default function PreviewPage({ params }: { params: Promise<{ id: string }
       <header className="bg-slate-900/95 backdrop-blur-md text-white border-b border-slate-800 sticky top-0 z-30 shadow-md">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3 sm:gap-4">
           
-          {/* Navigation Action Buttons */}
-          <div className="flex items-center gap-2 sm:gap-2.5">
+          {/* Início (Esquerda): Menu Principal */}
+          <div className="flex items-center">
+            <button
+              onClick={() => router.push('/')}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg text-xs sm:text-sm font-medium transition-colors border border-slate-700/60 cursor-pointer"
+              title="Ir para o menu principal de formulários"
+            >
+              <Home size={15} />
+              <span>Menu Principal</span>
+            </button>
+          </div>
+
+          {/* Centro: Badge de Status */}
+          <div className="flex items-center">
+            <div className="flex items-center gap-2 bg-slate-800/90 border border-slate-700/80 px-2.5 sm:px-3.5 py-1 rounded-full text-xs text-slate-200 shadow-inner">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span className="font-semibold">Pré-visualização</span>
+              <span className="hidden sm:inline text-slate-400 border-l border-slate-700 pl-2 text-[11px]">Simulação Ativa</span>
+            </div>
+          </div>
+
+          {/* Canto (Direita): Voltar para a Edição */}
+          <div className="flex items-center">
             <button
               onClick={() => router.push(`/builder/${id}`)}
               className="inline-flex items-center gap-2 px-3 sm:px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs sm:text-sm font-semibold transition-all shadow-xs hover:shadow-indigo-500/20 active:scale-95 cursor-pointer"
@@ -197,23 +218,6 @@ export default function PreviewPage({ params }: { params: Promise<{ id: string }
               <ArrowLeft size={16} />
               <span>Voltar ao Editor</span>
             </button>
-            <button
-              onClick={() => router.push('/')}
-              className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg text-xs sm:text-sm font-medium transition-colors border border-slate-700/60 cursor-pointer"
-              title="Ir para o menu principal de formulários"
-            >
-              <Home size={15} />
-              <span className="hidden sm:inline">Menu Principal</span>
-            </button>
-          </div>
-
-          {/* Right Status Badge */}
-          <div className="flex items-center">
-            <div className="flex items-center gap-2 bg-slate-800/90 border border-slate-700/80 px-2.5 sm:px-3 py-1 rounded-full text-xs text-slate-200 shadow-inner">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span className="font-semibold">Pré-visualização</span>
-              <span className="hidden md:inline text-slate-400 border-l border-slate-700 pl-2 text-[11px]">Simulação Ativa</span>
-            </div>
           </div>
 
         </div>
