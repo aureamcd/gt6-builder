@@ -147,8 +147,18 @@ export async function createEmptyForm(
   const userId = authData.user?.id || null;
 
   const newFormId = generateUUID();
+  const defaultSectionId = generateUUID();
   const shareToken = generateUUID();
   const defaultSettings: import('../types/form').FormSettings = settings || { visibility: 'public' };
+
+  const defaultSection: Section = {
+    id: defaultSectionId,
+    form_id: newFormId,
+    title: "Seção 1",
+    order_index: 0,
+    created_at: new Date().toISOString(),
+    questions: []
+  };
 
   const form: Form = {
     id: newFormId,
@@ -159,7 +169,7 @@ export async function createEmptyForm(
     user_id: userId || "",
     share_token: shareToken,
     settings: defaultSettings,
-    sections: []
+    sections: [defaultSection]
   };
 
   const { error } = await supabase.from('forms').insert({
@@ -172,6 +182,17 @@ export async function createEmptyForm(
     settings: defaultSettings
   });
   if (error) throw error;
+
+  const { error: sectionError } = await supabase.from('sections').insert({
+    id: defaultSection.id,
+    form_id: defaultSection.form_id,
+    title: defaultSection.title,
+    order_index: 0,
+    created_at: defaultSection.created_at
+  });
+  if (sectionError) {
+    console.error("Aviso ao criar seção padrão:", sectionError);
+  }
   
   return form;
 }

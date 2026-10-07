@@ -62,6 +62,7 @@ export interface Question {
   section_id: string;
   type: QuestionType;
   label: string;
+  description?: string | null;
   required: boolean;
   allow_add_item: boolean;
   trigger_source_question_id?: string | null;

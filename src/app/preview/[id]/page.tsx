@@ -395,7 +395,7 @@ export default function PreviewPage({ params }: { params: Promise<{ id: string }
         )}
 
         {/* Navigation Buttons */}
-        {sections.length > 0 && (
+        {sections.length > 0 ? (
           <div className="mt-6 sm:mt-8 flex flex-col-reverse sm:flex-row items-center justify-between gap-3 pb-12">
             <button
               onClick={() => setActiveSectionIndex(prev => Math.max(0, prev - 1))}
@@ -414,6 +414,21 @@ export default function PreviewPage({ params }: { params: Promise<{ id: string }
               {activeSectionIndex === sections.length - 1 && <CheckCircle2 size={18} />}
               <span>{isCurrentSectionLocked ? 'Vídeo Bloqueado' : (activeSectionIndex === sections.length - 1 ? 'Concluir Simulação' : 'Próxima')}</span>
               {activeSectionIndex !== sections.length - 1 && <ChevronRight size={20} />}
+            </button>
+          </div>
+        ) : (
+          <div className="mt-6 sm:mt-8 flex items-center justify-end pb-12">
+            <button
+              onClick={() => {
+                toast.success("Simulação finalizada! Nenhuma resposta foi gravada no banco de dados. Redirecionando para o editor...", "Fim da Pré-visualização");
+                setTimeout(() => {
+                  router.push(`/builder/${id}`);
+                }, 1500);
+              }}
+              className="w-full sm:w-auto flex items-center justify-center space-x-2 px-6 py-3 rounded-lg font-medium transition-colors bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm cursor-pointer"
+            >
+              <CheckCircle2 size={18} />
+              <span>Concluir Simulação</span>
             </button>
           </div>
         )}

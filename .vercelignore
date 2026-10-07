@@ -1,0 +1,18 @@
+# Tests and Playwright
+e2e/
+tests/
+playwright-report/
+test-results/
+blob-report/
+playwright.config.ts
+playwright.vercel.config.ts
+.playwright/
+
+# Scratch and Migration Scripts
+fix.js
+restore.js
+restore_sec2.js
+restore_sec3_7.js
+# Scripts
+scripts/
+
