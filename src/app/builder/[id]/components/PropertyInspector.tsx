@@ -114,7 +114,16 @@ function SectionVideoUploader({ videoUrl, onUpdate }: { videoUrl: string, onUpda
             allowFullScreen
           />
         </div>
-      ) : videoUrl && videoUrl.includes('supabase.co') ? (
+      ) : videoUrl && videoUrl.includes('vimeo.com') ? (
+        <div className="relative w-full overflow-hidden rounded-md bg-black" style={{ paddingTop: '56.25%' }}>
+          <iframe
+            className="absolute top-0 left-0 w-full h-full"
+            src={videoUrl.replace('vimeo.com/', 'player.vimeo.com/video/')}
+            title="Preview"
+            allowFullScreen
+          />
+        </div>
+      ) : videoUrl && videoUrl.trim() !== '' ? (
         <div className="relative w-full overflow-hidden rounded-md bg-black">
           <video className="w-full max-h-40" src={videoUrl} controls />
         </div>

@@ -1162,6 +1162,35 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                                         </span>
                                       ))}
                                     </div>
+                                  ) : typeof item.value === 'string' && (item.value.startsWith('http://') || item.value.startsWith('https://') || item.value.startsWith('data:')) ? (
+                                    <div className="bg-white border border-indigo-200 rounded-xl p-3 shadow-2xs space-y-2">
+                                      <div className="flex items-center justify-between gap-2">
+                                        <div className="flex items-center gap-2 min-w-0">
+                                          <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
+                                            <FileText size={16} />
+                                          </div>
+                                          <div className="min-w-0">
+                                            <span className="text-xs font-semibold text-slate-800 truncate block">
+                                              {item.value.startsWith('data:') ? 'Arquivo anexado (base64)' : (decodeURIComponent(item.value.split('/').pop() || 'Arquivo Anexado').replace(/^sub_[^_]+_\d+_/, '').replace(/^\d+_/, ''))}
+                                            </span>
+                                          </div>
+                                        </div>
+                                        <a
+                                          href={item.value}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-semibold transition-colors shrink-0"
+                                        >
+                                          <ExternalLink size={13} />
+                                          <span>Ver / Baixar</span>
+                                        </a>
+                                      </div>
+                                      {/\.(jpg|jpeg|png|webp|gif|svg)(\?.*)?$/i.test(item.value) && (
+                                        <div className="border border-slate-100 rounded-lg overflow-hidden max-h-36 bg-slate-50 flex items-center justify-center">
+                                          <img src={item.value} alt="Preview da Resposta" className="max-h-36 object-contain" />
+                                        </div>
+                                      )}
+                                    </div>
                                   ) : (
                                     <div className="bg-white border-l-4 border-indigo-500 border-y border-r border-slate-200/80 rounded-r-xl p-2.5 sm:p-3 text-xs sm:text-sm text-slate-900 font-medium shadow-2xs break-words">
                                       {item.value}

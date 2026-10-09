@@ -1,6 +1,12 @@
-import React, { useRef } from "react";
+import React, { useState, useRef } from "react";
 import { Question } from "../types/form";
-import { Calendar, UploadCloud, Video, AlertCircle } from "lucide-react";
+import {
+  Calendar, UploadCloud, Video, AlertCircle, Loader2,
+  CheckCircle2, FileText, Trash2, Image as ImageIcon,
+  Headphones, ExternalLink
+} from "lucide-react";
+import { supabase, getFriendlyErrorMessage } from "@/lib/supabase";
+import { globalToast } from "@/context/ToastContext";
 
 interface QuestionRendererProps {
   question: Question;
@@ -13,6 +19,220 @@ interface QuestionRendererProps {
   schema?: any;
   onVideoTimeUpdate?: (time: number) => void;
   renderCommentButton?: (questionId: string, questionLabel: string) => React.ReactNode;
+}
+
+function FileUploadAnswerField({
+  value,
+  onChange,
+  questionId
+}: {
+  value: any;
+  onChange: (val: any) => void;
+  questionId: string;
+}) {
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = async (file: File) => {
+    if (!file) return;
+
+    if (file.size > 25 * 1024 * 1024) { // 25MB
+      const msg = "O arquivo ultrapassa o limite permitido de 25MB. Escolha um arquivo menor.";
+      setUploadError(msg);
+      globalToast.warning(msg, "Arquivo muito grande");
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadError(null);
+
+    try {
+      const safeName = file.name
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-zA-Z0-9.\-_]/g, "_")
+        .toLowerCase();
+
+      const fileName = `sub_${questionId}_${Date.now()}_${safeName}`;
+
+      // Tenta fazer upload no bucket form-submissions ou form-media
+      let uploadedUrl: string | null = null;
+      const res1 = await supabase.storage.from('form-submissions').upload(fileName, file, { upsert: false });
+      if (!res1.error) {
+        const { data } = supabase.storage.from('form-submissions').getPublicUrl(fileName);
+        uploadedUrl = data?.publicUrl || null;
+      } else {
+        const res2 = await supabase.storage.from('form-media').upload(fileName, file, { upsert: false });
+        if (!res2.error) {
+          const { data } = supabase.storage.from('form-media').getPublicUrl(fileName);
+          uploadedUrl = data?.publicUrl || null;
+        } else {
+          // Se nenhum bucket de storage estiver configurado no Supabase, usa fallback local Base64 para arquivos até 3MB
+          if (file.size <= 3 * 1024 * 1024) {
+            await new Promise<void>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => {
+                if (reader.result) {
+                  onChange(reader.result.toString());
+                  globalToast.info("Arquivo anexado localmente.", "Upload Concluído");
+                  resolve();
+                } else {
+                  reject(new Error("Falha ao ler arquivo local"));
+                }
+              };
+              reader.onerror = () => reject(reader.error);
+              reader.readAsDataURL(file);
+            });
+            return;
+          }
+          throw res1.error;
+        }
+      }
+
+      if (uploadedUrl) {
+        onChange(uploadedUrl);
+        globalToast.success("Arquivo enviado com sucesso!", "Upload Concluído");
+      }
+    } catch (err: any) {
+      console.error("Erro no upload do arquivo:", err);
+      // Fallback base64 para arquivos pequenos se houver erro de permissão/rede
+      if (file.size <= 3 * 1024 * 1024) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (reader.result) {
+            onChange(reader.result.toString());
+            globalToast.info("Arquivo anexado localmente.", "Upload Salvo");
+          }
+        };
+        reader.readAsDataURL(file);
+      } else {
+        const errorFriendly = getFriendlyErrorMessage(err);
+        setUploadError(errorFriendly);
+        globalToast.error(errorFriendly, "Erro no Upload");
+      }
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const getFileName = (val: string) => {
+    if (!val) return '';
+    if (val.startsWith('data:')) return 'Arquivo anexado (base64)';
+    try {
+      const parts = val.split('/');
+      const rawName = parts[parts.length - 1];
+      const cleanName = rawName.replace(/^sub_[^_]+_\d+_/, '').replace(/^\d+_/, '');
+      return decodeURIComponent(cleanName) || rawName;
+    } catch {
+      return 'Arquivo anexado';
+    }
+  };
+
+  if (value) {
+    const isImage = typeof value === 'string' && (/\.(jpg|jpeg|png|webp|gif|svg)(\?.*)?$/i.test(value) || value.startsWith('data:image/'));
+    const fileName = getFileName(typeof value === 'string' ? value : value?.name || '');
+
+    return (
+      <div className="w-full max-w-lg bg-white border border-indigo-100 rounded-xl p-4 shadow-sm space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
+              {isImage ? <ImageIcon size={20} /> : <FileText size={20} />}
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-slate-800 truncate" title={fileName}>
+                {fileName}
+              </p>
+              <span className="text-xs text-emerald-600 font-medium flex items-center gap-1">
+                <CheckCircle2 size={12} /> Arquivo anexado com sucesso
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5 shrink-0">
+            <a
+              href={typeof value === 'string' ? value : (value as any)?.url || '#'}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+              title="Abrir / Visualizar arquivo"
+            >
+              <ExternalLink size={16} />
+            </a>
+            <button
+              type="button"
+              onClick={() => onChange(null)}
+              className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+              title="Remover arquivo"
+            >
+              <Trash2 size={16} />
+            </button>
+          </div>
+        </div>
+
+        {isImage && (
+          <div className="mt-2 border border-slate-100 rounded-lg overflow-hidden max-h-48 bg-slate-50 flex items-center justify-center">
+            <img src={value} alt="Preview do Arquivo" className="max-h-48 object-contain" />
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full max-w-md space-y-2">
+      <div
+        onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+        onDragLeave={() => setIsDragOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setIsDragOver(false);
+          if (e.dataTransfer.files?.[0]) handleFile(e.dataTransfer.files[0]);
+        }}
+        onClick={() => !isUploading && fileInputRef.current?.click()}
+        className={`w-full border-2 border-dashed rounded-xl p-6 sm:p-8 flex flex-col items-center justify-center text-center transition-all cursor-pointer ${
+          isDragOver
+            ? 'border-indigo-500 bg-indigo-50/50 scale-[1.01]'
+            : 'border-slate-300 hover:border-indigo-400 bg-slate-50/70 hover:bg-indigo-50/20'
+        } ${isUploading ? 'opacity-75 pointer-events-none' : ''}`}
+      >
+        <input
+          ref={fileInputRef}
+          type="file"
+          className="hidden"
+          onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
+        />
+        {isUploading ? (
+          <div className="flex flex-col items-center gap-2">
+            <Loader2 size={32} className="animate-spin text-indigo-600" />
+            <span className="text-sm font-medium text-slate-700">Enviando arquivo...</span>
+            <span className="text-xs text-slate-400">Aguarde o upload ser concluído</span>
+          </div>
+        ) : (
+          <>
+            <div className="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-3">
+              <UploadCloud size={24} />
+            </div>
+            <span className="font-semibold text-sm text-slate-700">
+              Clique ou arraste um arquivo para enviar
+            </span>
+            <span className="text-xs mt-1 text-slate-400">
+              Suporta PDF, JPG, PNG, DOCX, ZIP (Máx 25MB)
+            </span>
+          </>
+        )}
+      </div>
+      {uploadError && (
+        <div className="flex items-center gap-1.5 text-xs text-red-600 font-medium pl-1">
+          <AlertCircle size={14} className="shrink-0" />
+          <span>{uploadError}</span>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function QuestionRenderer({ 
@@ -237,7 +457,7 @@ export default function QuestionRenderer({
                 <span className="text-slate-700 font-medium">Adicionar outro:</span>
                 <input 
                   type="text" 
-                  className="border-b border-slate-300 focus:border-indigo-500 outline-none px-2 py-1 flex-1 bg-transparent max-w-xs text-slate-900 placeholder-slate-400"
+                  className="border-b border-slate-300 focus:border-indigo-500 outline-none px-2 py-1 flex-1 bg-transparent max-w-xs text-slate-900 placeholder-slate-400" 
                   placeholder="Digite e aperte Enter..."
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && e.currentTarget.value.trim()) {
@@ -307,14 +527,25 @@ export default function QuestionRenderer({
                   src={question.video_url.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
                   title="Video Preview"
                   allowFullScreen
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 />
               </div>
-            ) : question.video_url && question.video_url.includes('supabase.co') ? (
-              <div className="relative w-full max-w-2xl overflow-hidden rounded-xl bg-black">
+            ) : question.video_url && question.video_url.includes('vimeo.com') ? (
+              <div className="relative w-full max-w-2xl overflow-hidden rounded-xl shadow-md bg-black" style={{ paddingTop: '56.25%' }}>
+                <iframe 
+                  className="absolute top-0 left-0 w-full h-full"
+                  src={question.video_url.replace('vimeo.com/', 'player.vimeo.com/video/')}
+                  title="Video Preview"
+                  allowFullScreen
+                />
+              </div>
+            ) : question.video_url && question.video_url.trim() !== '' ? (
+              <div className="relative w-full max-w-2xl overflow-hidden rounded-xl bg-black shadow-md">
                 <video 
                   className="w-full max-h-[500px]"
                   src={question.video_url}
                   controls
+                  playsInline
                   onTimeUpdate={(e) => {
                     const video = e.currentTarget;
                     if (video.currentTime > maxTimeRef.current + 1) {
@@ -348,11 +579,11 @@ export default function QuestionRenderer({
         )}
 
         {question.type === 'FILE_UPLOAD' && (
-          <div className="w-full max-w-md border-2 border-dashed border-slate-300 rounded-xl p-8 flex flex-col items-center justify-center text-slate-500 bg-slate-50">
-            <UploadCloud size={32} className="mb-3 text-indigo-400" />
-            <span className="font-medium">Clique ou arraste arquivos para enviar</span>
-            <span className="text-xs mt-1 text-slate-400">Suporta PDF, JPG, PNG (Max 10MB)</span>
-          </div>
+          <FileUploadAnswerField
+            value={value}
+            onChange={onChange}
+            questionId={question.id}
+          />
         )}
 
         {question.type === 'TEXT_MARKDOWN' && (

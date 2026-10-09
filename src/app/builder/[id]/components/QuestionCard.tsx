@@ -54,6 +54,10 @@ export function QuestionCard({
 }: QuestionCardProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [activeTab, setActiveTab] = useState<'url' | 'upload'>('url');
+  const [imageActiveTab, setImageActiveTab] = useState<'url' | 'upload'>('url');
+  const [audioActiveTab, setAudioActiveTab] = useState<'url' | 'upload'>('url');
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [isUploadingAudio, setIsUploadingAudio] = useState(false);
   const [isDragEnabled, setIsDragEnabled] = useState(false);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -73,7 +77,7 @@ export function QuestionCard({
         .replace(/[^a-zA-Z0-9.\-_]/g, "_")
         .toLowerCase();
 
-      const fileName = `${Date.now()}_${safeName}`;
+      const fileName = `video_${Date.now()}_${safeName}`;
       const { error } = await supabase.storage
         .from('form-media')
         .upload(fileName, file, { upsert: false });
@@ -85,11 +89,108 @@ export function QuestionCard({
         .getPublicUrl(fileName);
 
       onUpdateVideoUrl(publicData.publicUrl);
+      globalToast.success("Vídeo enviado com sucesso!", "Upload Concluído");
     } catch (err: any) {
       console.error(err);
       globalToast.error(getFriendlyErrorMessage(err), "Erro no Upload");
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !onUpdateSubQuestionTemplate) return;
+
+    if (file.size > 15 * 1024 * 1024) { // 15MB
+      globalToast.warning("A imagem ultrapassa o limite de 15MB. Selecione um arquivo menor.", "Arquivo muito grande");
+      return;
+    }
+
+    setIsUploadingImage(true);
+    try {
+      const safeName = file.name
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-zA-Z0-9.\-_]/g, "_")
+        .toLowerCase();
+
+      const fileName = `img_${Date.now()}_${safeName}`;
+      const { error } = await supabase.storage
+        .from('form-media')
+        .upload(fileName, file, { upsert: false });
+
+      if (error) throw error;
+
+      const { data: publicData } = supabase.storage
+        .from('form-media')
+        .getPublicUrl(fileName);
+
+      onUpdateSubQuestionTemplate({
+        ...question.sub_question_template,
+        image_url: publicData.publicUrl
+      });
+      globalToast.success("Imagem enviada com sucesso!", "Upload Concluído");
+    } catch (err: any) {
+      console.error(err);
+      if (file.size <= 2 * 1024 * 1024) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (reader.result) {
+            onUpdateSubQuestionTemplate({
+              ...question.sub_question_template,
+              image_url: reader.result.toString()
+            });
+            globalToast.info("Imagem carregada localmente.", "Upload Salvo");
+          }
+        };
+        reader.readAsDataURL(file);
+      } else {
+        globalToast.error(getFriendlyErrorMessage(err), "Erro no Upload");
+      }
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
+  const handleAudioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !onUpdateSubQuestionTemplate) return;
+
+    if (file.size > 25 * 1024 * 1024) { // 25MB
+      globalToast.warning("O áudio ultrapassa o limite de 25MB. Selecione um arquivo menor.", "Arquivo muito grande");
+      return;
+    }
+
+    setIsUploadingAudio(true);
+    try {
+      const safeName = file.name
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-zA-Z0-9.\-_]/g, "_")
+        .toLowerCase();
+
+      const fileName = `audio_${Date.now()}_${safeName}`;
+      const { error } = await supabase.storage
+        .from('form-media')
+        .upload(fileName, file, { upsert: false });
+
+      if (error) throw error;
+
+      const { data: publicData } = supabase.storage
+        .from('form-media')
+        .getPublicUrl(fileName);
+
+      onUpdateSubQuestionTemplate({
+        ...question.sub_question_template,
+        audio_url: publicData.publicUrl
+      });
+      globalToast.success("Áudio enviado com sucesso!", "Upload Concluído");
+    } catch (err: any) {
+      console.error(err);
+      globalToast.error(getFriendlyErrorMessage(err), "Erro no Upload");
+    } finally {
+      setIsUploadingAudio(false);
     }
   };
 
@@ -199,8 +300,10 @@ export function QuestionCard({
             </div>
           )}
           {question.type === 'FILE_UPLOAD' && (
-            <div className="h-24 bg-slate-50 border border-slate-200 rounded-md flex flex-col items-center justify-center text-slate-400 border-dashed">
-              <UploadCloud size={24} className="mb-2" /> Arraste e solte arquivos aqui
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex flex-col items-center justify-center text-slate-500 border-dashed space-y-1">
+              <UploadCloud size={28} className="text-indigo-500 mb-1" />
+              <span className="text-xs font-semibold text-slate-700">Upload de Arquivo (Campo do Respondente)</span>
+              <span className="text-[11px] text-slate-400">Permite aos respondentes anexar documentos, PDFs e imagens até 25MB</span>
             </div>
           )}
           {question.type === 'TEXT_MARKDOWN' && (
@@ -216,41 +319,144 @@ export function QuestionCard({
           )}
           {question.type === 'MEDIA_IMAGE' && (
             <div className="space-y-4">
-              <input
-                type="text"
-                placeholder="Cole o link da imagem aqui (ex: https://site.com/imagem.png)"
-                value={question.sub_question_template?.image_url || ''}
-                onChange={(e) => onUpdateSubQuestionTemplate && onUpdateSubQuestionTemplate({ ...question.sub_question_template, image_url: e.target.value })}
-                className="w-full text-sm bg-white border border-slate-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-md px-3 py-2 outline-none"
-              />
+              <div className="flex space-x-2 border-b border-slate-200">
+                <button
+                  type="button"
+                  className={`px-3 py-1.5 text-xs font-medium border-b-2 transition-colors cursor-pointer ${imageActiveTab === 'url' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                  onClick={() => setImageActiveTab('url')}
+                >
+                  Link Externo (URL)
+                </button>
+                <button
+                  type="button"
+                  className={`px-3 py-1.5 text-xs font-medium border-b-2 transition-colors cursor-pointer ${imageActiveTab === 'upload' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                  onClick={() => setImageActiveTab('upload')}
+                >
+                  Fazer Upload (Nativo)
+                </button>
+              </div>
+
+              {imageActiveTab === 'url' ? (
+                <input
+                  type="text"
+                  placeholder="Cole o link da imagem aqui (ex: https://site.com/imagem.png)"
+                  value={question.sub_question_template?.image_url || ''}
+                  onChange={(e) => onUpdateSubQuestionTemplate && onUpdateSubQuestionTemplate({ ...question.sub_question_template, image_url: e.target.value })}
+                  className="w-full text-sm bg-white border border-slate-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-md px-3 py-2 outline-none"
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center p-6 bg-slate-50 border border-slate-200 border-dashed rounded-lg">
+                  {isUploadingImage ? (
+                    <div className="flex flex-col items-center text-slate-500">
+                      <Loader2 size={24} className="animate-spin mb-2 text-indigo-600" />
+                      <span className="text-sm">Enviando imagem...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <ImageIcon size={24} className="mb-2 text-slate-400" />
+                      <span className="text-sm text-slate-600 mb-3">Envie um arquivo PNG, JPG, WebP ou GIF (Max 15MB)</span>
+                      <label className="cursor-pointer bg-white px-4 py-2 border border-slate-300 rounded-md text-sm font-medium text-slate-700 hover:bg-slate-50 shadow-xs">
+                        Selecionar Imagem
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handleImageUpload}
+                        />
+                      </label>
+                    </>
+                  )}
+                </div>
+              )}
+
               {question.sub_question_template?.image_url ? (
-                <div className="flex justify-center border border-slate-200 rounded-lg p-2 bg-slate-50">
+                <div className="flex flex-col items-center border border-slate-200 rounded-lg p-2 bg-slate-50 relative group">
                   <img src={question.sub_question_template.image_url} alt="Preview" className="max-h-64 object-contain rounded-md" />
+                  <button
+                    type="button"
+                    onClick={() => onUpdateSubQuestionTemplate && onUpdateSubQuestionTemplate({ ...question.sub_question_template, image_url: '' })}
+                    className="absolute top-2 right-2 p-1.5 bg-white/90 hover:bg-red-50 text-slate-600 hover:text-red-600 rounded-md border border-slate-200 shadow-sm transition-colors"
+                    title="Remover imagem"
+                  >
+                    <Trash2 size={14} />
+                  </button>
                 </div>
               ) : (
-                <div className="h-24 bg-slate-50 border border-slate-200 rounded-md flex flex-col items-center justify-center text-slate-400 border-dashed">
-                  <ImageIcon size={24} className="mb-2" />
-                  <span className="text-sm">Cole a URL da imagem acima</span>
+                <div className="h-20 bg-slate-50 border border-slate-200 rounded-md flex flex-col items-center justify-center text-slate-400 border-dashed">
+                  <ImageIcon size={20} className="mb-1 text-slate-300" />
+                  <span className="text-xs">Nenhuma imagem carregada</span>
                 </div>
               )}
             </div>
           )}
           {question.type === 'MEDIA_AUDIO' && (
             <div className="space-y-4">
-              <input
-                type="text"
-                placeholder="Cole o link do áudio aqui (ex: https://site.com/audio.mp3)"
-                value={question.sub_question_template?.audio_url || ''}
-                onChange={(e) => onUpdateSubQuestionTemplate && onUpdateSubQuestionTemplate({ ...question.sub_question_template, audio_url: e.target.value })}
-                className="w-full text-sm bg-white border border-slate-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-md px-3 py-2 outline-none"
-              />
+              <div className="flex space-x-2 border-b border-slate-200">
+                <button
+                  type="button"
+                  className={`px-3 py-1.5 text-xs font-medium border-b-2 transition-colors cursor-pointer ${audioActiveTab === 'url' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                  onClick={() => setAudioActiveTab('url')}
+                >
+                  Link Externo (URL)
+                </button>
+                <button
+                  type="button"
+                  className={`px-3 py-1.5 text-xs font-medium border-b-2 transition-colors cursor-pointer ${audioActiveTab === 'upload' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                  onClick={() => setAudioActiveTab('upload')}
+                >
+                  Fazer Upload (Nativo)
+                </button>
+              </div>
+
+              {audioActiveTab === 'url' ? (
+                <input
+                  type="text"
+                  placeholder="Cole o link do áudio aqui (ex: https://site.com/audio.mp3)"
+                  value={question.sub_question_template?.audio_url || ''}
+                  onChange={(e) => onUpdateSubQuestionTemplate && onUpdateSubQuestionTemplate({ ...question.sub_question_template, audio_url: e.target.value })}
+                  className="w-full text-sm bg-white border border-slate-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-md px-3 py-2 outline-none"
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center p-6 bg-slate-50 border border-slate-200 border-dashed rounded-lg">
+                  {isUploadingAudio ? (
+                    <div className="flex flex-col items-center text-slate-500">
+                      <Loader2 size={24} className="animate-spin mb-2 text-indigo-600" />
+                      <span className="text-sm">Enviando áudio...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <Headphones size={24} className="mb-2 text-slate-400" />
+                      <span className="text-sm text-slate-600 mb-3">Envie um arquivo MP3, WAV, AAC ou OGG (Max 25MB)</span>
+                      <label className="cursor-pointer bg-white px-4 py-2 border border-slate-300 rounded-md text-sm font-medium text-slate-700 hover:bg-slate-50 shadow-xs">
+                        Selecionar Áudio
+                        <input
+                          type="file"
+                          accept="audio/*"
+                          className="hidden"
+                          onChange={handleAudioUpload}
+                        />
+                      </label>
+                    </>
+                  )}
+                </div>
+              )}
+
               {question.sub_question_template?.audio_url ? (
-                <div className="flex justify-center border border-slate-200 rounded-lg p-4 bg-slate-50">
+                <div className="flex flex-col items-center border border-slate-200 rounded-lg p-4 bg-slate-50 relative group">
                   <audio src={question.sub_question_template.audio_url} controls className="w-full max-w-md" />
+                  <button
+                    type="button"
+                    onClick={() => onUpdateSubQuestionTemplate && onUpdateSubQuestionTemplate({ ...question.sub_question_template, audio_url: '' })}
+                    className="absolute top-2 right-2 p-1.5 bg-white/90 hover:bg-red-50 text-slate-600 hover:text-red-600 rounded-md border border-slate-200 shadow-sm transition-colors"
+                    title="Remover áudio"
+                  >
+                    <Trash2 size={14} />
+                  </button>
                 </div>
               ) : (
                 <div className="h-16 bg-slate-50 border border-slate-200 rounded-md flex items-center justify-center text-slate-400 border-dashed">
-                  <Headphones size={20} className="mr-2" /> Cole a URL do áudio acima
+                  <Headphones size={18} className="mr-2 text-slate-300" />
+                  <span className="text-xs">Nenhum áudio carregado</span>
                 </div>
               )}
             </div>
@@ -259,12 +465,14 @@ export function QuestionCard({
             <div className="space-y-4">
               <div className="flex space-x-2 border-b border-slate-200">
                 <button
+                  type="button"
                   className={`px-3 py-1.5 text-xs font-medium border-b-2 transition-colors cursor-pointer ${activeTab === 'url' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
                   onClick={() => setActiveTab('url')}
                 >
-                  Link Externo (YouTube)
+                  Link Externo (YouTube/Vimeo)
                 </button>
                 <button
+                  type="button"
                   className={`px-3 py-1.5 text-xs font-medium border-b-2 transition-colors cursor-pointer ${activeTab === 'upload' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
                   onClick={() => setActiveTab('upload')}
                 >
@@ -275,7 +483,7 @@ export function QuestionCard({
               {activeTab === 'url' ? (
                 <input
                   type="text"
-                  placeholder="Cole o link do vídeo aqui (ex: https://youtube.com/watch?v=...)"
+                  placeholder="Cole o link do vídeo aqui (ex: https://youtube.com/watch?v=... ou link direto .mp4)"
                   value={question.video_url || ''}
                   onChange={(e) => onUpdateVideoUrl && onUpdateVideoUrl(e.target.value)}
                   className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-md px-3 py-2 outline-none"
@@ -314,7 +522,16 @@ export function QuestionCard({
                     allowFullScreen
                   />
                 </div>
-              ) : question.video_url && question.video_url.includes('supabase.co') ? (
+              ) : question.video_url && question.video_url.includes('vimeo.com') ? (
+                <div className="relative w-full overflow-hidden rounded-lg bg-black" style={{ paddingTop: '56.25%' }}>
+                  <iframe
+                    className="absolute top-0 left-0 w-full h-full"
+                    src={question.video_url.replace('vimeo.com/', 'player.vimeo.com/video/')}
+                    title="Video Preview"
+                    allowFullScreen
+                  />
+                </div>
+              ) : question.video_url && question.video_url.trim() !== '' ? (
                 <div className="relative w-full overflow-hidden rounded-lg bg-black">
                   <video
                     className="w-full max-h-80"
