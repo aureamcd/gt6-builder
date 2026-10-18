@@ -1,5 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
-import { createEmptyForm } from '../src/lib/api';
+import { createEmptyForm, deleteForm } from '../src/lib/api';
 
 test.describe('Consistência de Front-end, Navegação de Ida e Volta & Acesso Público e Privado', () => {
   test.describe.configure({ mode: 'serial' });
@@ -8,9 +8,17 @@ test.describe('Consistência de Front-end, Navegação de Ida e Volta & Acesso P
   const userEmail = `tester.consistency.${randomSuffix}@instituicao.org`;
   const userPassword = `PassConsistency#${randomSuffix}`;
   let formId = '';
+  let privateFormId = '';
   let shareToken = '';
   let privateShareToken = '';
   const privateAccessCode = 'GT-7788';
+
+  test.afterAll(async () => {
+    try {
+      if (formId) await deleteForm(formId);
+      if (privateFormId) await deleteForm(privateFormId);
+    } catch (e) {}
+  });
 
   async function ensureLoggedIn(page: Page) {
     await page.goto('/login');

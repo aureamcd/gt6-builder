@@ -5,9 +5,9 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publish
 
 if (typeof window !== 'undefined') {
   try {
-    // Limpar resíduos antigos de sessões e tokens no localStorage
+    // Limpar resíduos antigos de sessões do Supabase no localStorage (autenticação usa sessionStorage)
     Object.keys(localStorage).forEach(key => {
-      if (key.startsWith('sb-') || key.startsWith('gt6_') || key.startsWith('form_preview_')) {
+      if (key.startsWith('sb-')) {
         localStorage.removeItem(key);
       }
     });

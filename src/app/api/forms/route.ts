@@ -17,7 +17,7 @@ export async function POST(request: Request) {
       .upsert({
         id: body.form_id,
         title: body.title,
-        schema: body, // store the whole object as jsonb
+        settings: body.settings || null,
         updated_at: new Date().toISOString()
       }, { onConflict: 'id' })
       .select()

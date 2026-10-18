@@ -2,7 +2,7 @@ import React, { useState, useEffect, use, useRef, useMemo } from "react";
 import {
   Plus, Layers, Trash2, X, Loader2, MessageSquare, BarChart3, Inbox,
   CheckCircle2, AlertCircle, RefreshCw, ExternalLink, FileSpreadsheet,
-  Clock, Hash, HelpCircle, Download, ChevronDown, FileText
+  Clock, Hash, HelpCircle, Download, ChevronDown, FileText, Settings
 } from "lucide-react";
 import { Form, Section, Question, QuestionType, Option, FormComment } from "@/types/form";
 import {
@@ -62,6 +62,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
   const [activeSectionId, setActiveSectionId] = useState<string>("");
   const [selectedQuestionId, setSelectedQuestionId] = useState<string | null>(null);
   const [selectedElementType, setSelectedElementType] = useState<'question' | 'section' | null>(null);
+  const [isMobileInspectorOpen, setIsMobileInspectorOpen] = useState(false);
   const [draggedItem, setDraggedItem] = useState<{ sectionId: string; index: number } | null>(null);
   const [dragOverItem, setDragOverItem] = useState<{ sectionId: string; index: number } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -126,6 +127,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
     schema,
     isLoading,
     isAutoSaveEnabled,
+    isDeletingForm,
     showToast
   });
 
@@ -187,7 +189,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
           fetchComments();
           fetchResponses();
 
-          const isOwner = user && user.id === data.user_id;
+          const isOwner = Boolean(user && user.id === data.user_id);
           const isPrivate = data.settings?.visibility === 'private' && Boolean(data.settings?.access_token);
 
           if (isPrivate && !isOwner) {
@@ -210,7 +212,9 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
             }
           } else {
             setIsUnlocked(true);
-            registerAccessedForm(id);
+            if (!isOwner) {
+              registerAccessedForm(id);
+            }
           }
 
           if (typeof window !== 'undefined') {
@@ -260,7 +264,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
       allow_add_item: false,
       order_index: schema?.sections?.find(s => s.id === activeSectionId)?.questions?.length || 0,
       created_at: new Date().toISOString(),
-      options: type === 'RADIO_SINGLE' || type === 'CHECKBOX_MULTIPLE'
+      options: type === 'RADIO_SINGLE' || type === 'CHECKBOX_MULTIPLE' || type === 'DROPDOWN'
         ? [{
           id: generateId(),
           question_id: newQuestionId,
@@ -268,6 +272,23 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
           order_index: 0,
           created_at: new Date().toISOString()
         }]
+        : type === 'GRID_LIKERT'
+          ? [1, 2, 3, 4, 5].map((n, idx) => ({
+            id: generateId(),
+            question_id: newQuestionId,
+            label: String(n),
+            weight: n,
+            order_index: idx,
+            created_at: new Date().toISOString()
+          }))
+          : undefined,
+      sub_question_template: type === 'GRID_LIKERT'
+        ? {
+          sub_questions: [
+            { id: generateId(), label: "Critério 1" },
+            { id: generateId(), label: "Critério 2" }
+          ]
+        }
         : undefined
     };
 
@@ -298,6 +319,10 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
 
     setSelectedQuestionId(newQuestionId);
     setSelectedElementType('question');
+    setIsMobileMenuOpen(false);
+    if (type === 'DYNAMIC_REPEATER' || type === 'GRID_LIKERT' || type === 'CONDITIONAL_LOGIC') {
+      setIsMobileInspectorOpen(true);
+    }
   };
 
   const updateQuestionLabel = (sectionId: string, questionId: string, newLabel: string) => {
@@ -331,12 +356,22 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
   const deleteQuestion = (sectionId: string, questionId: string) => {
     setSchema(prev => prev ? ({
       ...prev,
-      sections: prev.sections?.map(sec =>
-        sec.id === sectionId
-          ? { ...sec, questions: sec.questions?.filter(q => q.id !== questionId) }
-          : sec
-      )
+      sections: prev.sections?.map(sec => {
+        if (sec.id === sectionId) {
+          const filtered = (sec.questions || []).filter(q => q.id !== questionId);
+          filtered.forEach((q, idx) => { q.order_index = idx; });
+          return { ...sec, questions: filtered };
+        }
+        return sec;
+      })
     }) : prev);
+
+    if (selectedQuestionId === questionId) {
+      setSelectedQuestionId(null);
+      setSelectedElementType(null);
+      setIsMobileInspectorOpen(false);
+    }
+    showToast("Pergunta removida.", "info", "Pergunta Excluída");
   };
 
   const reorderQuestion = (sectionId: string, fromIndex: number, toIndex: number) => {
@@ -413,9 +448,11 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
             ...sec,
             questions: sec.questions?.map(q => {
               if (q.id === questionId) {
+                const filteredOpts = (q.options || []).filter(opt => opt.id !== optionId);
+                filteredOpts.forEach((opt, idx) => { opt.order_index = idx; });
                 return {
                   ...q,
-                  options: q.options?.filter(opt => opt.id !== optionId)
+                  options: filteredOpts
                 };
               }
               return q;
@@ -428,7 +465,20 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
 
   const deleteSection = (sectionId: string) => {
     if (!schema) return;
-    const remainingSections = (schema.sections || []).filter(s => s.id !== sectionId);
+    if ((schema.sections || []).length <= 1) {
+      showToast("O questionário precisa ter pelo menos 1 seção.", "info", "Ação não permitida");
+      return;
+    }
+    const targetSec = schema.sections?.find(s => s.id === sectionId);
+    const hasQuestions = (targetSec?.questions?.length || 0) > 0;
+    if (hasQuestions && !window.confirm(`Tem certeza que deseja excluir a seção "${targetSec?.title || 'Seção'}" e todas as suas ${targetSec?.questions?.length} perguntas?`)) {
+      return;
+    }
+
+    const remainingSections = (schema.sections || [])
+      .filter(s => s.id !== sectionId)
+      .map((s, idx) => ({ ...s, order_index: idx }));
+
     setSchema(prev => prev ? ({
       ...prev,
       sections: remainingSections
@@ -444,6 +494,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
 
     if (selectedElementType === 'section') {
       setSelectedElementType(null);
+      setIsMobileInspectorOpen(false);
     }
 
     showToast("Seção excluída com sucesso.", "success", "Seção Excluída");
@@ -468,11 +519,12 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
   };
 
   // Mapeamento de perguntas e opções para converter IDs em textos legíveis nas respostas
-  const { questionMap, optionMap } = useMemo(() => {
+  const { questionMap, optionMap, subQuestionLabelMap } = useMemo(() => {
     const qMap = new Map<string, { label: string; sectionTitle: string; type: string; options: Map<string, string> }>();
     const optMap = new Map<string, string>(); // optId -> optLabel
+    const subQMap = new Map<string, string>(); // subQuestionId -> subQuestionLabel
 
-    if (!schema?.sections) return { questionMap: qMap, optionMap: optMap };
+    if (!schema?.sections) return { questionMap: qMap, optionMap: optMap, subQuestionLabelMap: subQMap };
 
     schema.sections.forEach(sec => {
       sec.questions?.forEach(q => {
@@ -485,9 +537,12 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
           }
         });
 
-        // Mapear opções de sub-perguntas em templates dinâmicos se existirem
+        // Mapear sub-perguntas e suas opções em templates dinâmicos ou matriz Likert
         if (q.sub_question_template?.sub_questions) {
           q.sub_question_template.sub_questions.forEach((sq: any) => {
+            if (sq.id && sq.label) {
+              subQMap.set(sq.id, sq.label);
+            }
             if (sq.options && Array.isArray(sq.options)) {
               sq.options.forEach((subOpt: any) => {
                 if (typeof subOpt === 'object' && subOpt.id && subOpt.label) {
@@ -498,8 +553,12 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
           });
         }
 
+        const defaultLabel = q.type === 'DYNAMIC_REPEATER'
+          ? 'Detalhamento por Sistema / Item Selecionado'
+          : 'Pergunta sem título';
+
         qMap.set(q.id, {
-          label: q.label || 'Pergunta sem título',
+          label: (q.label && q.label.trim() !== '') ? q.label : defaultLabel,
           sectionTitle: sec.title || 'Seção',
           type: q.type,
           options: questionOptions
@@ -507,7 +566,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
       });
     });
 
-    return { questionMap: qMap, optionMap: optMap };
+    return { questionMap: qMap, optionMap: optMap, subQuestionLabelMap: subQMap };
   }, [schema]);
 
   // Função auxiliar para formatar e traduzir IDs de opções em nomes legíveis
@@ -541,7 +600,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
       };
     }
 
-    // Caso seja Objeto Dinâmico (ex: DYNAMIC_REPEATER)
+    // Caso seja Objeto Dinâmico (ex: GRID_LIKERT ou DYNAMIC_REPEATER)
     if (typeof rawVal === 'object') {
       if (rawVal.selected && Array.isArray(rawVal.selected)) {
         const selectedLabels = rawVal.selected.map((optId: string) => resolveOption(optId));
@@ -550,6 +609,46 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
           badges: selectedLabels
         };
       }
+
+      // Matriz Likert: { [rowId]: colOptId }
+      if (qInfo?.type === 'GRID_LIKERT') {
+        const entries = Object.entries(rawVal).map(([rowId, colVal]) => {
+          const rowLabel = subQuestionLabelMap.get(rowId) || rowId;
+          const colLabel = resolveOption(String(colVal));
+          return `${rowLabel}: ${colLabel}`;
+        });
+        return {
+          text: entries.join(' | '),
+          badges: entries
+        };
+      }
+
+      // Repetidor Dinâmico: { [optVal]: { [subQId]: subVal } }
+      const firstVal = Object.values(rawVal)[0];
+      if (firstVal && typeof firstVal === 'object' && !Array.isArray(firstVal)) {
+        const groupStrings: string[] = [];
+        const badgesList: string[] = [];
+        Object.entries(rawVal).forEach(([optKey, subObj]: [string, any]) => {
+          const itemLabel = resolveOption(optKey);
+          const subPairs: string[] = [];
+          if (subObj && typeof subObj === 'object') {
+            Object.entries(subObj).forEach(([subQId, subAns]) => {
+              const subQLabel = subQuestionLabelMap.get(subQId) || subQId;
+              const formattedSubAns = Array.isArray(subAns)
+                ? subAns.map(x => resolveOption(String(x))).join(', ')
+                : resolveOption(String(subAns));
+              subPairs.push(`${subQLabel}: ${formattedSubAns}`);
+              badgesList.push(`[${itemLabel}] ${subQLabel}: ${formattedSubAns}`);
+            });
+          }
+          groupStrings.push(`[${itemLabel}] ${subPairs.join(' • ')}`);
+        });
+        return {
+          text: groupStrings.join(' | '),
+          badges: badgesList
+        };
+      }
+
       return { text: JSON.stringify(rawVal) };
     }
 
@@ -773,6 +872,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
 
   const handleDeleteForm = async () => {
     if (!schema) return;
+    setIsAutoSaveEnabled(false);
     setIsDeletingForm(true);
     try {
       const success = await deleteForm(schema.id);
@@ -780,13 +880,14 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
         showToast("Formulário excluído com sucesso.", "success");
         router.push('/');
       } else {
+        setIsDeletingForm(false);
         showToast("Erro ao excluir o formulário.", "error");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      showToast("Falha ao excluir o formulário.", "error");
-    } finally {
       setIsDeletingForm(false);
+      showToast(err?.message || "Falha ao excluir o formulário.", "error");
+    } finally {
       setIsDeleteModalOpen(false);
     }
   };
@@ -958,6 +1059,12 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
           onExportXML={handleExportXMLAction}
           onImportXML={handleImportXMLAction}
           onSaveClick={() => handleManualSave(true)}
+          onBackClick={async () => {
+            if (isAutoSaveEnabled && !isDeletingForm && schema) {
+              await handleManualSave(false);
+            }
+            router.push('/');
+          }}
           fetchResponses={fetchResponses}
           id={id}
         />
@@ -1267,23 +1374,36 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                       setSelectedElementType('section');
                       setSelectedQuestionId(null);
                     }}
-                    className={`bg-white rounded-xl p-6 border shadow-sm transition-all cursor-pointer relative group/secCard ${
+                    className={`bg-white rounded-xl p-4 sm:p-6 border shadow-sm transition-all cursor-pointer relative group/secCard ${
                       selectedElementType === 'section' ? 'border-indigo-500 ring-2 ring-indigo-500/20' : 'border-slate-200 hover:border-slate-300'
                     }`}
                   >
-                    <div className="flex justify-between items-start">
-                      <div>
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="flex-1 min-w-0">
                         <span className="text-xs font-bold text-indigo-600 uppercase tracking-wider block mb-1">
                           Seção Atual
                         </span>
                         <input
                           value={selectedSection.title}
                           onChange={(e) => updateSectionProperty(selectedSection.id, 'title', e.target.value)}
-                          className="font-extrabold text-slate-800 text-xl bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-500 focus:outline-none w-full py-0.5"
+                          className="font-extrabold text-slate-800 text-lg sm:text-xl bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-500 focus:outline-none w-full py-0.5"
                           placeholder="Título da Seção..."
                         />
                       </div>
-                      <div className="flex items-center space-x-2 shrink-0">
+                      <div className="flex items-center space-x-1.5 sm:space-x-2 shrink-0">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedElementType('section');
+                            setSelectedQuestionId(null);
+                            setIsMobileInspectorOpen(true);
+                          }}
+                          className="lg:hidden flex items-center gap-1 px-2 py-1.5 text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-colors cursor-pointer"
+                          title="Propriedades da Seção"
+                        >
+                          <Settings size={14} />
+                          <span className="hidden sm:inline">Configurar</span>
+                        </button>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -1298,14 +1418,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              setSchema(prev => prev ? ({
-                                ...prev,
-                                sections: prev.sections?.filter(s => s.id !== selectedSection.id)
-                              }) : prev);
-                              const remaining = schema.sections?.filter(s => s.id !== selectedSection.id);
-                              if (remaining && remaining.length > 0) {
-                                setActiveSectionId(remaining[0].id);
-                              }
+                              deleteSection(selectedSection.id);
                             }}
                             className="p-1.5 text-slate-400 hover:text-red-500 bg-slate-50 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
                             title="Excluir Seção"
@@ -1337,6 +1450,11 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                         onClick={() => {
                           setSelectedQuestionId(q.id);
                           setSelectedElementType('question');
+                        }}
+                        onOpenProperties={() => {
+                          setSelectedQuestionId(q.id);
+                          setSelectedElementType('question');
+                          setIsMobileInspectorOpen(true);
                         }}
                         onUpdateLabel={(newLabel) => updateQuestionLabel(activeSectionId, q.id, newLabel)}
                         onUpdateVideoUrl={(newUrl) => updateQuestionVideoUrl(activeSectionId, q.id, newUrl)}
@@ -1378,6 +1496,8 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
             <PropertyInspector
               selectedElementType={selectedElementType}
               setSelectedElementType={setSelectedElementType}
+              isMobileInspectorOpen={isMobileInspectorOpen}
+              setIsMobileInspectorOpen={setIsMobileInspectorOpen}
               selectedSection={selectedSection}
               selectedQuestion={selectedQuestion}
               activeSectionId={activeSectionId}

@@ -7,6 +7,8 @@ import { globalToast } from "@/context/ToastContext";
 interface PropertyInspectorProps {
   selectedElementType: 'question' | 'section' | null;
   setSelectedElementType: (type: 'question' | 'section' | null) => void;
+  isMobileInspectorOpen?: boolean;
+  setIsMobileInspectorOpen?: (open: boolean) => void;
   selectedSection: Section | null;
   selectedQuestion: Question | null;
   activeSectionId: string;
@@ -135,6 +137,8 @@ function SectionVideoUploader({ videoUrl, onUpdate }: { videoUrl: string, onUpda
 export function PropertyInspector({
   selectedElementType,
   setSelectedElementType,
+  isMobileInspectorOpen = false,
+  setIsMobileInspectorOpen,
   selectedSection,
   selectedQuestion,
   activeSectionId,
@@ -154,16 +158,24 @@ export function PropertyInspector({
   return (
     <>
       {/* Mobile Overlay for Right Sidebar */}
-      <div
-        className="fixed inset-0 bg-slate-900/50 z-40 lg:hidden backdrop-blur-xs"
-        onClick={() => setSelectedElementType(null)}
-      />
-      <aside className="fixed inset-y-0 right-0 z-50 w-full sm:w-96 bg-white border-l border-slate-200 flex flex-col shadow-2xl lg:shadow-xl lg:relative lg:w-80 lg:z-20 shrink-0 transition-transform">
+      {isMobileInspectorOpen && (
+        <div
+          className="fixed inset-0 bg-slate-900/50 z-40 lg:hidden backdrop-blur-xs"
+          onClick={() => setIsMobileInspectorOpen?.(false)}
+        />
+      )}
+      <aside className={`fixed inset-y-0 right-0 z-50 w-full sm:w-96 bg-white border-l border-slate-200 flex-col shadow-2xl lg:shadow-xl lg:relative lg:w-80 lg:z-20 shrink-0 transition-transform ${isMobileInspectorOpen ? 'flex' : 'hidden lg:flex'}`}>
         <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
           <h2 className="font-bold text-slate-800">
             {selectedElementType === 'section' ? 'Propriedades da Seção' : 'Propriedades da Pergunta'}
           </h2>
-          <button onClick={() => setSelectedElementType(null)} className="text-slate-500 hover:text-slate-700 cursor-pointer">
+          <button
+            onClick={() => {
+              setIsMobileInspectorOpen?.(false);
+              setSelectedElementType(null);
+            }}
+            className="text-slate-500 hover:text-slate-700 p-1 cursor-pointer"
+          >
             <X size={18} />
           </button>
         </div>
@@ -271,15 +283,27 @@ export function PropertyInspector({
                   value={selectedQuestion.type}
                   onChange={(e) => {
                     const newType = e.target.value as QuestionType;
-                    const needsOptions = ['RADIO_SINGLE', 'CHECKBOX_MULTIPLE', 'DROPDOWN'].includes(newType);
+                    const needsOptions = ['RADIO_SINGLE', 'CHECKBOX_MULTIPLE', 'DROPDOWN', 'GRID_LIKERT'].includes(newType);
 
                     const updates: Partial<Question> = { type: newType };
 
                     if (needsOptions && (!selectedQuestion.options || selectedQuestion.options.length === 0)) {
-                      updates.options = [
-                        { id: generateId(), label: "Opção 1" } as any,
-                        { id: generateId(), label: "Opção 2" } as any
-                      ];
+                      updates.options = newType === 'GRID_LIKERT'
+                        ? [1, 2, 3, 4, 5].map((n, idx) => ({ id: generateId(), label: String(n), weight: n, order_index: idx }) as any)
+                        : [
+                          { id: generateId(), label: "Opção 1" } as any,
+                          { id: generateId(), label: "Opção 2" } as any
+                        ];
+                    }
+
+                    if (newType === 'GRID_LIKERT' && (!selectedQuestion.sub_question_template?.sub_questions || selectedQuestion.sub_question_template.sub_questions.length === 0)) {
+                      updates.sub_question_template = {
+                        ...selectedQuestion.sub_question_template,
+                        sub_questions: [
+                          { id: generateId(), label: "Critério 1" },
+                          { id: generateId(), label: "Critério 2" }
+                        ]
+                      };
                     }
 
                     setSchema(prev => {
@@ -305,10 +329,11 @@ export function PropertyInspector({
                     <option value="TEXT_SHORT">Resposta Curta</option>
                     <option value="TEXT_LONG">Parágrafo</option>
                   </optgroup>
-                  <optgroup label="Múltipla Escolha">
+                  <optgroup label="Múltipla Escolha & Escala">
                     <option value="RADIO_SINGLE">Múltipla Escolha (1 Opção)</option>
                     <option value="CHECKBOX_MULTIPLE">Caixas de Seleção</option>
                     <option value="DROPDOWN">Menu Suspenso (Dropdown)</option>
+                    <option value="GRID_LIKERT">Matriz / Escala Likert</option>
                   </optgroup>
                   <optgroup label="Upload & Data">
                     <option value="FILE_UPLOAD">Upload de Arquivo</option>
@@ -319,6 +344,10 @@ export function PropertyInspector({
                     <option value="MEDIA_VIDEO">Vídeo (YouTube/Upload)</option>
                     <option value="MEDIA_IMAGE">Imagem</option>
                     <option value="MEDIA_AUDIO">Áudio</option>
+                  </optgroup>
+                  <optgroup label="Lógica Avançada">
+                    <option value="DYNAMIC_REPEATER">Repetidor Dinâmico</option>
+                    <option value="CONDITIONAL_LOGIC">Regra Condicional</option>
                   </optgroup>
                 </select>
               </div>
@@ -396,8 +425,66 @@ export function PropertyInspector({
                 </div>
               )}
 
+              {/* GRID LIKERT PROPERTIES */}
+              {selectedQuestion.type === 'GRID_LIKERT' && (
+                <div className="space-y-4 pt-4 border-t border-slate-100">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-700">Linhas da Matriz (Critérios)</label>
+                    <p className="text-xs text-slate-500">Adicione os itens que serão avaliados na escala.</p>
+                    <div className="space-y-2 bg-slate-50 p-2 rounded border border-slate-200">
+                      {(selectedQuestion.sub_question_template?.sub_questions || []).map((row: any, rIdx: number) => (
+                        <div key={row.id || rIdx} className="flex items-center gap-2 bg-white border border-slate-200 px-2.5 py-1.5 rounded">
+                          <input
+                            type="text"
+                            value={row.label || ''}
+                            onChange={(e) => {
+                              const newRows = [...(selectedQuestion.sub_question_template?.sub_questions || [])];
+                              newRows[rIdx] = { ...newRows[rIdx], label: e.target.value };
+                              updateQuestionProperty(activeSectionId, selectedQuestion.id, 'sub_question_template', {
+                                ...selectedQuestion.sub_question_template,
+                                sub_questions: newRows
+                              });
+                            }}
+                            placeholder={`Critério ${rIdx + 1}`}
+                            className="flex-1 text-xs text-slate-800 bg-transparent outline-none font-medium"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newRows = (selectedQuestion.sub_question_template?.sub_questions || []).filter((_: any, i: number) => i !== rIdx);
+                              updateQuestionProperty(activeSectionId, selectedQuestion.id, 'sub_question_template', {
+                                ...selectedQuestion.sub_question_template,
+                                sub_questions: newRows
+                              });
+                            }}
+                            className="text-slate-300 hover:text-red-500 p-1 cursor-pointer"
+                            title="Remover linha"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const currentRows = selectedQuestion.sub_question_template?.sub_questions || [];
+                          const newRow = { id: generateId(), label: `Critério ${currentRows.length + 1}` };
+                          updateQuestionProperty(activeSectionId, selectedQuestion.id, 'sub_question_template', {
+                            ...selectedQuestion.sub_question_template,
+                            sub_questions: [...currentRows, newRow]
+                          });
+                        }}
+                        className="w-full py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 border border-indigo-100 border-dashed rounded flex justify-center items-center gap-1 hover:bg-indigo-100 transition-colors cursor-pointer"
+                      >
+                        <Plus size={14} /> Adicionar Linha / Critério
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Option Weights */}
-              {(selectedQuestion.type === 'RADIO_SINGLE' || selectedQuestion.type === 'CHECKBOX_MULTIPLE' || selectedQuestion.type === 'DROPDOWN') && selectedQuestion.options && (
+              {(selectedQuestion.type === 'RADIO_SINGLE' || selectedQuestion.type === 'CHECKBOX_MULTIPLE' || selectedQuestion.type === 'DROPDOWN' || selectedQuestion.type === 'GRID_LIKERT') && selectedQuestion.options && (
                 <div className="space-y-2 pt-4 border-t border-slate-100">
                   <label className="text-sm font-medium text-slate-700">Pesos Analíticos (Scores)</label>
                   <p className="text-xs text-slate-500 mb-3">Atribua valores numéricos de 1 a 5 para cálculo de maturidade.</p>
@@ -488,24 +575,39 @@ export function PropertyInspector({
                               newSubQs[index] = { ...newSubQs[index], label: e.target.value };
                               updateQuestionProperty(activeSectionId, selectedQuestion.id, 'sub_question_template', { ...selectedQuestion.sub_question_template, sub_questions: newSubQs });
                             }}
-                            className="w-full border-none bg-transparent font-medium focus:ring-0 p-0 text-slate-800"
+                            className="w-full border-none bg-transparent font-medium focus:ring-0 p-0 text-slate-800 pr-5"
                             placeholder="Título da sub-pergunta"
                           />
                           <div className="flex flex-col gap-2 mt-2">
-                            <select
-                              value={subQ.type}
-                              onChange={(e) => {
-                                const newSubQs = [...(selectedQuestion.sub_question_template.sub_questions || [])];
-                                newSubQs[index] = { ...newSubQs[index], type: e.target.value };
-                                updateQuestionProperty(activeSectionId, selectedQuestion.id, 'sub_question_template', { ...selectedQuestion.sub_question_template, sub_questions: newSubQs });
-                              }}
-                              className="w-full text-xs bg-slate-50 border border-slate-200 rounded px-2 py-1 outline-none font-medium"
-                            >
-                              <option value="TEXT_SHORT">Texto Curto</option>
-                              <option value="TEXT_LONG">Texto Longo</option>
-                              <option value="RADIO_SINGLE">Única Escolha</option>
-                              <option value="CHECKBOX_MULTIPLE">Múltipla Escolha</option>
-                            </select>
+                            <div className="flex items-center gap-2">
+                              <select
+                                value={subQ.type}
+                                onChange={(e) => {
+                                  const newSubQs = [...(selectedQuestion.sub_question_template.sub_questions || [])];
+                                  newSubQs[index] = { ...newSubQs[index], type: e.target.value };
+                                  updateQuestionProperty(activeSectionId, selectedQuestion.id, 'sub_question_template', { ...selectedQuestion.sub_question_template, sub_questions: newSubQs });
+                                }}
+                                className="flex-1 text-xs bg-slate-50 border border-slate-200 rounded px-2 py-1 outline-none font-medium"
+                              >
+                                <option value="TEXT_SHORT">Texto Curto</option>
+                                <option value="TEXT_LONG">Texto Longo</option>
+                                <option value="RADIO_SINGLE">Única Escolha</option>
+                                <option value="CHECKBOX_MULTIPLE">Múltipla Escolha</option>
+                              </select>
+                              <label className="flex items-center gap-1 cursor-pointer text-[11px] text-slate-600 shrink-0">
+                                <input
+                                  type="checkbox"
+                                  className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                  checked={Boolean(subQ.required)}
+                                  onChange={(e) => {
+                                    const newSubQs = [...(selectedQuestion.sub_question_template.sub_questions || [])];
+                                    newSubQs[index] = { ...newSubQs[index], required: e.target.checked };
+                                    updateQuestionProperty(activeSectionId, selectedQuestion.id, 'sub_question_template', { ...selectedQuestion.sub_question_template, sub_questions: newSubQs });
+                                  }}
+                                />
+                                Obrig.
+                              </label>
+                            </div>
 
                             {(subQ.type === 'RADIO_SINGLE' || subQ.type === 'CHECKBOX_MULTIPLE') && (
                               <div className="space-y-2">
@@ -579,7 +681,8 @@ export function PropertyInspector({
                               const newSubQs = selectedQuestion.sub_question_template.sub_questions.filter((_: any, i: number) => i !== index);
                               updateQuestionProperty(activeSectionId, selectedQuestion.id, 'sub_question_template', { ...selectedQuestion.sub_question_template, sub_questions: newSubQs });
                             }}
-                            className="absolute right-1 top-1 text-slate-300 hover:text-red-500 opacity-0 group-hover/sub:opacity-100 p-1 cursor-pointer"
+                            className="absolute right-1 top-1 text-slate-400 hover:text-red-500 opacity-100 sm:opacity-0 sm:group-hover/sub:opacity-100 p-1 cursor-pointer"
+                            title="Remover sub-pergunta"
                           >
                             <X size={14} />
                           </button>

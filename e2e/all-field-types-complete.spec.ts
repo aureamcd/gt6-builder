@@ -130,6 +130,12 @@ test.describe('Validação Completa de Formulário e Respostas (Todos os Tipos d
         label: '8. Avaliação por Módulo Selecionado (Repetidor Dinâmico)',
         required: false,
         allow_add_item: false,
+        trigger_source_question_id: qCheckboxId,
+        sub_question_template: {
+          sub_questions: [
+            { id: 'sub_obs_1', type: 'TEXT_SHORT', label: 'Observação específica do sistema', required: false }
+          ]
+        },
         order_index: 7,
         created_at: new Date().toISOString()
       }
@@ -331,12 +337,18 @@ test.describe('Validação Completa de Formulário e Respostas (Todos os Tipos d
       console.log('  ✔️ Radio button selecionado.');
     }
 
-    // 4. Marca Checkbox
+    // 4. Marca Checkbox (dispara o DYNAMIC_REPEATER)
     const firstCheckbox = page.locator('input[type="checkbox"]').first();
     if (await firstCheckbox.isVisible()) {
       await firstCheckbox.click();
       await expect(firstCheckbox).toBeChecked();
       console.log('  ✔️ Checkbox marcado.');
+      // Preenche a sub-pergunta gerada pelo DYNAMIC_REPEATER para validar submissão UUID no banco
+      const repeaterInput = page.locator('input[placeholder="Sua resposta"]').last();
+      if (await repeaterInput.isVisible()) {
+        await repeaterInput.fill('Sub-resposta do repetidor dinâmico validada no navegador');
+        console.log('  ✔️ Sub-pergunta do Repetidor Dinâmico preenchida.');
+      }
     }
 
     // 5. Seleciona Dropdown

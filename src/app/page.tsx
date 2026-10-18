@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { getForms, createEmptyForm, cloneFormByToken, getFormByShareToken, deleteForm, generateAccessToken, removeSharedForm } from "../lib/api";
 import { Form, FormSettings } from "../types/form";
 import { Plus, FileText, Loader2, ArrowRight, Save, Download, FileCode, LogOut, BarChart3, Trash2, Users, Globe, Lock, RefreshCw, Key, ShieldCheck, AlertCircle } from "lucide-react";
@@ -23,6 +23,7 @@ export default function Dashboard() {
   const [isPasscodeRequired, setIsPasscodeRequired] = useState(false);
   const [targetTemplateTitle, setTargetTemplateTitle] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
+  const hasProcessedImportRef = useRef(false);
 
   // Modal de Criação de Formulário (Público vs Privado)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -46,11 +47,12 @@ export default function Dashboard() {
         setUser(session.user);
 
         // Check if redirected with import_token query param
-        if (typeof window !== 'undefined') {
+        if (typeof window !== 'undefined' && !hasProcessedImportRef.current) {
           const params = new URLSearchParams(window.location.search);
           const importToken = params.get('import_token');
           const accessTokenFromUrl = params.get('access_token');
           if (importToken) {
+            hasProcessedImportRef.current = true;
             try {
               const sourceForm = await getFormByShareToken(importToken);
               if (sourceForm) {
@@ -175,20 +177,21 @@ export default function Dashboard() {
     }
   };
 
-  const handleConfirmDelete = async () => {
+  const handleConfirmDelete = async (forcePermanent = false) => {
     if (!formToDelete) return;
     setIsDeleting(true);
     try {
-      if (formToDelete.is_shared) {
+      if (formToDelete.is_shared && !forcePermanent) {
         // Remover apenas da lista de compartilhados do usuário
         await removeSharedForm(formToDelete.id);
+        toast.success("Formulário removido da sua lista!", "Item Removido");
       } else {
-        // Excluir permanentemente do banco (é o autor original)
+        // Excluir permanentemente do banco
         await deleteForm(formToDelete.id);
+        toast.success("Formulário excluído permanentemente!", "Item Excluído");
       }
       setForms(prev => prev.filter(f => f.id !== formToDelete.id));
       setFormToDelete(null);
-      toast.success("Formulário removido com sucesso!", "Item Excluído");
     } catch (err: any) {
       console.error("Erro ao remover formulário:", err);
       toast.error(getFriendlyErrorMessage(err), "Erro ao Remover");
@@ -504,22 +507,33 @@ export default function Dashboard() {
                   : 'Esta ação apagará permanentemente todas as perguntas e respostas recebidas.'}
               </div>
 
-              <div className="mt-6 flex items-center justify-center space-x-3">
-                <button
-                  onClick={() => setFormToDelete(null)}
-                  disabled={isDeleting}
-                  className="flex-1 py-2.5 px-4 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-medium text-sm transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleConfirmDelete}
-                  disabled={isDeleting}
-                  className="flex-1 py-2.5 px-4 rounded-xl bg-red-600 hover:bg-red-700 text-white font-medium text-sm transition-colors shadow-sm flex items-center justify-center space-x-1.5 disabled:opacity-70"
-                >
-                  {isDeleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
-                  <span>{isDeleting ? 'Removendo...' : (formToDelete.is_shared ? 'Sim, Remover' : 'Sim, Excluir')}</span>
-                </button>
+              <div className="mt-6 flex flex-col gap-2">
+                <div className="flex items-center justify-center space-x-3">
+                  <button
+                    onClick={() => setFormToDelete(null)}
+                    disabled={isDeleting}
+                    className="flex-1 py-2.5 px-4 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-medium text-sm transition-colors cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={() => handleConfirmDelete(false)}
+                    disabled={isDeleting}
+                    className="flex-1 py-2.5 px-4 rounded-xl bg-red-600 hover:bg-red-700 text-white font-medium text-sm transition-colors shadow-sm flex items-center justify-center space-x-1.5 disabled:opacity-70 cursor-pointer"
+                  >
+                    {isDeleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                    <span>{isDeleting ? 'Processando...' : (formToDelete.is_shared ? 'Remover da Lista' : 'Sim, Excluir')}</span>
+                  </button>
+                </div>
+                {formToDelete.is_shared && (
+                  <button
+                    onClick={() => handleConfirmDelete(true)}
+                    disabled={isDeleting}
+                    className="w-full py-2 px-4 rounded-xl border border-red-200 bg-red-50/70 hover:bg-red-100 text-red-700 font-semibold text-xs transition-colors cursor-pointer"
+                  >
+                    Excluir permanentemente do banco de dados para todos
+                  </button>
+                )}
               </div>
             </div>
           </div>

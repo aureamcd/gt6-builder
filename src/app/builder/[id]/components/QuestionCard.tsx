@@ -12,6 +12,7 @@ interface QuestionCardProps {
   number: number;
   isSelected?: boolean;
   onClick?: () => void;
+  onOpenProperties?: () => void;
   onUpdateLabel: (l: string) => void;
   onUpdateVideoUrl?: (url: string) => void;
   onDelete: () => void;
@@ -35,6 +36,7 @@ export function QuestionCard({
   number,
   isSelected,
   onClick,
+  onOpenProperties,
   onUpdateLabel,
   onUpdateVideoUrl,
   onDelete,
@@ -234,7 +236,18 @@ export function QuestionCard({
               placeholder="Digite sua pergunta..."
             />
           </div>
-          <div className="flex items-center space-x-2 sm:ml-4 shrink-0 self-end sm:self-auto">
+          <div className="flex items-center space-x-1.5 sm:space-x-2 sm:ml-4 shrink-0 self-end sm:self-auto">
+            {onOpenProperties && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onOpenProperties(); }}
+                className="lg:hidden flex items-center gap-1 text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2 py-1 rounded-md text-[11px] font-semibold transition-colors cursor-pointer"
+                title="Propriedades da Pergunta"
+              >
+                <Settings size={13} />
+                <span>Ajustes</span>
+              </button>
+            )}
             {onCommentClick && (
               <button
                 onClick={(e) => { e.stopPropagation(); onCommentClick(); }}
@@ -250,7 +263,12 @@ export function QuestionCard({
               </button>
             )}
             <span className="text-[10px] sm:text-xs bg-slate-100 text-slate-500 px-2 py-1 rounded font-medium border border-slate-200">{question.type.replace('_', ' ')}</span>
-            <button onClick={onDelete} className="text-slate-400 hover:text-red-500 p-1 transition-colors bg-slate-50 hover:bg-red-50 rounded cursor-pointer" title="Deletar Pergunta">
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onDelete(); }}
+              className="text-slate-400 hover:text-red-500 p-1.5 transition-colors bg-slate-50 hover:bg-red-50 rounded cursor-pointer"
+              title="Deletar Pergunta"
+            >
               <Trash2 size={16} />
             </button>
           </div>
@@ -277,7 +295,12 @@ export function QuestionCard({
                     onChange={(e) => onUpdateOptionLabel && onUpdateOptionLabel(opt.id, e.target.value)}
                     className="text-slate-700 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-500 focus:outline-none w-full py-1"
                   />
-                  <button onClick={() => onDeleteOption && onDeleteOption(opt.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover/opt:opacity-100 transition-opacity p-1 cursor-pointer" title="Remover Opção">
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onDeleteOption && onDeleteOption(opt.id); }}
+                    className="text-slate-400 hover:text-red-500 opacity-100 sm:opacity-0 sm:group-hover/opt:opacity-100 transition-opacity p-1.5 cursor-pointer shrink-0"
+                    title="Remover Opção"
+                  >
                     <X size={14} />
                   </button>
                 </div>
@@ -547,10 +570,60 @@ export function QuestionCard({
               )}
             </div>
           )}
-          {(question.type === 'DYNAMIC_REPEATER' || question.type === 'CONDITIONAL_LOGIC') && (
+          {question.type === 'GRID_LIKERT' && (
+            <div className="space-y-2 bg-slate-50 p-3 rounded-lg border border-slate-200">
+              <div className="flex items-center justify-between text-xs font-semibold text-slate-600 pb-2 border-b border-slate-200">
+                <span>Critérios da Matriz ({question.sub_question_template?.sub_questions?.length || 0})</span>
+                <span>Escala: {question.options?.map(o => o.label).join(' • ') || '1 a 5'}</span>
+              </div>
+              <div className="space-y-1.5 pt-1">
+                {(question.sub_question_template?.sub_questions || []).map((row: any, idx: number) => (
+                  <div key={row.id || idx} className="flex items-center justify-between text-xs bg-white px-3 py-2 rounded border border-slate-200/80 text-slate-700">
+                    <span className="font-medium">{row.label || `Critério ${idx + 1}`}</span>
+                    <div className="flex items-center gap-1.5">
+                      {(question.options && question.options.length > 0 ? question.options : [1, 2, 3, 4, 5].map(n => ({ id: String(n), label: String(n) }))).map((col: any) => (
+                        <span key={col.id} className="w-5 h-5 rounded-full border border-slate-300 flex items-center justify-center text-[10px] text-slate-400">
+                          {col.label}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+                {(!question.sub_question_template?.sub_questions || question.sub_question_template.sub_questions.length === 0) && (
+                  <p className="text-xs text-slate-400 italic py-1">Clique neste card para configurar as linhas da matriz no painel lateral.</p>
+                )}
+              </div>
+            </div>
+          )}
+          {question.type === 'DYNAMIC_REPEATER' && (
+            <div className="p-3.5 bg-indigo-50/70 border border-indigo-200 text-indigo-900 rounded-lg text-xs space-y-2">
+              <div className="flex items-center justify-between font-bold text-indigo-800">
+                <span className="flex items-center gap-1.5">
+                  <Settings size={14} className="text-indigo-600" />
+                  Bloco de Repetição Dinâmica ({question.sub_question_template?.sub_questions?.length || 0} sub-perguntas)
+                </span>
+                <span className="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">
+                  {question.trigger_source_question_id ? 'Gatilho Vinculado' : 'Sem Gatilho'}
+                </span>
+              </div>
+              {question.sub_question_template?.sub_questions?.length > 0 ? (
+                <div className="grid grid-cols-1 gap-1 pt-1">
+                  {question.sub_question_template.sub_questions.map((sq: any, idx: number) => (
+                    <div key={sq.id || idx} className="bg-white/90 px-2.5 py-1.5 rounded border border-indigo-100 text-slate-700 flex items-center justify-between">
+                      <span className="truncate font-medium">{idx + 1}. {sq.label}</span>
+                      <span className="text-[10px] text-slate-400 ml-2 shrink-0">{sq.type}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-indigo-700/80">Clique para configurar a pergunta-gatilho e as sub-perguntas no painel lateral.</p>
+              )}
+            </div>
+          )}
+          {question.type === 'CONDITIONAL_LOGIC' && (
             <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-md text-xs font-medium flex items-center">
               <Settings size={14} className="mr-2" />
-              Configuração de lógica e campos aninhados em breve...
+              Bloco de regra condicional
             </div>
           )}
         </div>

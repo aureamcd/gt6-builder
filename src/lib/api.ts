@@ -197,8 +197,14 @@ export async function createEmptyForm(
   return form;
 }
 
+const deletedFormIds = new Set<string>();
+
 export async function saveFormState(form: Form) {
   try {
+    if (!form?.id || deletedFormIds.has(form.id)) {
+      return { success: true };
+    }
+
     // 1. Upsert Form
     const { error: formError } = await supabase
       .from('forms')
@@ -212,6 +218,7 @@ export async function saveFormState(form: Form) {
       }, { onConflict: 'id' });
 
     if (formError) throw formError;
+    if (deletedFormIds.has(form.id)) return { success: true };
 
     const sections = form.sections || [];
     const currentSectionIds = sections.map(s => s.id).filter(Boolean);
@@ -401,6 +408,13 @@ export async function cloneFormByToken(token: string, passcode?: string): Promis
   }
 
   const newFormId = generateUUID();
+  const questionIdMap = new Map<string, string>();
+  sourceForm.sections?.forEach(s => {
+    s.questions?.forEach(q => {
+      questionIdMap.set(q.id, generateUUID());
+    });
+  });
+
   const clonedForm: Form = {
     ...sourceForm,
     id: newFormId,
@@ -416,11 +430,15 @@ export async function cloneFormByToken(token: string, passcode?: string): Promis
         id: newSectionId,
         form_id: newFormId,
         questions: s.questions?.map(q => {
-          const newQuestionId = generateUUID();
+          const newQuestionId = questionIdMap.get(q.id) || generateUUID();
+          const newTriggerId = q.trigger_source_question_id
+            ? (questionIdMap.get(q.trigger_source_question_id) || q.trigger_source_question_id)
+            : undefined;
           return {
             ...q,
             id: newQuestionId,
             section_id: newSectionId,
+            trigger_source_question_id: newTriggerId,
             options: q.options?.map(o => ({
               ...o,
               id: generateUUID(),
@@ -590,14 +608,66 @@ export async function deleteFormResponse(responseId: string): Promise<boolean> {
 }
 
 export async function deleteForm(formId: string): Promise<boolean> {
+  if (!formId) return false;
+  deletedFormIds.add(formId);
+
+  // Limpar caches locais e lista de compartilhados do usuário
+  if (typeof window !== 'undefined') {
+    try {
+      sessionStorage.removeItem(`form_preview_${formId}`);
+      sessionStorage.removeItem(`gt6_builder_token_${formId}`);
+      sessionStorage.removeItem(`gt6_respondent_token_${formId}`);
+      localStorage.removeItem(`gt6_draft_${formId}`);
+    } catch (e) {}
+  }
+
+  await removeSharedForm(formId);
+
+  // Limpeza explícita de registros dependentes antes de remover o formulário
+  try {
+    await supabase.from('form_comments').delete().eq('form_id', formId);
+    const { data: resps } = await supabase.from('responses').select('id').eq('form_id', formId);
+    if (resps && resps.length > 0) {
+      const respIds = resps.map(r => r.id);
+      await supabase.from('answers').delete().in('response_id', respIds);
+      await supabase.from('responses').delete().eq('form_id', formId);
+    }
+    const { data: secs } = await supabase.from('sections').select('id').eq('form_id', formId);
+    if (secs && secs.length > 0) {
+      const secIds = secs.map(s => s.id);
+      const { data: qs } = await supabase.from('questions').select('id').in('section_id', secIds);
+      if (qs && qs.length > 0) {
+        const qIds = qs.map(q => q.id);
+        await supabase.from('options').delete().in('question_id', qIds);
+        await supabase.from('questions').delete().in('section_id', secIds);
+      }
+      await supabase.from('sections').delete().eq('form_id', formId);
+    }
+  } catch (cleanupErr) {
+    console.warn('Aviso durante limpeza de dependências do formulário:', cleanupErr);
+  }
+
   const { error } = await supabase
     .from('forms')
     .delete()
     .eq('id', formId);
 
   if (error) {
+    deletedFormIds.delete(formId);
     console.error('Error deleting form:', error);
     throw error;
+  }
+
+  // Verificar se o registro realmente foi removido do banco (evita falso-positivo por RLS)
+  const { data: stillExists } = await supabase
+    .from('forms')
+    .select('id')
+    .eq('id', formId)
+    .maybeSingle();
+
+  if (stillExists) {
+    deletedFormIds.delete(formId);
+    throw new Error('Sem permissão para excluir permanentemente este formulário no banco de dados.');
   }
 
   return true;

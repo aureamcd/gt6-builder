@@ -24,6 +24,7 @@ interface BuilderHeaderProps {
   onExportXML: () => void;
   onImportXML: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onSaveClick: () => void;
+  onBackClick?: () => void;
   fetchResponses: () => void;
   id: string;
 }
@@ -47,6 +48,7 @@ export function BuilderHeader({
   onExportXML,
   onImportXML,
   onSaveClick,
+  onBackClick,
   fetchResponses,
   id
 }: BuilderHeaderProps) {
@@ -71,7 +73,13 @@ export function BuilderHeader({
       <div className="flex items-center space-x-1 sm:space-x-1.5 shrink min-w-0">
         <a 
           href="/" 
-          className="inline-flex items-center text-xs font-bold text-slate-700 hover:text-indigo-600 bg-slate-100 hover:bg-indigo-50 px-2.5 py-1.5 rounded-lg transition-colors whitespace-nowrap shrink-0 gap-1.5 border border-slate-200" 
+          onClick={(e) => {
+            if (onBackClick) {
+              e.preventDefault();
+              onBackClick();
+            }
+          }}
+          className="inline-flex items-center text-xs font-bold text-slate-700 hover:text-indigo-600 bg-slate-100 hover:bg-indigo-50 px-2.5 py-1.5 rounded-lg transition-colors whitespace-nowrap shrink-0 gap-1.5 border border-slate-200 cursor-pointer" 
           title="Voltar para Meus Questionários"
         >
           <ArrowLeft size={15} />

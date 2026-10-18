@@ -3,7 +3,7 @@ import { Question } from "../types/form";
 import {
   Calendar, UploadCloud, Video, AlertCircle, Loader2,
   CheckCircle2, FileText, Trash2, Image as ImageIcon,
-  Headphones, ExternalLink
+  Headphones, ExternalLink, Plus
 } from "lucide-react";
 import { supabase, getFriendlyErrorMessage } from "@/lib/supabase";
 import { globalToast } from "@/context/ToastContext";
@@ -13,6 +13,7 @@ interface QuestionRendererProps {
   number: number | string;
   value: any;
   hasError?: boolean;
+  unansweredIds?: string[];
   onChange: (val: any) => void;
   onAnswerChange?: (id: string, val: any) => void;
   answers?: any;
@@ -240,6 +241,7 @@ export default function QuestionRenderer({
   number, 
   value, 
   hasError, 
+  unansweredIds,
   onChange, 
   onAnswerChange, 
   answers, 
@@ -248,6 +250,7 @@ export default function QuestionRenderer({
   renderCommentButton
 }: QuestionRendererProps) {
   const maxTimeRef = useRef<number>(0);
+  const [customOtherText, setCustomOtherText] = useState("");
 
   if (question.type === 'DYNAMIC_REPEATER') {
     const triggerValue = answers?.[question.trigger_source_question_id || ''];
@@ -279,22 +282,22 @@ export default function QuestionRenderer({
     }
 
     return (
-      <div key={question.id} className="relative group/question space-y-6 bg-slate-50 p-6 rounded-xl border border-indigo-100">
+      <div key={question.id} id={`q_wrapper_${question.id}`} className="relative group/question space-y-5 sm:space-y-6 bg-slate-50 p-3.5 sm:p-6 rounded-xl border border-indigo-100">
         {question.label && question.label.trim() !== '' && (
           <div className="flex items-start mb-4">
-            <span className="font-bold text-slate-400 mr-3 text-lg mt-0.5">{number}.</span>
-            <label className="font-semibold text-slate-800 text-lg leading-snug">
+            <span className="font-bold text-slate-400 mr-2.5 sm:mr-3 text-base sm:text-lg mt-0.5">{number}.</span>
+            <label className="font-semibold text-slate-800 text-base sm:text-lg leading-snug">
               {question.label}
             </label>
           </div>
         )}
-        <div className="space-y-6">
+        <div className="space-y-5 sm:space-y-6">
           {selectedValues.map((val: string) => (
-            <div key={`${question.id}_${val}`} className="bg-white p-5 rounded-lg shadow-sm border border-slate-200">
-              <h4 className="text-sm font-bold text-indigo-600 mb-4 uppercase tracking-wider">
+            <div key={`${question.id}_${val}`} className="bg-white p-3.5 sm:p-5 rounded-lg shadow-sm border border-slate-200">
+              <h4 className="text-xs sm:text-sm font-bold text-indigo-600 mb-4 uppercase tracking-wider break-words">
                 Referente a: {getOptionLabel(val)}
               </h4>
-              <div className="space-y-6">
+              <div className="space-y-5 sm:space-y-6">
                 {subQuestions.map((subQ: any, subIndex: number) => {
                   if (subQ.depends_on_id && subQ.depends_on_label) {
                     const depAnswerKey = `${question.id}_${val}_${subQ.depends_on_id}`;
@@ -321,7 +324,8 @@ export default function QuestionRenderer({
                       question={subQ}
                       number={`${baseNumber}.${subIndex + 1}`}
                       value={answers?.[answerKey]}
-                      hasError={false}
+                      hasError={Boolean(unansweredIds?.includes(answerKey))}
+                      unansweredIds={unansweredIds}
                       onChange={(newVal) => onAnswerChange?.(answerKey, newVal)}
                       onAnswerChange={onAnswerChange}
                       answers={answers}
@@ -340,32 +344,50 @@ export default function QuestionRenderer({
     );
   }
 
+  const handleAddCustomCheckboxOption = () => {
+    const trimmed = customOtherText.trim();
+    if (!trimmed) return;
+    const newVal = `other:${trimmed}`;
+    const current = Array.isArray(value) ? value : [];
+    if (!current.includes(newVal)) {
+      onChange([...current, newVal]);
+    }
+    setCustomOtherText("");
+  };
+
   return (
     <div 
       id={`q_wrapper_${question.id}`} 
-      className={`group/question relative transition-all duration-300 rounded-2xl ${hasError ? 'p-4 sm:p-5 bg-red-50/60 border-2 border-red-300 shadow-sm ring-4 ring-red-50' : 'p-2'}`}
+      className={`group/question relative transition-all duration-300 rounded-2xl ${hasError ? 'p-3.5 sm:p-5 bg-red-50/60 border-2 border-red-300 shadow-sm ring-4 ring-red-50' : 'p-1.5 sm:p-2'}`}
     >
       <div className="flex items-start mb-4">
-        <span className={`font-bold mr-3 text-lg mt-0.5 ${hasError ? 'text-red-500' : 'text-slate-400'}`}>{number}.</span>
-        <div>
-          <label className={`font-semibold text-lg leading-snug ${hasError ? 'text-red-900' : 'text-slate-800'}`}>
+        <span className={`font-bold mr-2.5 sm:mr-3 text-base sm:text-lg mt-0.5 ${hasError ? 'text-red-500' : 'text-slate-400'}`}>{number}.</span>
+        <div className="min-w-0 flex-1">
+          <label className={`font-semibold text-base sm:text-lg leading-snug break-words ${hasError ? 'text-red-900' : 'text-slate-800'}`}>
             {question.label || "Pergunta sem título"}
             {question.required && <span className="text-red-500 ml-1 font-bold" title="Obrigatório">*</span>}
           </label>
+          {question.description && (
+            <p className="text-sm text-slate-500 mt-1 leading-relaxed whitespace-pre-wrap">
+              {question.description}
+            </p>
+          )}
           {hasError && (
             <p className="text-xs font-semibold text-red-600 mt-1 flex items-center gap-1 animate-in fade-in">
               <AlertCircle size={13} className="shrink-0" />
-              Esta pergunta é obrigatória. Por favor, responda para continuar.
+              {question.type === 'GRID_LIKERT'
+                ? 'Esta pergunta é obrigatória. Por favor, avalie todos os itens abaixo para continuar.'
+                : 'Esta pergunta é obrigatória. Por favor, responda para continuar.'}
             </p>
           )}
         </div>
       </div>
 
-      <div className="pl-7 sm:pl-9">
+      <div className="pl-2 sm:pl-9">
         {question.type === 'TEXT_SHORT' && (
           <input 
             type="text" 
-            className="w-full sm:w-2/3 border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-shadow text-slate-900 placeholder-slate-400" 
+            className="w-full sm:w-2/3 border border-slate-300 rounded-lg px-4 py-2.5 text-sm sm:text-base focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-shadow text-slate-900 placeholder-slate-400" 
             placeholder="Sua resposta" 
             value={value || ''}
             onChange={(e) => onChange(e.target.value)}
@@ -374,7 +396,7 @@ export default function QuestionRenderer({
         
         {question.type === 'TEXT_LONG' && (
           <textarea 
-            className="w-full border border-slate-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-shadow text-slate-900 placeholder-slate-400" 
+            className="w-full border border-slate-300 rounded-lg px-4 py-3 text-sm sm:text-base focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-shadow text-slate-900 placeholder-slate-400" 
             rows={4} 
             placeholder="Sua resposta" 
             value={value || ''}
@@ -385,30 +407,33 @@ export default function QuestionRenderer({
         {question.type === 'RADIO_SINGLE' && (
           <div className="space-y-3">
             {question.options?.map((opt: any) => (
-              <label key={opt.id} className="flex items-center space-x-3 cursor-pointer">
+              <label key={opt.id} className="flex items-center space-x-3 cursor-pointer py-0.5">
                 <input 
                   type="radio" 
                   name={`q_${question.id}`} 
-                  className="w-5 h-5 text-indigo-600 border-slate-300 focus:ring-indigo-500 cursor-pointer" 
+                  className="w-5 h-5 text-indigo-600 border-slate-300 focus:ring-indigo-500 cursor-pointer shrink-0" 
                   checked={value === opt.id}
                   onChange={() => onChange(opt.id)}
                 />
-                <span className="text-slate-700">{opt.label}</span>
+                <span className="text-slate-700 text-sm sm:text-base">{opt.label}</span>
               </label>
             ))}
             {question.allow_add_item && (
-              <label className="flex items-center space-x-3 mt-4">
-                <input 
-                  type="radio" 
-                  name={`q_${question.id}`} 
-                  className="w-5 h-5 text-indigo-600 border-slate-300 focus:ring-indigo-500 cursor-pointer" 
-                  checked={value?.startsWith('other:')}
-                  onChange={() => onChange('other:')}
-                />
-                <span className="text-slate-700">Outro:</span>
+              <label className="flex flex-wrap items-center gap-2 sm:gap-3 mt-4">
+                <div className="flex items-center space-x-3">
+                  <input 
+                    type="radio" 
+                    name={`q_${question.id}`} 
+                    className="w-5 h-5 text-indigo-600 border-slate-300 focus:ring-indigo-500 cursor-pointer shrink-0" 
+                    checked={value?.startsWith('other:')}
+                    onChange={() => onChange('other:')}
+                  />
+                  <span className="text-slate-700 text-sm sm:text-base">Outro:</span>
+                </div>
                 <input 
                   type="text" 
-                  className="border-b border-slate-300 focus:border-indigo-500 outline-none px-2 py-1 flex-1 bg-transparent max-w-xs text-slate-900 placeholder-slate-400" 
+                  placeholder="Especifique..."
+                  className="border-b border-slate-300 focus:border-indigo-500 outline-none px-2 py-1 flex-1 min-w-[160px] bg-transparent max-w-xs text-slate-900 placeholder-slate-400 text-sm sm:text-base" 
                   value={value?.startsWith('other:') ? value.replace('other:', '') : ''}
                   onChange={(e) => onChange(`other:${e.target.value}`)}
                   onClick={() => { if (!value?.startsWith('other:')) onChange('other:'); }}
@@ -421,10 +446,10 @@ export default function QuestionRenderer({
         {question.type === 'CHECKBOX_MULTIPLE' && (
           <div className="space-y-3">
             {question.options?.map((opt: any) => (
-              <label key={opt.id} className="flex items-center space-x-3 cursor-pointer">
+              <label key={opt.id} className="flex items-center space-x-3 cursor-pointer py-0.5">
                 <input 
                   type="checkbox" 
-                  className="w-5 h-5 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer" 
+                  className="w-5 h-5 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer shrink-0" 
                   checked={(value || []).includes(opt.id)}
                   onChange={(e) => {
                     const current = Array.isArray(value) ? value : [];
@@ -432,49 +457,170 @@ export default function QuestionRenderer({
                     else onChange(current.filter((v: string) => v !== opt.id));
                   }}
                 />
-                <span className="text-slate-700">{opt.label}</span>
+                <span className="text-slate-700 text-sm sm:text-base">{opt.label}</span>
               </label>
             ))}
             
-            {/* Exibir outros adicionados customizados (Preview) */}
+            {/* Exibir outros adicionados customizados */}
             {Array.isArray(value) && value.filter((v: string) => v.startsWith('other:')).map(customVal => (
-              <label key={customVal} className="flex items-center space-x-3 cursor-pointer">
+              <label key={customVal} className="flex items-center space-x-3 cursor-pointer py-0.5">
                 <input 
                   type="checkbox" 
-                  className="w-5 h-5 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer" 
+                  className="w-5 h-5 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer shrink-0" 
                   checked={true}
                   onChange={() => {
                     const current = Array.isArray(value) ? value : [];
                     onChange(current.filter((v: string) => v !== customVal));
                   }}
                 />
-                <span className="text-slate-700">{customVal.replace('other:', '')}</span>
+                <span className="text-slate-700 text-sm sm:text-base">{customVal.replace('other:', '')}</span>
               </label>
             ))}
 
             {question.allow_add_item && (
-              <div className="flex items-center space-x-3 mt-4">
-                <span className="text-slate-700 font-medium">Adicionar outro:</span>
-                <input 
-                  type="text" 
-                  className="border-b border-slate-300 focus:border-indigo-500 outline-none px-2 py-1 flex-1 bg-transparent max-w-xs text-slate-900 placeholder-slate-400" 
-                  placeholder="Digite e aperte Enter..."
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && e.currentTarget.value.trim()) {
-                      e.preventDefault();
-                      const newVal = `other:${e.currentTarget.value.trim()}`;
-                      const current = Array.isArray(value) ? value : [];
-                      if (!current.includes(newVal)) {
-                        onChange([...current, newVal]);
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mt-4 pt-1">
+                <span className="text-slate-700 font-medium text-sm sm:text-base shrink-0">Adicionar outro:</span>
+                <div className="flex items-center gap-2 flex-1 max-w-md">
+                  <input 
+                    type="text" 
+                    value={customOtherText}
+                    onChange={(e) => setCustomOtherText(e.target.value)}
+                    className="border border-slate-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-lg outline-none px-3 py-1.5 flex-1 bg-white text-slate-900 placeholder-slate-400 text-sm" 
+                    placeholder="Digite o nome e adicione..."
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddCustomCheckboxOption();
                       }
-                      e.currentTarget.value = '';
-                    }
-                  }}
-                />
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddCustomCheckboxOption}
+                    disabled={!customOtherText.trim()}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shrink-0"
+                  >
+                    <Plus size={14} />
+                    <span>Adicionar</span>
+                  </button>
+                </div>
               </div>
             )}
           </div>
         )}
+
+        {question.type === 'GRID_LIKERT' && (() => {
+          const rows = question.sub_question_template?.sub_questions || [];
+          const cols = question.options && question.options.length > 0
+            ? question.options
+            : [1, 2, 3, 4, 5].map(n => ({ id: String(n), label: String(n) }));
+          const currentGridVal = (value && typeof value === 'object' && !Array.isArray(value)) ? value : {};
+
+          return (
+            <>
+              {/* Layout Mobile: Cards Empilhados com Botões Touch de Escala */}
+              <div className="sm:hidden space-y-3">
+                {rows.map((row: any, rIdx: number) => {
+                  const rowVal = currentGridVal[row.id];
+                  const rowMissing = hasError && !rowVal;
+                  return (
+                    <div
+                      key={row.id || rIdx}
+                      className={`p-3.5 rounded-xl border transition-colors ${
+                        rowMissing
+                          ? 'bg-red-50/70 border-red-300'
+                          : 'bg-white border-slate-200 shadow-2xs'
+                      }`}
+                    >
+                      <p className={`text-sm font-semibold mb-2.5 ${rowMissing ? 'text-red-800' : 'text-slate-800'}`}>
+                        {row.label}
+                      </p>
+                      <div className="grid grid-cols-5 gap-1.5">
+                        {cols.map((col: any) => {
+                          const isChecked = rowVal === col.id || rowVal === col.label;
+                          return (
+                            <button
+                              key={col.id}
+                              type="button"
+                              onClick={() => {
+                                onChange({
+                                  ...currentGridVal,
+                                  [row.id]: col.id
+                                });
+                              }}
+                              className={`py-2 px-1 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                                isChecked
+                                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs scale-[1.02]'
+                                  : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-indigo-50 hover:border-indigo-200'
+                              }`}
+                            >
+                              {col.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Layout Desktop/Tablet: Tabela Matriz Completa */}
+              <div className="hidden sm:block overflow-x-auto border border-slate-200 rounded-xl bg-white shadow-xs">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-200">
+                      <th className="py-3 px-4 text-xs font-bold uppercase tracking-wider text-slate-500 min-w-[180px]">
+                        Critério / Item
+                      </th>
+                      {cols.map((col: any) => (
+                        <th key={col.id} className="py-3 px-3 text-center text-xs font-bold text-slate-700 min-w-[48px]">
+                          {col.label}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {rows.map((row: any, rIdx: number) => {
+                      const rowVal = currentGridVal[row.id];
+                      const rowMissing = hasError && !rowVal;
+                      return (
+                        <tr
+                          key={row.id || rIdx}
+                          className={`transition-colors ${rowMissing ? 'bg-red-50/70' : rIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'} hover:bg-indigo-50/30`}
+                        >
+                          <td className={`py-3.5 px-4 text-sm font-medium ${rowMissing ? 'text-red-800' : 'text-slate-800'}`}>
+                            {row.label}
+                          </td>
+                          {cols.map((col: any) => {
+                            const isChecked = rowVal === col.id || rowVal === col.label;
+                            return (
+                              <td key={col.id} className="py-3.5 px-3 text-center">
+                                <label className="inline-flex items-center justify-center w-8 h-8 rounded-full hover:bg-indigo-50 cursor-pointer transition-colors">
+                                  <input
+                                    type="radio"
+                                    name={`grid_${question.id}_${row.id}`}
+                                    className="w-5 h-5 text-indigo-600 border-slate-300 focus:ring-indigo-500 cursor-pointer"
+                                    checked={isChecked}
+                                    onChange={() => {
+                                      onChange({
+                                        ...currentGridVal,
+                                        [row.id]: col.id
+                                      });
+                                    }}
+                                  />
+                                </label>
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          );
+        })()}
 
         {question.type === 'DROPDOWN' && (
           <select 
@@ -488,10 +634,17 @@ export default function QuestionRenderer({
             ))}
           </select>
         )}
-        {question.type === 'TEXT_MARKDOWN' && question.sub_question_template?.markdown_content && (
-          <div className="mb-6 px-4 py-4 bg-slate-50 border border-slate-200 rounded-lg whitespace-pre-wrap text-slate-700 font-medium">
-            {question.sub_question_template.markdown_content}
-          </div>
+
+        {question.type === 'TEXT_MARKDOWN' && (
+          question.sub_question_template?.markdown_content ? (
+            <div className="mb-4 px-4 py-4 bg-slate-50 border border-slate-200 rounded-lg whitespace-pre-wrap text-slate-700 font-medium">
+              {question.sub_question_template.markdown_content}
+            </div>
+          ) : (
+            <div className="prose prose-slate prose-indigo max-w-none bg-slate-50 p-4 rounded-lg border border-slate-200">
+              <p className="text-slate-500 italic">Bloco de texto markdown formatado aparecerá aqui.</p>
+            </div>
+          )
         )}
 
         {question.type === 'MEDIA_AUDIO' && (
@@ -584,12 +737,6 @@ export default function QuestionRenderer({
             onChange={onChange}
             questionId={question.id}
           />
-        )}
-
-        {question.type === 'TEXT_MARKDOWN' && (
-          <div className="prose prose-slate prose-indigo max-w-none bg-slate-50 p-4 rounded-lg border border-slate-200">
-            <p className="text-slate-500 italic">Bloco de texto markdown formatado aparecerá aqui.</p>
-          </div>
         )}
 
       </div>

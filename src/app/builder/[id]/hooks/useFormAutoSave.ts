@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Form } from "@/types/form";
 import { saveFormState } from "@/lib/api";
 
@@ -7,29 +7,34 @@ interface UseFormAutoSaveOptions {
   schema: Form | null;
   isLoading: boolean;
   isAutoSaveEnabled: boolean;
+  isDeletingForm?: boolean;
   showToast: (message: string, type?: 'success' | 'error' | 'info', title?: string) => void;
 }
 
 export function useFormAutoSave(options: UseFormAutoSaveOptions) {
-  const { id, schema, isLoading, isAutoSaveEnabled, showToast } = options;
+  const { id, schema, isLoading, isAutoSaveEnabled, isDeletingForm = false, showToast } = options;
   const [isSaving, setIsSaving] = useState(false);
   const [lastSavedTime, setLastSavedTime] = useState<string | null>(null);
+  const isDeletingRef = useRef(isDeletingForm);
+  isDeletingRef.current = isDeletingForm;
 
   // Sincronização automática para a Aba de Preview usando sessionStorage
   useEffect(() => {
-    if (schema && !isLoading && typeof window !== 'undefined') {
+    if (schema && !isLoading && !isDeletingForm && typeof window !== 'undefined') {
       sessionStorage.setItem(`form_preview_${id}`, JSON.stringify(schema));
     }
-  }, [schema, id, isLoading]);
+  }, [schema, id, isLoading, isDeletingForm]);
 
   // Salvar automaticamente no banco de dados (Auto-Save)
   useEffect(() => {
-    if (!schema || isLoading || !isAutoSaveEnabled) return;
+    if (!schema || isLoading || !isAutoSaveEnabled || isDeletingForm) return;
 
-    // Aguarda 1.8 segundos de inatividade para salvar no banco
+    // Aguarda 800ms de inatividade para salvar no banco
     const timer = setTimeout(() => {
+      if (isDeletingRef.current) return;
       setIsSaving(true);
       saveFormState(schema).then((result) => {
+        if (isDeletingRef.current) return;
         setIsSaving(false);
         if (result.success) {
           setLastSavedTime(new Date().toLocaleTimeString('pt-BR'));
@@ -41,13 +46,13 @@ export function useFormAutoSave(options: UseFormAutoSaveOptions) {
         console.error("Auto-save throw:", err);
         setIsSaving(false);
       });
-    }, 1800);
+    }, 800);
 
     return () => clearTimeout(timer);
-  }, [schema, isLoading, isAutoSaveEnabled]);
+  }, [schema, isLoading, isAutoSaveEnabled, isDeletingForm]);
 
   const handleManualSave = async (showNotification = true) => {
-    if (!schema) return;
+    if (!schema || isDeletingRef.current) return;
     setIsSaving(true);
     const result = await saveFormState(schema);
     setIsSaving(false);
@@ -68,4 +73,5 @@ export function useFormAutoSave(options: UseFormAutoSaveOptions) {
     handleManualSave
   };
 }
+
 

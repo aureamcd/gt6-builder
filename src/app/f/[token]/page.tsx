@@ -87,7 +87,37 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
               }
             });
           });
-          setLockedVideos(initialLocked);
+
+          // Restaurar rascunho salvo localmente (respostas, seção atual e vídeos já desbloqueados)
+          let restoredLocked = initialLocked;
+          if (typeof window !== 'undefined') {
+            try {
+              const savedDraftRaw = localStorage.getItem(`gt6_draft_${dbData.id}`);
+              if (savedDraftRaw) {
+                const savedDraft = JSON.parse(savedDraftRaw);
+                if (savedDraft && typeof savedDraft === 'object') {
+                  if (savedDraft.answers && typeof savedDraft.answers === 'object') {
+                    setAnswers(savedDraft.answers);
+                  }
+                  if (typeof savedDraft.activeSectionIndex === 'number' && dbData.sections) {
+                    const validIdx = Math.max(0, Math.min(dbData.sections.length - 1, savedDraft.activeSectionIndex));
+                    setActiveSectionIndex(validIdx);
+                  }
+                  if (savedDraft.lockedVideos && typeof savedDraft.lockedVideos === 'object') {
+                    restoredLocked = { ...initialLocked };
+                    Object.keys(savedDraft.lockedVideos).forEach(k => {
+                      if (savedDraft.lockedVideos[k] === false) {
+                        restoredLocked[k] = false;
+                      }
+                    });
+                  }
+                }
+              }
+            } catch (e) {
+              // ignore draft parse errors
+            }
+          }
+          setLockedVideos(restoredLocked);
           
           // O dono nunca precisa do token; respondentes precisam digitar uma única vez
           const isOwner = session?.user && session.user.id === dbData.user_id;
@@ -115,6 +145,23 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
     }
     loadForm();
   }, [token]);
+
+  // Auto-save do rascunho do respondente no localStorage
+  useEffect(() => {
+    if (!schema || hasSubmitted || isLoading) return;
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(`gt6_draft_${schema.id}`, JSON.stringify({
+          answers,
+          activeSectionIndex,
+          lockedVideos,
+          updatedAt: Date.now()
+        }));
+      } catch (e) {
+        // ignore storage quota errors
+      }
+    }
+  }, [answers, activeSectionIndex, lockedVideos, schema, hasSubmitted, isLoading]);
 
   const handleUnlockPrivateForm = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -202,15 +249,42 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
   const sections = schema.sections || [];
   const currentSection = sections[activeSectionIndex];
 
-  const totalQuestions = sections.reduce((acc, sec) => acc + (sec.questions?.length || 0), 0);
+  const isAnswerableQuestion = (q: Question) =>
+    !['DYNAMIC_REPEATER', 'MEDIA_VIDEO', 'MEDIA_IMAGE', 'MEDIA_AUDIO', 'TEXT_MARKDOWN', 'CONDITIONAL_LOGIC'].includes(q.type);
+
+  const isQuestionConditionallySkipped = (q: Question, sectionQuestions: Question[]) => {
+    // Se a pergunta for "Para que você utiliza esses meios?" e a anterior ("Você utiliza outros meios...") tiver sido respondida com "Nunca"
+    if (q.label && q.label.toLowerCase().includes('para que você utiliza esses meios')) {
+      const qIdx = sectionQuestions.findIndex(item => item.id === q.id);
+      if (qIdx > 0) {
+        const prevQ = sectionQuestions[qIdx - 1];
+        const prevAns = answers[prevQ.id];
+        if (prevAns) {
+          const selectedOpt = prevQ.options?.find(o => o.id === prevAns);
+          if (selectedOpt && selectedOpt.label.trim().toLowerCase() === 'nunca') {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
+  };
+
+  const answerableQuestions = sections.flatMap(sec => (sec.questions || []).filter(isAnswerableQuestion));
+  const totalQuestions = answerableQuestions.length;
   
-  const answeredQuestionsCount = Object.keys(answers).filter(key => {
-    const val = answers[key];
+  const answeredQuestionsCount = answerableQuestions.filter(q => {
+    const val = answers[q.id];
+    if (q.type === 'GRID_LIKERT') {
+      const rows = q.sub_question_template?.sub_questions || [];
+      if (rows.length === 0) return Boolean(val && Object.keys(val).length > 0);
+      return Boolean(val && typeof val === 'object' && rows.every((r: any) => val[r.id] !== undefined && val[r.id] !== null && val[r.id] !== ''));
+    }
     if (Array.isArray(val)) return val.length > 0;
     return val !== undefined && val !== null && val !== '';
   }).length;
 
-  const progressPercentage = totalQuestions > 0 ? Math.round((answeredQuestionsCount / totalQuestions) * 100) : 0;
+  const progressPercentage = totalQuestions > 0 ? Math.min(100, Math.round((answeredQuestionsCount / totalQuestions) * 100)) : 0;
 
   const isCurrentSectionHidden = currentSection?.unlock_at_seconds ? lockedVideos[currentSection.id] : false;
   const isCurrentSectionLocked = isCurrentSectionHidden || (currentSection?.questions?.some(q => lockedVideos[q.id]) || false);
@@ -227,11 +301,58 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
     if (!currentSection || !currentSection.questions) return { isValid: true, missingIds: [] };
     const missingIds: string[] = [];
     for (const q of currentSection.questions) {
-      if (q.required && q.type !== 'DYNAMIC_REPEATER') {
+      if (isQuestionConditionallySkipped(q, currentSection.questions)) {
+        continue;
+      }
+
+      if (q.type === 'DYNAMIC_REPEATER') {
+        const triggerValue = answers?.[q.trigger_source_question_id || ''];
+        if (triggerValue && (!Array.isArray(triggerValue) || triggerValue.length > 0)) {
+          const selectedValues = Array.isArray(triggerValue) ? triggerValue : [triggerValue];
+          const subQuestions = q.sub_question_template?.sub_questions || [];
+          for (const val of selectedValues) {
+            for (const subQ of subQuestions) {
+              if (!subQ.required) continue;
+              if (subQ.depends_on_id && subQ.depends_on_label) {
+                const depAnswerKey = `${q.id}_${val}_${subQ.depends_on_id}`;
+                const depAnswerValue = answers?.[depAnswerKey];
+                const depSubQ = subQuestions.find((sq: any) => sq.id === subQ.depends_on_id);
+                const depValues = Array.isArray(depAnswerValue) ? depAnswerValue : [depAnswerValue];
+                const hasMatchingLabel = depValues.some((v: any) => {
+                  if (!v) return false;
+                  if (typeof v === 'string' && v.startsWith('other:')) {
+                    return v.replace('other:', '').toLowerCase().trim() === subQ.depends_on_label.toLowerCase().trim();
+                  }
+                  const opt = depSubQ?.options?.find((o: any) => o.id === v);
+                  return opt?.label?.toLowerCase().trim() === subQ.depends_on_label.toLowerCase().trim();
+                });
+                if (!hasMatchingLabel) continue;
+              }
+              const subKey = `${q.id}_${val}_${subQ.id}`;
+              const subVal = answers?.[subKey];
+              const isSubMissing = subVal === undefined || subVal === null || subVal === '' || (Array.isArray(subVal) && subVal.length === 0);
+              if (isSubMissing) {
+                missingIds.push(subKey);
+              }
+            }
+          }
+        }
+        continue;
+      }
+
+      if (q.required) {
         const val = answers[q.id];
-        const isMissing = val === undefined || val === null || val === '' || (Array.isArray(val) && val.length === 0);
-        if (isMissing) {
-          missingIds.push(q.id);
+        if (q.type === 'GRID_LIKERT') {
+          const rows = q.sub_question_template?.sub_questions || [];
+          const isGridMissing = !val || typeof val !== 'object' || rows.some((r: any) => !val[r.id]);
+          if (isGridMissing) {
+            missingIds.push(q.id);
+          }
+        } else {
+          const isMissing = val === undefined || val === null || val === '' || (Array.isArray(val) && val.length === 0);
+          if (isMissing) {
+            missingIds.push(q.id);
+          }
         }
       }
     }
@@ -247,7 +368,8 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
     const { isValid, missingIds } = validateCurrentSection();
     if (!isValid) {
       setUnansweredIds(missingIds);
-      const firstEl = document.getElementById(`q_wrapper_${missingIds[0]}`);
+      const firstId = missingIds[0];
+      const firstEl = document.getElementById(`q_wrapper_${firstId}`) || document.getElementById(`q_wrapper_${firstId.split('_')[0]}`);
       if (firstEl) {
         firstEl.scrollIntoView({ behavior: "smooth", block: "center" });
       }
@@ -270,7 +392,8 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
     const { isValid, missingIds } = validateCurrentSection();
     if (!isValid) {
       setUnansweredIds(missingIds);
-      const firstEl = document.getElementById(`q_wrapper_${missingIds[0]}`);
+      const firstId = missingIds[0];
+      const firstEl = document.getElementById(`q_wrapper_${firstId}`) || document.getElementById(`q_wrapper_${firstId.split('_')[0]}`);
       if (firstEl) {
         firstEl.scrollIntoView({ behavior: "smooth", block: "center" });
       }
@@ -281,23 +404,61 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
 
     setIsSubmitting(true);
     try {
-      const answersData = Object.keys(answers).map(questionId => {
-        const val = answers[questionId];
-        let answer_text = null;
-        let answer_json = null;
-        
-        if (typeof val === 'string') {
-          answer_text = val;
-        } else {
-          answer_json = val;
+      const allQuestions = sections.flatMap(s => s.questions || []);
+      const validQuestionIds = new Set(allQuestions.map(q => q.id));
+      const repeaterQuestions = allQuestions.filter(q => q.type === 'DYNAMIC_REPEATER');
+
+      const directAnswers: { question_id: string; answer_text: string | null; answer_json: any }[] = [];
+      const repeaterGrouped: Record<string, Record<string, Record<string, any>>> = {};
+
+      Object.keys(answers).forEach(key => {
+        const val = answers[key];
+        if (val === undefined || val === null || val === '') return;
+
+        if (validQuestionIds.has(key)) {
+          directAnswers.push({
+            question_id: key,
+            answer_text: typeof val === 'string' ? val : null,
+            answer_json: typeof val === 'string' ? null : val
+          });
+          return;
         }
-        
-        return { question_id: questionId, answer_text, answer_json };
+
+        // Verificar se a chave pertence a um DYNAMIC_REPEATER: `${repeaterQ.id}_${optVal}_${subQ.id}`
+        const matchingRepeater = repeaterQuestions.find(rq => key.startsWith(`${rq.id}_`));
+        if (matchingRepeater) {
+          const rest = key.slice(matchingRepeater.id.length + 1);
+          const subQuestions = matchingRepeater.sub_question_template?.sub_questions || [];
+          const matchingSubQ = subQuestions.find((sq: any) => rest.endsWith(`_${sq.id}`));
+          if (matchingSubQ) {
+            const optVal = rest.slice(0, rest.length - matchingSubQ.id.length - 1);
+            if (!repeaterGrouped[matchingRepeater.id]) {
+              repeaterGrouped[matchingRepeater.id] = {};
+            }
+            if (!repeaterGrouped[matchingRepeater.id][optVal]) {
+              repeaterGrouped[matchingRepeater.id][optVal] = {};
+            }
+            repeaterGrouped[matchingRepeater.id][optVal][matchingSubQ.id] = val;
+          }
+        }
+      });
+
+      Object.entries(repeaterGrouped).forEach(([repeaterId, groupedVal]) => {
+        directAnswers.push({
+          question_id: repeaterId,
+          answer_text: null,
+          answer_json: groupedVal
+        });
       });
       
-      const res = await submitFormResponse(schema.id, answersData);
+      const res = await submitFormResponse(schema.id, directAnswers);
       
       if (res.success) {
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.removeItem(`gt6_draft_${schema.id}`);
+          } catch (e) {}
+        }
         setHasSubmitted(true);
         toast.success("Suas respostas foram registradas com sucesso!", "Formulário Concluído");
         window.scrollTo({ top: 0, behavior: "smooth" });
@@ -427,24 +588,30 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
                 {(!currentSection.questions || currentSection.questions.length === 0) && (
                   <div className="text-center text-slate-500 py-8">Nenhuma pergunta nesta seção.</div>
                 )}
-              {currentSection.questions?.map((q, qIndex) => (
-                <QuestionRenderer 
-                  key={q.id} 
-                  question={q} 
-                  number={qIndex + 1} 
-                  value={answers[q.id]}
-                  hasError={unansweredIds.includes(q.id)}
-                  onChange={(val) => handleAnswerChange(q.id, val)}
-                  onAnswerChange={handleAnswerChange}
-                  answers={answers}
-                  schema={schema}
-                  onVideoTimeUpdate={(time) => {
-                    if (q.sub_question_template?.unlock_at_seconds) {
-                      handleVideoTimeUpdate(q.id, time, q.sub_question_template.unlock_at_seconds);
-                    }
-                  }}
-                />
-              ))}
+              {currentSection.questions?.map((q, qIndex) => {
+                if (isQuestionConditionallySkipped(q, currentSection.questions || [])) {
+                  return null;
+                }
+                return (
+                  <QuestionRenderer 
+                    key={q.id} 
+                    question={q} 
+                    number={qIndex + 1} 
+                    value={answers[q.id]}
+                    hasError={unansweredIds.includes(q.id)}
+                    unansweredIds={unansweredIds}
+                    onChange={(val) => handleAnswerChange(q.id, val)}
+                    onAnswerChange={handleAnswerChange}
+                    answers={answers}
+                    schema={schema}
+                    onVideoTimeUpdate={(time) => {
+                      if (q.sub_question_template?.unlock_at_seconds) {
+                        handleVideoTimeUpdate(q.id, time, q.sub_question_template.unlock_at_seconds);
+                      }
+                    }}
+                  />
+                );
+              })}
               </div>
             )}
           </div>
