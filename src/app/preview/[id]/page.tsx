@@ -402,7 +402,7 @@ export default function PreviewPage({ params }: { params: Promise<{ id: string }
                 </p>
               </div>
             ) : (
-              <div className="p-6 sm:p-8 space-y-10">
+              <div className="p-4 sm:p-8 space-y-8 sm:space-y-10">
                 {(!currentSection.questions || currentSection.questions.length === 0) && (
                   <div className="text-center text-slate-500 py-8">Nenhuma pergunta nesta seção.</div>
                 )}

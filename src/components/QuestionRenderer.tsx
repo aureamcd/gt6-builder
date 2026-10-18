@@ -478,14 +478,14 @@ export default function QuestionRenderer({
             ))}
 
             {question.allow_add_item && (
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mt-4 pt-1">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mt-4 pt-1 w-full">
                 <span className="text-slate-700 font-medium text-sm sm:text-base shrink-0">Adicionar outro:</span>
-                <div className="flex items-center gap-2 flex-1 max-w-md">
+                <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full max-w-md">
                   <input 
                     type="text" 
                     value={customOtherText}
                     onChange={(e) => setCustomOtherText(e.target.value)}
-                    className="border border-slate-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-lg outline-none px-3 py-1.5 flex-1 bg-white text-slate-900 placeholder-slate-400 text-sm" 
+                    className="border border-slate-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-lg outline-none px-3 py-2 min-w-[180px] flex-1 bg-white text-slate-900 placeholder-slate-400 text-sm" 
                     placeholder="Digite o nome e adicione..."
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
@@ -498,7 +498,7 @@ export default function QuestionRenderer({
                     type="button"
                     onClick={handleAddCustomCheckboxOption}
                     disabled={!customOtherText.trim()}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shrink-0"
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shrink-0"
                   >
                     <Plus size={14} />
                     <span>Adicionar</span>
