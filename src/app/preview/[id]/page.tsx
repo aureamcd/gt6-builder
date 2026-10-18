@@ -256,16 +256,16 @@ export default function PreviewPage({ params }: { params: Promise<{ id: string }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans flex flex-col">
-      {/* Header */}
-      <header className="bg-slate-900/95 backdrop-blur-md text-white border-b border-slate-800 sticky top-0 z-30 shadow-md">
+    <div className="min-h-screen bg-slate-50/80 font-sans flex flex-col">
+      {/* Header Claro e Limpo */}
+      <header className="bg-white/90 backdrop-blur-md text-slate-800 border-b border-slate-200/80 sticky top-0 z-30 shadow-2xs">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3 sm:gap-4">
           
           {/* Início (Esquerda): Menu Principal */}
           <div className="flex items-center">
             <button
               onClick={() => router.push('/')}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg text-xs sm:text-sm font-medium transition-colors border border-slate-700/60 cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg text-xs sm:text-sm font-medium transition-colors border border-slate-200 cursor-pointer"
               title="Ir para o menu principal de formulários"
             >
               <Home size={15} />
@@ -275,10 +275,10 @@ export default function PreviewPage({ params }: { params: Promise<{ id: string }
 
           {/* Centro: Badge de Status */}
           <div className="flex items-center">
-            <div className="flex items-center gap-2 bg-slate-800/90 border border-slate-700/80 px-2.5 sm:px-3.5 py-1 rounded-full text-xs text-slate-200 shadow-inner">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <div className="flex items-center gap-2 bg-indigo-50/80 border border-indigo-100 px-2.5 sm:px-3.5 py-1 rounded-full text-xs text-indigo-900">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
               <span className="font-semibold">Pré-visualização</span>
-              <span className="hidden sm:inline text-slate-400 border-l border-slate-700 pl-2 text-[11px]">Simulação Ativa</span>
+              <span className="hidden sm:inline text-indigo-600/80 border-l border-indigo-200 pl-2 text-[11px]">Simulação Ativa</span>
             </div>
           </div>
 
@@ -286,7 +286,7 @@ export default function PreviewPage({ params }: { params: Promise<{ id: string }
           <div className="flex items-center">
             <button
               onClick={() => router.push(`/builder/${id}`)}
-              className="inline-flex items-center gap-2 px-3 sm:px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs sm:text-sm font-semibold transition-all shadow-xs hover:shadow-indigo-500/20 active:scale-95 cursor-pointer"
+              className="inline-flex items-center gap-2 px-3 sm:px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs sm:text-sm font-semibold transition-all shadow-xs active:scale-95 cursor-pointer"
               title="Voltar para a edição do formulário"
             >
               <ArrowLeft size={16} />
@@ -301,8 +301,8 @@ export default function PreviewPage({ params }: { params: Promise<{ id: string }
       <main className="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex flex-col gap-6">
         
         {/* Form Title & Context Card */}
-        <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200/90 shadow-sm relative overflow-hidden">
-          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"></div>
+        <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200/90 shadow-xs relative overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-violet-500 to-indigo-400"></div>
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2">
               <span className="text-[11px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-700 px-2.5 py-0.5 rounded-md border border-indigo-100/80 flex items-center gap-1">
@@ -321,15 +321,15 @@ export default function PreviewPage({ params }: { params: Promise<{ id: string }
         </div>
 
         {/* Informative Banner */}
-        <div className="bg-gradient-to-r from-indigo-50/90 via-sky-50/50 to-indigo-50/90 border border-indigo-100/90 rounded-2xl p-4 sm:p-4.5 flex items-start gap-3.5 shadow-xs">
-          <div className="p-2 bg-indigo-600/10 text-indigo-600 rounded-xl shrink-0 mt-0.5">
+        <div className="bg-indigo-50/50 border border-indigo-100 rounded-2xl p-4 sm:p-4.5 flex items-start gap-3.5 shadow-2xs">
+          <div className="p-2 bg-indigo-100/80 text-indigo-600 rounded-xl shrink-0 mt-0.5">
             <Info size={18} />
           </div>
-          <div className="text-xs sm:text-sm text-indigo-950">
-            <p className="font-bold text-indigo-900">
+          <div className="text-xs sm:text-sm text-slate-700">
+            <p className="font-bold text-slate-800">
               Você está no Modo de Teste e Pré-visualização
             </p>
-            <p className="text-indigo-800/80 mt-0.5 leading-relaxed">
+            <p className="text-slate-600 mt-0.5 leading-relaxed">
               Aqui você pode navegar e simular o preenchimento do formulário exatamente como seu respondente verá. As respostas inseridas aqui <strong>não são salvas no banco de dados</strong>.
             </p>
           </div>
@@ -337,7 +337,7 @@ export default function PreviewPage({ params }: { params: Promise<{ id: string }
         
         {/* Progress Indicator */}
         {sections.length > 0 && (
-          <div className="bg-white rounded-xl shadow-sm p-4 border border-slate-200">
+          <div className="bg-white rounded-xl shadow-xs p-4 border border-slate-200/80">
             <div className="flex items-center justify-between text-sm font-medium text-slate-500 mb-2">
               <div className="flex flex-wrap items-center gap-2 sm:gap-4">
                 <span>{answeredQuestionsCount} de {totalQuestions} perguntas respondidas</span>
@@ -347,11 +347,11 @@ export default function PreviewPage({ params }: { params: Promise<{ id: string }
                   </span>
                 )}
               </div>
-              <span>{progressPercentage}% concluído</span>
+              <span className="text-indigo-600 font-semibold">{progressPercentage}% concluído</span>
             </div>
-            <div className="w-full bg-slate-100 rounded-full h-2.5">
+            <div className="w-full bg-slate-100 rounded-full h-2">
               <div 
-                className="bg-indigo-600 h-2.5 rounded-full transition-all duration-300" 
+                className="bg-gradient-to-r from-indigo-500 to-violet-500 h-2 rounded-full transition-all duration-300" 
                 style={{ width: `${progressPercentage}%` }}
               ></div>
             </div>
@@ -360,14 +360,17 @@ export default function PreviewPage({ params }: { params: Promise<{ id: string }
 
         {/* Section Content */}
         {currentSection ? (
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <div className="bg-white rounded-2xl shadow-xs border border-slate-200/80 overflow-hidden">
             {/* Section Header & Context Card */}
-            <div className="bg-slate-50 border-b border-slate-200 p-6 sm:p-8 relative group/section">
+            <div className="bg-gradient-to-b from-slate-50/70 to-white border-b border-slate-100 p-6 sm:p-8 relative group/section">
               <div className="flex items-start justify-between">
                 <div>
-                  <h2 className="text-2xl font-bold text-slate-800 pr-8">{currentSection.title || `Seção ${activeSectionIndex + 1}`}</h2>
+                  <span className="inline-block text-xs font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50/80 border border-indigo-100/80 px-2.5 py-0.5 rounded-md mb-2">
+                    Etapa {activeSectionIndex + 1} de {sections.length}
+                  </span>
+                  <h2 className="text-xl sm:text-2xl font-bold text-slate-800 pr-8">{currentSection.title || `Seção ${activeSectionIndex + 1}`}</h2>
                   {schema?.settings?.show_estimated_time && (
-                    <div className="mt-2 flex items-center gap-1 text-sm font-medium text-slate-500" title="Tempo estimado para esta seção">
+                    <div className="mt-2 flex items-center gap-1 text-xs font-medium text-slate-500" title="Tempo estimado para esta seção">
                       ⏱️ ~{formatTime(calculateSectionTimeRaw(currentSection))}
                     </div>
                   )}
@@ -381,7 +384,7 @@ export default function PreviewPage({ params }: { params: Promise<{ id: string }
                 </button>
               </div>
               {currentSection.description && (
-                <div className="mt-4 p-4 bg-indigo-50 border border-indigo-100 rounded-lg text-indigo-900 whitespace-pre-wrap">
+                <div className="mt-4 p-4 bg-slate-50/90 border border-slate-200/80 border-l-4 border-l-indigo-500 rounded-xl text-slate-600 text-sm sm:text-base leading-relaxed whitespace-pre-wrap">
                   {currentSection.description}
                 </div>
               )}

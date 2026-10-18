@@ -478,110 +478,161 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans flex flex-col">
-      {/* Header */}
-      <header className="bg-indigo-600 text-white py-5 px-4 shadow-md sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold leading-snug">{schema.title || "Formulário"}</h1>
+    <div className="min-h-screen bg-slate-50/80 font-sans flex flex-col text-slate-800">
+      {/* Top Navbar Limpa e Clara */}
+      <header className="bg-white/90 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-20 shadow-2xs">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <QuestLinkLogo size="sm" />
+            <span className="hidden sm:inline-block h-4 w-px bg-slate-200" />
+            <span className="hidden sm:inline-block text-xs font-medium text-slate-500 truncate max-w-xs">
+              {schema.title || "Formulário"}
+            </span>
           </div>
-          <div className="shrink-0 hidden sm:flex items-center bg-indigo-700/60 border border-indigo-400/30 rounded-xl px-2.5 py-1.5">
-            <QuestLinkLogo size="sm" variant="light" />
-          </div>
+
+          {!hasSubmitted && sections.length > 0 && (
+            <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
+              {schema?.settings?.show_estimated_time && totalTimeSeconds > 0 && (
+                <span
+                  className="hidden md:inline-flex items-center gap-1 bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full text-xs font-medium"
+                  title="Tempo estimado para todo o formulário"
+                >
+                  ⏱️ ~{formatTime(totalTimeSeconds)}
+                </span>
+              )}
+              <div className="flex items-center gap-2 bg-indigo-50/80 border border-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-semibold">
+                <span>Seção {activeSectionIndex + 1} de {sections.length}</span>
+                <span className="text-indigo-300">•</span>
+                <span>{progressPercentage}%</span>
+              </div>
+            </div>
+          )}
         </div>
+        {/* Barra fina de progresso integrada na borda inferior do cabeçalho */}
+        {!hasSubmitted && sections.length > 0 && (
+          <div className="w-full bg-slate-100 h-1">
+            <div
+              className="bg-gradient-to-r from-indigo-500 to-violet-500 h-1 transition-all duration-300"
+              style={{ width: `${progressPercentage}%` }}
+            />
+          </div>
+        )}
       </header>
 
       {/* Main Content */}
-      <main className="max-w-4xl mx-auto w-full p-4 flex-1 mt-6">
+      <main className="max-w-4xl mx-auto w-full px-4 sm:px-6 py-6 sm:py-8 flex-1 space-y-6">
         {hasSubmitted ? (
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-12 text-center">
-             <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
-               <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-               </svg>
-             </div>
-             <h2 className="text-3xl font-bold text-slate-800 mb-4">Respostas Enviadas!</h2>
-             <p className="text-slate-500 text-lg">Muito obrigado por sua participação. Suas respostas foram registradas com sucesso.</p>
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200/90 p-8 sm:p-12 text-center my-6">
+            <div className="w-16 h-16 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-xs">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mb-3 tracking-tight">Respostas Enviadas!</h2>
+            <p className="text-slate-500 text-base sm:text-lg max-w-md mx-auto leading-relaxed">
+              Muito obrigado por sua participação. Suas respostas foram registradas com segurança.
+            </p>
           </div>
         ) : (
           <>
-        
-        {/* Progress Indicator */}
-        {sections.length > 0 && (
-          <div className="bg-white rounded-xl shadow-sm p-4 border border-slate-200 mb-6">
-            <div className="flex items-center justify-between text-sm font-medium text-slate-500 mb-2">
-              <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-                <span>{answeredQuestionsCount} de {totalQuestions} perguntas respondidas</span>
-                {schema?.settings?.show_estimated_time && totalTimeSeconds > 0 && (
-                  <span className="flex items-center gap-1 bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full text-xs" title="Tempo estimado para todo o formulário">
-                    ⏱️ ~{formatTime(totalTimeSeconds)} no total
-                  </span>
-                )}
-              </div>
-              <span>{progressPercentage}% concluído</span>
-            </div>
-            <div className="w-full bg-slate-100 rounded-full h-2.5">
-              <div 
-                className="bg-indigo-600 h-2.5 rounded-full transition-all duration-300" 
-                style={{ width: `${progressPercentage}%` }}
-              ></div>
-            </div>
-          </div>
-        )}
-
-        {/* Section Content */}
-        {currentSection ? (
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-            {/* Section Header & Context Card */}
-            <div className="bg-slate-50 border-b border-slate-200 p-6 sm:p-8">
-              <div>
-                <h2 className="text-2xl font-bold text-slate-800">{currentSection.title || `Seção ${activeSectionIndex + 1}`}</h2>
-                {schema?.settings?.show_estimated_time && (
-                  <div className="mt-2 flex items-center gap-1 text-sm font-medium text-slate-500" title="Tempo estimado para esta seção">
-                    ⏱️ ~{formatTime(calculateSectionTimeRaw(currentSection))}
+            {/* Card Principal de Título do Questionário e Progresso */}
+            <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200/80 shadow-xs relative overflow-hidden">
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-violet-500 to-indigo-400" />
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1.5">
+                  <div className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50/90 border border-indigo-100 px-2.5 py-0.5 rounded-md">
+                    <span>Questionário Oficial</span>
                   </div>
-                )}
-              </div>
-              {currentSection.description && (
-                <div className="mt-4 p-4 bg-indigo-50 border border-indigo-100 rounded-lg text-indigo-900 whitespace-pre-wrap">
-                  {currentSection.description}
-                </div>
-              )}
-              
-              {currentSection.video_url && (
-                <div className="mt-6 w-full max-w-3xl mx-auto overflow-hidden rounded-xl shadow-md bg-black">
-                  {(currentSection.video_url.includes('youtube.com') || currentSection.video_url.includes('youtu.be')) ? (
-                    <div className="relative w-full" style={{ paddingTop: '56.25%' }}>
-                      <iframe 
-                        className="absolute top-0 left-0 w-full h-full"
-                        src={currentSection.video_url.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
-                        title="Section Video"
-                        allowFullScreen
-                      />
-                    </div>
-                  ) : (
-                    <video 
-                      className="w-full max-h-[500px]"
-                      src={currentSection.video_url}
-                      controls
-                      onTimeUpdate={(e) => {
-                        const video = e.currentTarget;
-                        const maxTime = maxTimeRef.current[currentSection.id] || 0;
-                        if (video.currentTime > maxTime + 1) {
-                          video.currentTime = maxTime;
-                        } else if (video.currentTime > maxTime) {
-                          maxTimeRef.current[currentSection.id] = video.currentTime;
-                        }
-
-                        if (currentSection.unlock_at_seconds) {
-                          handleVideoTimeUpdate(currentSection.id, video.currentTime, currentSection.unlock_at_seconds);
-                        }
-                      }}
-                    />
+                  <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight leading-tight">
+                    {schema.title || "Formulário"}
+                  </h1>
+                  {schema.description && (
+                    <p className="text-slate-600 text-sm sm:text-base leading-relaxed pt-1 whitespace-pre-wrap">
+                      {schema.description}
+                    </p>
                   )}
                 </div>
+              </div>
+
+              {/* Barra de Progresso Detalhada e Indicador de Etapas */}
+              {sections.length > 0 && (
+                <div className="mt-6 pt-5 border-t border-slate-100">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs sm:text-sm font-medium text-slate-500 mb-2.5">
+                    <span>
+                      <strong className="text-slate-700 font-semibold">{answeredQuestionsCount}</strong> de{" "}
+                      <strong className="text-slate-700 font-semibold">{totalQuestions}</strong> perguntas respondidas
+                    </span>
+                    <span className="text-indigo-600 font-semibold">{progressPercentage}% concluído</span>
+                  </div>
+                  <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                    <div
+                      className="bg-gradient-to-r from-indigo-500 to-violet-500 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${progressPercentage}%` }}
+                    />
+                  </div>
+                </div>
               )}
             </div>
+
+            {/* Section Content */}
+            {currentSection ? (
+              <div className="bg-white rounded-2xl shadow-xs border border-slate-200/80 overflow-hidden">
+                {/* Section Header Clean & Light */}
+                <div className="bg-gradient-to-b from-slate-50/70 to-white border-b border-slate-100 p-6 sm:p-8">
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                    <span className="text-xs font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50/80 border border-indigo-100/80 px-2.5 py-0.5 rounded-md">
+                      Etapa {activeSectionIndex + 1} de {sections.length}
+                    </span>
+                    {schema?.settings?.show_estimated_time && (
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 bg-slate-100/80 px-2.5 py-0.5 rounded-full" title="Tempo estimado para esta seção">
+                        ⏱️ ~{formatTime(calculateSectionTimeRaw(currentSection))} nesta seção
+                      </span>
+                    )}
+                  </div>
+                  <h2 className="text-xl sm:text-2xl font-bold text-slate-800 tracking-tight">
+                    {currentSection.title || `Seção ${activeSectionIndex + 1}`}
+                  </h2>
+
+                  {currentSection.description && (
+                    <div className="mt-4 p-4 bg-slate-50/90 border border-slate-200/80 border-l-4 border-l-indigo-500 rounded-xl text-slate-600 text-sm sm:text-base leading-relaxed whitespace-pre-wrap">
+                      {currentSection.description}
+                    </div>
+                  )}
+              
+                  {currentSection.video_url && (
+                    <div className="mt-6 w-full max-w-3xl mx-auto overflow-hidden rounded-xl shadow-md bg-black">
+                      {(currentSection.video_url.includes('youtube.com') || currentSection.video_url.includes('youtu.be')) ? (
+                        <div className="relative w-full" style={{ paddingTop: '56.25%' }}>
+                          <iframe 
+                            className="absolute top-0 left-0 w-full h-full"
+                            src={currentSection.video_url.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
+                            title="Section Video"
+                            allowFullScreen
+                          />
+                        </div>
+                      ) : (
+                        <video 
+                          className="w-full max-h-[500px]"
+                          src={currentSection.video_url}
+                          controls
+                          onTimeUpdate={(e) => {
+                            const video = e.currentTarget;
+                            const maxTime = maxTimeRef.current[currentSection.id] || 0;
+                            if (video.currentTime > maxTime + 1) {
+                              video.currentTime = maxTime;
+                            } else if (video.currentTime > maxTime) {
+                              maxTimeRef.current[currentSection.id] = video.currentTime;
+                            }
+
+                            if (currentSection.unlock_at_seconds) {
+                              handleVideoTimeUpdate(currentSection.id, video.currentTime, currentSection.unlock_at_seconds);
+                            }
+                          }}
+                        />
+                      )}
+                    </div>
+                  )}
+                </div>
 
             {/* Questions List */}
             {isCurrentSectionHidden ? (

@@ -71,31 +71,31 @@ export function ShareModal({ isOpen, onClose, schema, formId }: ShareModalProps)
   return (
     <div className="fixed inset-0 bg-slate-900/65 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150">
       <div className="bg-white rounded-2xl shadow-2xl border border-slate-200/80 w-full max-w-2xl overflow-hidden transform transition-all max-h-[92vh] flex flex-col">
-        {/* Header com Gradiente Sutil e Status */}
-        <div className="relative bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-5 sm:p-6 shrink-0">
+        {/* Header Limpo e Claro */}
+        <div className="relative bg-gradient-to-b from-indigo-50/50 to-white border-b border-slate-200/80 p-5 sm:p-6 shrink-0">
           <div className="flex justify-between items-start gap-4">
             <div className="space-y-1.5">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider bg-indigo-500/20 text-indigo-200 border border-indigo-400/30 px-2.5 py-0.5 rounded-full">
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-200/70 px-2.5 py-0.5 rounded-full">
                   <Share2 size={12} /> Central de Compartilhamento
                 </span>
                 {isPrivate ? (
-                  <span className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider bg-amber-400/20 text-amber-300 border border-amber-400/30 px-2.5 py-0.5 rounded-full">
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-0.5 rounded-full">
                     <Lock size={11} /> Privado (Com Senha)
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider bg-emerald-400/20 text-emerald-300 border border-emerald-400/30 px-2.5 py-0.5 rounded-full">
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-0.5 rounded-full">
                     <Globe size={11} /> Público (Acesso Livre)
                   </span>
                 )}
               </div>
-              <h3 className="font-extrabold text-lg sm:text-xl text-white tracking-tight truncate max-w-md">
+              <h3 className="font-extrabold text-lg sm:text-xl text-slate-800 tracking-tight truncate max-w-md">
                 {schema.title || "Compartilhar Questionário"}
               </h3>
             </div>
             <button
               onClick={() => { onClose(); setCopiedKey(null); }}
-              className="text-slate-300 hover:text-white p-1.5 rounded-full hover:bg-white/10 transition-colors cursor-pointer"
+              className="text-slate-400 hover:text-slate-700 p-1.5 rounded-full hover:bg-slate-100 transition-colors cursor-pointer"
               title="Fechar"
             >
               <X size={20} />
