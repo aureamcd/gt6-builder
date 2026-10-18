@@ -245,20 +245,66 @@ export function MaturityAnalyticsSection({
 
   if (!report.hasWeightedQuestions || report.scoredSubmissionsCount === 0) {
     return (
-      <div id="analise-maturidade" className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200/90 shadow-sm space-y-3">
+      <div id="analise-maturidade" className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200/90 shadow-sm space-y-6">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center shrink-0">
             <Sparkles size={20} />
           </div>
           <div>
             <h3 className="text-base sm:text-lg font-extrabold text-slate-900">
-              Análise de Maturidade Baseada em Pesos (IMAPS)
+              Análise de Respostas & Diagnóstico (IMAPS)
             </h3>
             <p className="text-xs text-slate-500">
-              Configure pesos (1 a 5) nas opções de perguntas ou sub-perguntas do Repetidor no Construtor para gerar automaticamente o diagnóstico consolidado ao final desta página.
+              Para ativar também o cálculo de maturidade (escala 1 a 5 e Gráfico Radar), basta atribuir pesos nas opções de perguntas no Construtor.
             </p>
           </div>
         </div>
+
+        {report.qualitativeHighlights.length > 0 && (
+          <div className="space-y-4 pt-2 border-t border-slate-100">
+            <div className="flex items-center gap-2">
+              <PieChart size={18} className="text-indigo-600 shrink-0" />
+              <h4 className="text-sm sm:text-base font-extrabold text-slate-800">
+                Distribuição de Respostas por Pergunta
+              </h4>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {report.qualitativeHighlights.map(item => (
+                <div
+                  key={item.questionId}
+                  className="bg-slate-50/70 rounded-xl p-4 border border-slate-200/80 space-y-3"
+                >
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
+                      {item.sectionTitle}
+                    </span>
+                    <h5 className="text-xs sm:text-sm font-bold text-slate-800 mt-1.5 leading-snug">
+                      {item.label}
+                    </h5>
+                  </div>
+                  <div className="space-y-2">
+                    {item.topOptions.map((opt, idx) => (
+                      <div key={idx} className="space-y-1">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-medium text-slate-700 truncate pr-2">{opt.label}</span>
+                          <span className="font-bold text-slate-600 shrink-0">
+                            {opt.count} ({opt.percentage}%)
+                          </span>
+                        </div>
+                        <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-indigo-500 rounded-full"
+                            style={{ width: `${Math.max(5, opt.percentage)}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     );
   }
