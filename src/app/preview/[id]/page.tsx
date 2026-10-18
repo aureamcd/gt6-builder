@@ -256,16 +256,16 @@ export default function PreviewPage({ params }: { params: Promise<{ id: string }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50/80 font-sans flex flex-col">
+    <div className="min-h-screen bg-slate-50 font-sans flex flex-col text-slate-800">
       {/* Header Claro e Limpo */}
-      <header className="bg-white/90 backdrop-blur-md text-slate-800 border-b border-slate-200/80 sticky top-0 z-30 shadow-2xs">
+      <header className="bg-white/95 backdrop-blur-md text-slate-800 border-b border-slate-200/80 sticky top-0 z-30 shadow-2xs">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3 sm:gap-4">
           
           {/* Início (Esquerda): Menu Principal */}
           <div className="flex items-center">
             <button
               onClick={() => router.push('/')}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg text-xs sm:text-sm font-medium transition-colors border border-slate-200 cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl text-xs sm:text-sm font-medium transition-colors border border-slate-200 cursor-pointer"
               title="Ir para o menu principal de formulários"
             >
               <Home size={15} />
@@ -275,10 +275,10 @@ export default function PreviewPage({ params }: { params: Promise<{ id: string }
 
           {/* Centro: Badge de Status */}
           <div className="flex items-center">
-            <div className="flex items-center gap-2 bg-indigo-50/80 border border-indigo-100 px-2.5 sm:px-3.5 py-1 rounded-full text-xs text-indigo-900">
+            <div className="flex items-center gap-2 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-full text-xs text-indigo-900">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
               <span className="font-semibold">Pré-visualização</span>
-              <span className="hidden sm:inline text-indigo-600/80 border-l border-indigo-200 pl-2 text-[11px]">Simulação Ativa</span>
+              <span className="hidden sm:inline text-indigo-600/80 border-l border-indigo-200 pl-2 text-[11px]">Respostas não são salvas</span>
             </div>
           </div>
 
@@ -286,7 +286,7 @@ export default function PreviewPage({ params }: { params: Promise<{ id: string }
           <div className="flex items-center">
             <button
               onClick={() => router.push(`/builder/${id}`)}
-              className="inline-flex items-center gap-2 px-3 sm:px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs sm:text-sm font-semibold transition-all shadow-xs active:scale-95 cursor-pointer"
+              className="inline-flex items-center gap-2 px-3 sm:px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-xs active:scale-95 cursor-pointer"
               title="Voltar para a edição do formulário"
             >
               <ArrowLeft size={16} />
@@ -298,82 +298,49 @@ export default function PreviewPage({ params }: { params: Promise<{ id: string }
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex flex-col gap-6">
-        
-        {/* Form Title & Context Card */}
-        <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200/90 shadow-xs relative overflow-hidden">
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-violet-500 to-indigo-400"></div>
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-700 px-2.5 py-0.5 rounded-md border border-indigo-100/80 flex items-center gap-1">
-                <Eye size={12} /> Teste de Formulário
-              </span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              {schema.title || "Formulário Sem Título"}
-            </h1>
-            {schema.description && (
-              <p className="text-slate-600 text-sm sm:text-base leading-relaxed mt-1 whitespace-pre-wrap">
-                {schema.description}
-              </p>
-            )}
-          </div>
-        </div>
-
-        {/* Informative Banner */}
-        <div className="bg-indigo-50/50 border border-indigo-100 rounded-2xl p-4 sm:p-4.5 flex items-start gap-3.5 shadow-2xs">
-          <div className="p-2 bg-indigo-100/80 text-indigo-600 rounded-xl shrink-0 mt-0.5">
-            <Info size={18} />
-          </div>
-          <div className="text-xs sm:text-sm text-slate-700">
-            <p className="font-bold text-slate-800">
-              Você está no Modo de Teste e Pré-visualização
-            </p>
-            <p className="text-slate-600 mt-0.5 leading-relaxed">
-              Aqui você pode navegar e simular o preenchimento do formulário exatamente como seu respondente verá. As respostas inseridas aqui <strong>não são salvas no banco de dados</strong>.
-            </p>
-          </div>
-        </div>
-        
-        {/* Progress Indicator */}
-        {sections.length > 0 && (
-          <div className="bg-white rounded-xl shadow-xs p-4 border border-slate-200/80">
-            <div className="flex items-center justify-between text-sm font-medium text-slate-500 mb-2">
-              <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-                <span>{answeredQuestionsCount} de {totalQuestions} perguntas respondidas</span>
-                {schema?.settings?.show_estimated_time && totalTimeSeconds > 0 && (
-                  <span className="flex items-center gap-1 bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full text-xs" title="Tempo estimado para todo o formulário">
-                    ⏱️ ~{formatTime(totalTimeSeconds)} no total
-                  </span>
-                )}
-              </div>
-              <span className="text-indigo-600 font-semibold">{progressPercentage}% concluído</span>
-            </div>
-            <div className="w-full bg-slate-100 rounded-full h-2">
-              <div 
-                className="bg-gradient-to-r from-indigo-500 to-violet-500 h-2 rounded-full transition-all duration-300" 
-                style={{ width: `${progressPercentage}%` }}
-              ></div>
-            </div>
-          </div>
-        )}
-
-        {/* Section Content */}
+      <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8 flex flex-col gap-6">
+        {/* Section Content Unificado */}
         {currentSection ? (
-          <div className="bg-white rounded-2xl shadow-xs border border-slate-200/80 overflow-hidden">
-            {/* Section Header & Context Card */}
-            <div className="bg-gradient-to-b from-slate-50/70 to-white border-b border-slate-100 p-6 sm:p-8 relative group/section">
-              <div className="flex items-start justify-between">
-                <div>
-                  <span className="inline-block text-xs font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50/80 border border-indigo-100/80 px-2.5 py-0.5 rounded-md mb-2">
+          <div className="bg-white rounded-2xl shadow-xs border border-slate-200/90 overflow-hidden relative">
+            {/* Filete Gradiente Superior */}
+            <div className="h-1.5 w-full bg-gradient-to-r from-indigo-500 via-violet-500 to-indigo-400" />
+
+            {/* Faixa de Progresso e Etapa no Topo do Card */}
+            <div className="px-6 sm:px-8 pt-5 pb-4 bg-slate-50/60 border-b border-slate-100">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 border border-indigo-200/60 px-2.5 py-0.5 rounded-md">
                     Etapa {activeSectionIndex + 1} de {sections.length}
                   </span>
-                  <h2 className="text-xl sm:text-2xl font-bold text-slate-800 pr-8">{currentSection.title || `Seção ${activeSectionIndex + 1}`}</h2>
                   {schema?.settings?.show_estimated_time && (
-                    <div className="mt-2 flex items-center gap-1 text-xs font-medium text-slate-500" title="Tempo estimado para esta seção">
-                      ⏱️ ~{formatTime(calculateSectionTimeRaw(currentSection))}
-                    </div>
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 bg-white border border-slate-200/70 px-2.5 py-0.5 rounded-full" title="Tempo estimado para esta seção">
+                      ⏱️ ~{formatTime(calculateSectionTimeRaw(currentSection))} nesta seção
+                    </span>
                   )}
+                </div>
+                <div className="text-xs font-medium text-slate-500">
+                  <strong className="text-slate-700 font-semibold">{answeredQuestionsCount}</strong> de{" "}
+                  <strong className="text-slate-700 font-semibold">{totalQuestions}</strong> respondidas ({progressPercentage}%)
+                </div>
+              </div>
+              <div className="w-full bg-slate-200/70 rounded-full h-1.5 overflow-hidden">
+                <div 
+                  className="bg-gradient-to-r from-indigo-500 to-violet-500 h-1.5 rounded-full transition-all duration-300" 
+                  style={{ width: `${progressPercentage}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Section Header & Context Card */}
+            <div className="bg-white border-b border-slate-100 p-6 sm:p-8 relative group/section">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+                    {schema.title || "Formulário Sem Título"}
+                  </p>
+                  <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 pr-8 tracking-tight">
+                    {currentSection.title || `Seção ${activeSectionIndex + 1}`}
+                  </h1>
                 </div>
                 <button 
                   onClick={() => setActiveCommentElement({ id: currentSection.id, title: currentSection.title || `Seção ${activeSectionIndex + 1}` })}
@@ -384,7 +351,7 @@ export default function PreviewPage({ params }: { params: Promise<{ id: string }
                 </button>
               </div>
               {currentSection.description && (
-                <div className="mt-4 p-4 bg-slate-50/90 border border-slate-200/80 border-l-4 border-l-indigo-500 rounded-xl text-slate-600 text-sm sm:text-base leading-relaxed whitespace-pre-wrap">
+                <div className="mt-4 p-4 bg-indigo-50/45 border border-indigo-100 rounded-xl text-slate-700 text-sm sm:text-base leading-relaxed whitespace-pre-wrap">
                   {currentSection.description}
                 </div>
               )}

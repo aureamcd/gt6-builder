@@ -103,12 +103,14 @@ export function ShareModal({ isOpen, onClose, schema, formId }: ShareModalProps)
           </div>
 
           {/* Abas de Filtro Rápido */}
-          <div className="flex items-center gap-1.5 mt-5 bg-white/10 p-1 rounded-xl w-fit">
+          <div className="flex flex-wrap items-center gap-1 mt-4 bg-slate-100 border border-slate-200/80 p-1 rounded-xl w-fit">
             <button
               type="button"
               onClick={() => setActiveFilter('all')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                activeFilter === 'all' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-300 hover:text-white'
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                activeFilter === 'all'
+                  ? 'bg-white text-indigo-700 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
               }`}
             >
               Visão Geral
@@ -116,8 +118,10 @@ export function ShareModal({ isOpen, onClose, schema, formId }: ShareModalProps)
             <button
               type="button"
               onClick={() => setActiveFilter('respondents')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
-                activeFilter === 'respondents' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-300 hover:text-white'
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                activeFilter === 'respondents'
+                  ? 'bg-white text-indigo-700 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
               }`}
             >
               <Globe size={13} /> Coletar Respostas & QR
@@ -125,8 +129,10 @@ export function ShareModal({ isOpen, onClose, schema, formId }: ShareModalProps)
             <button
               type="button"
               onClick={() => setActiveFilter('team')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
-                activeFilter === 'team' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-300 hover:text-white'
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                activeFilter === 'team'
+                  ? 'bg-white text-indigo-700 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
               }`}
             >
               <Users size={13} /> Equipe & Templates
@@ -135,47 +141,47 @@ export function ShareModal({ isOpen, onClose, schema, formId }: ShareModalProps)
         </div>
 
         {/* Corpo do Modal */}
-        <div className="p-5 sm:p-6 space-y-5 overflow-y-auto bg-slate-50/50 flex-1">
+        <div className="p-5 sm:p-6 space-y-4 overflow-y-auto bg-slate-50 flex-1">
           {/* Card de Segurança / Privacidade */}
           {isPrivate ? (
-            <div className="p-4 bg-gradient-to-br from-amber-50 to-orange-50/60 border border-amber-200/90 rounded-2xl shadow-2xs space-y-3">
+            <div className="p-4 sm:p-5 bg-amber-50/70 border border-amber-200/90 rounded-2xl space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center space-x-2 text-amber-900 font-bold text-sm">
-                  <div className="p-1.5 bg-amber-100 text-amber-700 rounded-lg">
-                    <Key size={16} />
+                <div className="flex items-center space-x-2 text-amber-950 font-bold text-sm">
+                  <div className="p-1.5 bg-amber-100 text-amber-700 rounded-lg border border-amber-200/60">
+                    <Key size={15} />
                   </div>
                   <span>Formulário Protegido por Código de Acesso</span>
                 </div>
-                <span className="text-[10px] font-bold uppercase bg-amber-200/80 text-amber-900 px-2.5 py-0.5 rounded-full">
+                <span className="text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-200 px-2.5 py-0.5 rounded-full">
                   Acesso Restrito
                 </span>
               </div>
-              <p className="text-xs text-amber-900/85 leading-relaxed">
+              <p className="text-xs text-amber-900/80 leading-relaxed">
                 Este código é solicitado uma única vez para <strong>Responder</strong>, <strong>Importar como Template</strong> ou <strong>Editar em Equipe</strong>:
               </p>
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 bg-white border border-amber-300/90 rounded-xl p-3 shadow-2xs">
-                <div className="flex items-center gap-3">
-                  <div className="px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg">
-                    <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider block">Token Ativo</span>
-                    <span className="font-mono font-extrabold text-lg text-slate-900 tracking-widest">{accessToken || 'N/A'}</span>
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white border border-amber-200/90 rounded-xl p-3 shadow-2xs">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="px-3.5 py-1.5 bg-amber-50/80 border border-amber-200/80 rounded-lg shrink-0">
+                    <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider block leading-tight">Token Ativo</span>
+                    <span className="font-mono font-extrabold text-base sm:text-lg text-slate-900 tracking-widest">{accessToken || 'N/A'}</span>
                   </div>
-                  <div className="text-xs text-slate-500 hidden sm:block">
+                  <div className="text-xs text-slate-500 leading-snug hidden md:block">
                     Envie junto com o link para liberar o acesso.
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 shrink-0">
                   <button
                     type="button"
                     onClick={() => accessToken && handleCopy(accessToken, 'token')}
-                    className="flex-1 sm:flex-initial justify-center px-3 py-2 bg-amber-100 hover:bg-amber-200 text-amber-900 font-semibold text-xs rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
+                    className="flex-1 sm:flex-initial justify-center px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200/90 font-semibold text-xs rounded-xl transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
                   >
-                    {copiedKey === 'token' ? <CheckSquare size={14} /> : <Copy size={14} />}
+                    {copiedKey === 'token' ? <CheckSquare size={14} className="text-emerald-600" /> : <Copy size={14} className="text-amber-700" />}
                     <span>{copiedKey === 'token' ? 'Código Copiado!' : 'Copiar Código'}</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => handleCopy(buildInviteText().replace(/\*/g, ''), 'full_invite')}
-                    className="flex-1 sm:flex-initial justify-center px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                    className="flex-1 sm:flex-initial justify-center px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-xl transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer shadow-2xs"
                     title="Copia uma mensagem pronta com o link e a senha de acesso"
                   >
                     {copiedKey === 'full_invite' ? <CheckSquare size={14} /> : <Sparkles size={14} />}
