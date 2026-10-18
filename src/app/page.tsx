@@ -3,7 +3,11 @@
 import React, { useState, useEffect, useRef } from "react";
 import { getForms, createEmptyForm, cloneFormByToken, getFormByShareToken, deleteForm, generateAccessToken, removeSharedForm } from "../lib/api";
 import { Form, FormSettings } from "../types/form";
-import { Plus, FileText, Loader2, ArrowRight, Save, Download, FileCode, LogOut, BarChart3, Trash2, Users, Globe, Lock, RefreshCw, Key, ShieldCheck, AlertCircle } from "lucide-react";
+import {
+  Plus, FileText, Loader2, ArrowRight, Save, Download, FileCode, LogOut,
+  BarChart3, Trash2, Users, Globe, Lock, RefreshCw, Key, ShieldCheck,
+  AlertCircle, Search, Copy, Check, ExternalLink, Eye, Sparkles, Calendar
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { supabase, getFriendlyErrorMessage } from "../lib/supabase";
 import { useToast } from "../context/ToastContext";
@@ -25,6 +29,11 @@ export default function Dashboard() {
   const [targetTemplateTitle, setTargetTemplateTitle] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const hasProcessedImportRef = useRef(false);
+
+  // Busca, Filtros e Ações Rápidas do Painel
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeFilter, setActiveFilter] = useState<'all' | 'mine' | 'shared' | 'private' | 'public'>('all');
+  const [copiedTokenId, setCopiedTokenId] = useState<string | null>(null);
 
   // Modal de Criação de Formulário (Público vs Privado)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -221,147 +230,382 @@ export default function Dashboard() {
     );
   }
 
+  const totalFormsCount = forms.length;
+  const ownFormsCount = forms.filter(f => !f.is_shared).length;
+  const sharedFormsCount = forms.filter(f => f.is_shared).length;
+  const privateFormsCount = forms.filter(f => f.settings?.visibility === 'private').length;
+  const publicFormsCount = totalFormsCount - privateFormsCount;
+
+  const filteredForms = forms.filter(form => {
+    const matchesSearch =
+      !searchQuery.trim() ||
+      (form.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (form.description || '').toLowerCase().includes(searchQuery.toLowerCase());
+
+    if (!matchesSearch) return false;
+    if (activeFilter === 'mine') return !form.is_shared;
+    if (activeFilter === 'shared') return Boolean(form.is_shared);
+    if (activeFilter === 'private') return form.settings?.visibility === 'private';
+    if (activeFilter === 'public') return form.settings?.visibility !== 'private';
+    return true;
+  });
+
+  const handleQuickCopy = (e: React.MouseEvent, text: string, keyId: string, label: string) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(text);
+    setCopiedTokenId(keyId);
+    toast.success(`${label} copiado para a área de transferência!`, "Copiado");
+    setTimeout(() => setCopiedTokenId(null), 2000);
+  };
+
   return (
-    <div className="min-h-screen bg-slate-50 font-sans p-4 sm:p-8">
-      <div className="max-w-5xl mx-auto space-y-6 sm:space-y-8">
-        <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-xs">
-          <div className="flex items-center gap-3.5">
-            <QuestLinkLogo size="lg" showText={false} />
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-extrabold uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-200/70 px-2 py-0.5 rounded-md">
-                  QuestLink
+    <div className="min-h-screen bg-slate-50/70 font-sans flex flex-col text-slate-800">
+      {/* Top Navbar Fixa e Limpa */}
+      <nav className="bg-white/90 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-30 shadow-2xs">
+        <div className="max-w-6xl mx-auto px-4 sm:px-8 h-16 flex items-center justify-between gap-4">
+          <QuestLinkLogo size="md" subtitle="Diagnóstico & Formulários" />
+
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            {user?.email && (
+              <div className="hidden sm:flex items-center gap-2.5 bg-slate-50 border border-slate-200/80 rounded-full pl-1.5 pr-3.5 py-1">
+                <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-indigo-600 to-violet-600 text-white text-xs font-bold flex items-center justify-center uppercase shadow-2xs">
+                  {user.email.charAt(0)}
+                </div>
+                <span className="text-xs font-medium text-slate-600 max-w-[180px] truncate">
+                  {user.email}
                 </span>
-                <span className="text-xs text-slate-400 font-medium hidden sm:inline">• Painel de Questionários</span>
               </div>
-              <h1 className="text-xl sm:text-2xl font-bold text-slate-800 tracking-tight mt-0.5">Meus Formulários</h1>
-              <p className="text-xs sm:text-sm text-slate-500">Gerencie seus questionários de Diagnóstico e Maturidade.</p>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
-            <button 
-              onClick={handleOpenImportModal}
-              disabled={isImporting}
-              className="flex-1 sm:flex-none flex items-center justify-center space-x-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-medium shadow-sm transition-all disabled:opacity-70 disabled:cursor-not-allowed"
-            >
-              <Download size={16} />
-              <span>Importar Template</span>
-            </button>
+            )}
 
-            <button 
-              onClick={handleOpenCreateModal}
-              disabled={isCreating}
-              className="flex-1 sm:flex-none flex items-center justify-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-medium shadow-sm transition-all disabled:opacity-70 disabled:cursor-not-allowed"
-            >
-              {isCreating ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
-              <span>Criar Novo</span>
-            </button>
-
-            <button 
+            <button
               onClick={handleLogout}
-              className="flex items-center justify-center space-x-1.5 bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-600 border border-slate-200 hover:border-red-200 px-3 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-medium shadow-sm transition-all"
+              className="inline-flex items-center gap-1.5 bg-white hover:bg-red-50 text-slate-600 hover:text-red-600 border border-slate-200 hover:border-red-200 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-2xs"
               title="Encerrar sessão"
             >
-              <LogOut size={16} />
+              <LogOut size={15} />
               <span>Sair</span>
             </button>
           </div>
-        </header>
+        </div>
+      </nav>
 
+      {/* Conteúdo Principal */}
+      <main className="max-w-6xl w-full mx-auto px-4 sm:px-8 py-6 sm:py-9 flex-1 space-y-6 sm:space-y-8">
+        {/* Cabeçalho de Boas-vindas + Ações Principais */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 border border-indigo-100 px-2.5 py-0.5 rounded-md mb-2">
+              <Sparkles size={12} /> Painel de Controle
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+              Meus Formulários
+            </h1>
+            <p className="text-sm text-slate-500 mt-1">
+              Crie, compartilhe e acompanhe diagnósticos de maturidade e interoperabilidade em tempo real.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 w-full md:w-auto">
+            <button
+              onClick={handleOpenImportModal}
+              disabled={isImporting}
+              className="flex-1 md:flex-none inline-flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 hover:border-slate-300 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold shadow-2xs transition-all cursor-pointer disabled:opacity-70"
+            >
+              <Download size={16} className="text-indigo-600" />
+              <span>Importar Template</span>
+            </button>
+
+            <button
+              onClick={handleOpenCreateModal}
+              disabled={isCreating}
+              className="flex-1 md:flex-none inline-flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold shadow-sm shadow-indigo-500/20 transition-all cursor-pointer disabled:opacity-70"
+            >
+              {isCreating ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+              <span>Criar Novo Questionário</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Cards de Resumo (KPIs) */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-4">
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 shadow-2xs flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Total de Questionários</p>
+              <p className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-1">{totalFormsCount}</p>
+              <p className="text-xs text-slate-500 mt-1">
+                {ownFormsCount} {ownFormsCount === 1 ? 'próprio' : 'próprios'} • {sharedFormsCount} {sharedFormsCount === 1 ? 'compartilhado' : 'compartilhados'}
+              </p>
+            </div>
+            <div className="w-11 h-11 rounded-2xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
+              <FileText size={22} />
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 shadow-2xs flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Protegidos com Senha</p>
+              <p className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-1">{privateFormsCount}</p>
+              <p className="text-xs text-slate-500 mt-1">
+                Acesso restrito via código de segurança
+              </p>
+            </div>
+            <div className="w-11 h-11 rounded-2xl bg-amber-50 border border-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+              <Lock size={22} />
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 shadow-2xs flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Acesso Público Livre</p>
+              <p className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-1">{publicFormsCount}</p>
+              <p className="text-xs text-slate-500 mt-1">
+                Abertos para resposta direta via link
+              </p>
+            </div>
+            <div className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+              <Globe size={22} />
+            </div>
+          </div>
+        </div>
+
+        {/* Barra de Busca e Filtros */}
+        {forms.length > 0 && (
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-3 sm:p-4 shadow-2xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+            <div className="relative flex-1">
+              <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Buscar questionário pelo título ou descrição..."
+                className="w-full pl-9 pr-4 py-2 text-xs sm:text-sm text-slate-800 bg-slate-50/80 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition-all placeholder:text-slate-400"
+              />
+            </div>
+
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
+              {[
+                { key: 'all', label: `Todos (${totalFormsCount})` },
+                { key: 'mine', label: `Meus (${ownFormsCount})` },
+                { key: 'shared', label: `Compartilhados (${sharedFormsCount})` },
+                { key: 'private', label: `Privados (${privateFormsCount})` },
+                { key: 'public', label: `Públicos (${publicFormsCount})` },
+              ].map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveFilter(tab.key as any)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                    activeFilter === tab.key
+                      ? 'bg-indigo-600 text-white shadow-2xs'
+                      : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200/70'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Listagem de Questionários */}
         {forms.length === 0 ? (
-          <div className="bg-white border border-slate-200 border-dashed rounded-2xl flex flex-col items-center justify-center py-20 px-4 text-center">
-            <div className="bg-indigo-50 p-4 rounded-full text-indigo-500 mb-4">
+          <div className="bg-white border border-slate-200 border-dashed rounded-2xl flex flex-col items-center justify-center py-20 px-4 text-center shadow-2xs">
+            <div className="bg-indigo-50 p-4 rounded-2xl text-indigo-600 mb-4 border border-indigo-100">
               <FileText size={32} />
             </div>
-            <h3 className="text-xl font-semibold text-slate-800">Nenhum formulário encontrado</h3>
-            <p className="text-slate-500 mt-2 max-w-sm text-sm">Você ainda não possui formulários criados. Comece criando o seu primeiro questionário.</p>
-            <button 
+            <h3 className="text-xl font-bold text-slate-800">Nenhum formulário encontrado</h3>
+            <p className="text-slate-500 mt-2 max-w-sm text-sm">
+              Você ainda não possui formulários criados. Comece criando o seu primeiro questionário inteligente.
+            </p>
+            <button
               onClick={handleOpenCreateModal}
-              className="mt-6 text-indigo-600 font-medium hover:text-indigo-800 transition-colors text-sm"
+              className="mt-6 inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-semibold transition-all text-sm shadow-xs cursor-pointer"
             >
-              Criar Formulário Agora →
+              <Plus size={16} />
+              <span>Criar Formulário Agora</span>
+            </button>
+          </div>
+        ) : filteredForms.length === 0 ? (
+          <div className="bg-white border border-slate-200/80 rounded-2xl flex flex-col items-center justify-center py-14 px-4 text-center">
+            <p className="text-base font-bold text-slate-700">Nenhum questionário corresponde ao filtro selecionado</p>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1">Tente limpar o termo de busca ou alternar a aba de filtro.</p>
+            <button
+              onClick={() => { setSearchQuery(""); setActiveFilter('all'); }}
+              className="mt-4 text-xs font-semibold text-indigo-600 hover:text-indigo-800 underline cursor-pointer"
+            >
+              Limpar filtros
             </button>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-            {forms.map(form => (
-              <div 
-                key={form.id} 
-                onClick={() => router.push(`/builder/${form.id}`)}
-                className="group bg-white rounded-xl border border-slate-200 p-5 sm:p-6 hover:shadow-md hover:border-indigo-300 transition-all cursor-pointer flex flex-col justify-between"
-              >
-                <div>
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <div className={`p-2 rounded-lg transition-colors ${form.is_shared ? 'bg-purple-50 text-purple-600 group-hover:bg-purple-600 group-hover:text-white' : 'bg-indigo-50 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white'}`}>
-                        <FileText size={20} />
+            {filteredForms.map(form => {
+              const isPrivate = form.settings?.visibility === 'private';
+              const accessCode = form.settings?.access_token;
+              const publicLink = typeof window !== 'undefined' && form.share_token
+                ? `${window.location.origin}/f/${form.share_token}`
+                : '';
+
+              return (
+                <div
+                  key={form.id}
+                  onClick={() => router.push(`/builder/${form.id}`)}
+                  className="group relative bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 hover:shadow-lg hover:shadow-indigo-500/5 hover:border-indigo-300 transition-all cursor-pointer flex flex-col justify-between overflow-hidden"
+                >
+                  {/* Barra de Destaque Superior */}
+                  <div
+                    className={`absolute top-0 left-0 right-0 h-1 ${
+                      form.is_shared
+                        ? 'bg-gradient-to-r from-purple-500 to-indigo-500'
+                        : 'bg-gradient-to-r from-indigo-500 via-violet-500 to-indigo-400'
+                    }`}
+                  />
+
+                  <div>
+                    {/* Topo do Card: Badges + Excluir */}
+                    <div className="flex items-start justify-between gap-2 mb-3.5">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <div
+                          className={`p-2 rounded-xl transition-colors ${
+                            form.is_shared
+                              ? 'bg-purple-50 text-purple-600 group-hover:bg-purple-600 group-hover:text-white'
+                              : 'bg-indigo-50 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white'
+                          }`}
+                        >
+                          <FileText size={19} />
+                        </div>
+
+                        {form.is_shared ? (
+                          <span className="inline-flex items-center space-x-1 text-[11px] font-bold bg-purple-50 text-purple-700 border border-purple-200 px-2.5 py-0.5 rounded-full">
+                            <Users size={11} />
+                            <span>Compartilhado</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center space-x-1 text-[11px] font-semibold bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded-full">
+                            <span>Meu</span>
+                          </span>
+                        )}
+
+                        {isPrivate ? (
+                          <span
+                            className="inline-flex items-center space-x-1 text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-0.5 rounded-full"
+                            title={accessCode ? `Código de acesso: ${accessCode}` : 'Protegido por código de acesso'}
+                          >
+                            <Lock size={10} />
+                            <span>Privado</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center space-x-1 text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+                            <Globe size={10} />
+                            <span>Público</span>
+                          </span>
+                        )}
                       </div>
-                      {form.is_shared ? (
-                        <span className="inline-flex items-center space-x-1 text-[11px] font-bold bg-purple-50 text-purple-700 border border-purple-200 px-2 py-0.5 rounded-full">
-                          <Users size={11} />
-                          <span>Compartilhado</span>
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center space-x-1 text-[11px] font-medium bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
-                          <span>Meu</span>
-                        </span>
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setFormToDelete({ id: form.id, title: form.title, is_shared: form.is_shared });
+                        }}
+                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                        title={form.is_shared ? "Remover ou excluir formulário" : "Excluir formulário"}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+
+                    {/* Título & Descrição */}
+                    <h3 className="font-bold text-base sm:text-lg text-slate-900 line-clamp-2 mb-1.5 group-hover:text-indigo-600 transition-colors">
+                      {form.title || "Formulário Sem Título"}
+                    </h3>
+                    <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">
+                      {form.description || "Questionário estruturado para coleta de respostas e avaliação de maturidade institucional."}
+                    </p>
+
+                    {/* Atalhos Rápidos de Acesso (Código de Senha & Copiar Link) */}
+                    <div className="mt-4 flex flex-wrap items-center gap-2">
+                      {isPrivate && accessCode && (
+                        <button
+                          onClick={(e) => handleQuickCopy(e, accessCode, `code_${form.id}`, "Código de acesso")}
+                          className="inline-flex items-center gap-1.5 text-[11px] font-mono font-bold bg-amber-50/90 hover:bg-amber-100 text-amber-800 border border-amber-200/80 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+                          title="Clique para copiar o código de acesso"
+                        >
+                          <Key size={11} className="text-amber-600" />
+                          <span>{accessCode}</span>
+                          {copiedTokenId === `code_${form.id}` ? <Check size={11} className="text-emerald-600" /> : <Copy size={10} className="opacity-60" />}
+                        </button>
                       )}
 
-                      {/* Badge de Privacidade */}
-                      {form.settings?.visibility === 'private' ? (
-                        <span 
-                          className="inline-flex items-center space-x-1 text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full"
-                          title={form.settings.access_token ? `Código de acesso: ${form.settings.access_token}` : 'Protegido por código de acesso'}
+                      {form.share_token && (
+                        <button
+                          onClick={(e) => handleQuickCopy(e, publicLink, `link_${form.id}`, "Link de resposta")}
+                          className="inline-flex items-center gap-1 text-[11px] font-semibold bg-slate-50 hover:bg-indigo-50 text-slate-600 hover:text-indigo-700 border border-slate-200/80 hover:border-indigo-200 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+                          title="Copiar link público para respondentes"
                         >
-                          <Lock size={10} />
-                          <span>Privado</span>
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center space-x-1 text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full">
-                          <Globe size={10} />
-                          <span>Público</span>
-                        </span>
+                          {copiedTokenId === `link_${form.id}` ? <Check size={11} className="text-emerald-600" /> : <Copy size={11} />}
+                          <span>Copiar Link</span>
+                        </button>
                       )}
                     </div>
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setFormToDelete({ id: form.id, title: form.title, is_shared: form.is_shared });
-                      }}
-                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      title={form.is_shared ? "Remover da minha lista" : "Excluir formulário"}
-                    >
-                      <Trash2 size={16} />
-                    </button>
                   </div>
-                  <h3 className="font-semibold text-base sm:text-lg text-slate-800 line-clamp-2 mb-2 group-hover:text-indigo-700 transition-colors">{form.title}</h3>
-                </div>
 
-                <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-medium">
-                  <span className="text-slate-400">
-                    {new Date(form.updated_at || form.created_at || new Date()).toLocaleDateString('pt-BR')}
-                  </span>
-                  <div className="flex items-center space-x-2">
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        router.push(`/builder/${form.id}?tab=responses`);
-                      }}
-                      className="flex items-center space-x-1 text-slate-600 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 px-2 py-1 rounded-md transition-colors"
-                      title="Ver respostas"
-                    >
-                      <BarChart3 size={13} />
-                      <span>Respostas</span>
-                    </button>
-                    <span className="text-indigo-600 font-semibold group-hover:translate-x-0.5 transition-transform flex items-center gap-0.5">
-                      Editar <ArrowRight size={13} />
+                  {/* Rodapé do Card */}
+                  <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between text-xs font-medium">
+                    <span className="inline-flex items-center gap-1 text-slate-400" title="Última atualização">
+                      <Calendar size={12} />
+                      <span>{new Date(form.updated_at || form.created_at || new Date()).toLocaleDateString('pt-BR')}</span>
                     </span>
+
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          router.push(`/preview/${form.id}`);
+                        }}
+                        className="p-1.5 text-slate-500 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 border border-slate-200/80 hover:border-indigo-200 rounded-lg transition-colors cursor-pointer"
+                        title="Pré-visualizar questionário"
+                      >
+                        <Eye size={13} />
+                      </button>
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          router.push(`/builder/${form.id}?tab=responses`);
+                        }}
+                        className="inline-flex items-center space-x-1 text-slate-600 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 border border-slate-200/80 hover:border-indigo-200 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+                        title="Ver respostas e diagnóstico IMAPS"
+                      >
+                        <BarChart3 size={13} />
+                        <span>Respostas</span>
+                      </button>
+
+                      <span className="text-indigo-600 font-bold group-hover:translate-x-0.5 transition-transform inline-flex items-center gap-0.5 pl-1">
+                        Editar <ArrowRight size={13} />
+                      </span>
+                    </div>
                   </div>
                 </div>
+              );
+            })}
+
+            {/* Card Interativo para Criar Novo Questionário */}
+            <button
+              type="button"
+              onClick={handleOpenCreateModal}
+              className="group min-h-[210px] rounded-2xl border-2 border-dashed border-slate-200 hover:border-indigo-300 bg-white/50 hover:bg-indigo-50/20 p-6 flex flex-col items-center justify-center text-center transition-all cursor-pointer"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-indigo-50 group-hover:bg-indigo-600 text-indigo-600 group-hover:text-white flex items-center justify-center transition-colors mb-3 shadow-2xs">
+                <Plus size={24} />
               </div>
-            ))}
+              <span className="font-bold text-sm sm:text-base text-slate-700 group-hover:text-indigo-700 transition-colors">
+                Criar Novo Questionário
+              </span>
+              <span className="text-xs text-slate-400 mt-1 max-w-[220px]">
+                Adicione um novo formulário em branco Público ou Privado
+              </span>
+            </button>
           </div>
         )}
+      </main>
 
         {/* Modal de Criação de Formulário com Opção Público / Privado */}
         {isCreateModalOpen && (
@@ -633,7 +877,10 @@ export default function Dashboard() {
             </div>
           </div>
         )}
-      </div>
+
+      <footer className="border-t border-slate-200/70 bg-white/60 py-4 px-4 text-center text-xs text-slate-400">
+        QuestLink Builder • Plataforma de Diagnóstico e Questionários Inteligentes
+      </footer>
     </div>
   );
 }
