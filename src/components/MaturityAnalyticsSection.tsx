@@ -46,29 +46,66 @@ function ImapsRadarChart({ dimensions }: { dimensions: DimensionScoreStat[] }) {
     return merged;
   }, [dimensions]);
 
-  const size = 280;
-  const center = size / 2;
-  const radius = 92;
+  const width = 460;
+  const height = 320;
+  const centerX = width / 2;
+  const centerY = height / 2 + 4;
+  const radius = 84;
   const count = axes.length;
 
+  const getAngle = (index: number) => (Math.PI * 2 * index) / count - Math.PI / 2;
+
   const getCoordinates = (index: number, value: number) => {
-    const angle = (Math.PI * 2 * index) / count - Math.PI / 2;
+    const angle = getAngle(index);
     const normalized = Math.max(0, Math.min(5, value)) / 5;
     const r = normalized * radius;
     return {
-      x: center + r * Math.cos(angle),
-      y: center + r * Math.sin(angle)
+      x: centerX + r * Math.cos(angle),
+      y: centerY + r * Math.sin(angle)
     };
+  };
+
+  const getLabelCoordinates = (index: number) => {
+    const angle = getAngle(index);
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    const labelRadius = radius + 18;
+    let x = centerX + labelRadius * cos;
+    let y = centerY + labelRadius * sin;
+
+    // Ajuste vertical extra para o topo e a base
+    if (sin < -0.85) y -= 8;
+    if (sin > 0.85) y += 6;
+
+    const textAnchor: "start" | "middle" | "end" =
+      cos > 0.18 ? "start" : cos < -0.18 ? "end" : "middle";
+
+    return { x, y, textAnchor };
+  };
+
+  const splitLabelLines = (text: string): string[] => {
+    if (text.length <= 16 || !text.includes(" ")) return [text];
+    const words = text.split(" ");
+    let line1 = "";
+    let line2 = "";
+    for (const w of words) {
+      if ((line1 + " " + w).trim().length <= 16 || !line1) {
+        line1 = (line1 + " " + w).trim();
+      } else {
+        line2 = (line2 + " " + w).trim();
+      }
+    }
+    return line2 ? [line1, line2] : [line1];
   };
 
   const dataPoints = axes.map((axis, idx) => getCoordinates(idx, axis.averageScore));
   const polygonPoints = dataPoints.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
 
   return (
-    <div className="flex flex-col items-center justify-center">
+    <div className="flex flex-col items-center justify-center w-full">
       <svg
-        viewBox={`0 0 ${size} ${size}`}
-        className="w-full max-w-[270px] h-auto overflow-visible"
+        viewBox={`0 0 ${width} ${height}`}
+        className="w-full max-w-[440px] h-auto overflow-visible select-none"
         role="img"
         aria-label="Gráfico Radar de Maturidade IMAPS"
       >
@@ -84,7 +121,7 @@ function ImapsRadarChart({ dimensions }: { dimensions: DimensionScoreStat[] }) {
             <polygon
               key={lvl}
               points={ringPoints}
-              fill={lvl % 2 === 0 ? "rgba(241, 245, 249, 0.45)" : "none"}
+              fill={lvl % 2 === 0 ? "rgba(241, 245, 249, 0.5)" : "none"}
               stroke={lvl === 5 ? "#cbd5e1" : "#e2e8f0"}
               strokeWidth={lvl === 5 ? 1.5 : 1}
               strokeDasharray={lvl < 5 ? "3 2" : undefined}
@@ -98,8 +135,8 @@ function ImapsRadarChart({ dimensions }: { dimensions: DimensionScoreStat[] }) {
           return (
             <line
               key={idx}
-              x1={center}
-              y1={center}
+              x1={centerX}
+              y1={centerY}
               x2={end.x}
               y2={end.y}
               stroke="#cbd5e1"
@@ -108,17 +145,20 @@ function ImapsRadarChart({ dimensions }: { dimensions: DimensionScoreStat[] }) {
           );
         })}
 
-        {/* Rótulos dos níveis no eixo vertical superior */}
-        {[1, 2, 3, 4, 5].map(lvl => {
-          const yPos = center - (lvl / 5) * radius;
+        {/* Rótulos dos níveis internos (1.0 a 4.0) com halo branco para leitura limpa */}
+        {[1, 2, 3, 4].map(lvl => {
+          const yPos = centerY - (lvl / 5) * radius;
           return (
             <text
               key={lvl}
-              x={center + 4}
+              x={centerX + 5}
               y={yPos + 3}
-              fontSize="8"
+              fontSize="8.5"
               fontWeight="700"
               fill="#94a3b8"
+              stroke="#ffffff"
+              strokeWidth="2.5"
+              style={{ paintOrder: "stroke" }}
             >
               {lvl}.0
             </text>
@@ -128,16 +168,19 @@ function ImapsRadarChart({ dimensions }: { dimensions: DimensionScoreStat[] }) {
         {/* Polígono Preenchido dos Scores */}
         <polygon
           points={polygonPoints}
-          fill="rgba(79, 70, 229, 0.20)"
+          fill="rgba(79, 70, 229, 0.18)"
           stroke="#4f46e5"
           strokeWidth={2.5}
+          strokeLinejoin="round"
         />
 
         {/* Vértices e Rótulos Externos */}
         {axes.map((axis, idx) => {
           const pt = dataPoints[idx];
-          const labelPt = getCoordinates(idx, 6.15);
+          const labelPos = getLabelCoordinates(idx);
           const hasData = "hasData" in axis ? axis.hasData : true;
+          const lines = splitLabelLines(axis.shortLabel);
+          const scoreYOffset = lines.length > 1 ? 16 : 8;
           return (
             <g key={axis.key}>
               {hasData && (
@@ -150,26 +193,35 @@ function ImapsRadarChart({ dimensions }: { dimensions: DimensionScoreStat[] }) {
                   strokeWidth={2}
                 />
               )}
-              <text
-                x={labelPt.x}
-                y={labelPt.y}
-                textAnchor="middle"
-                dominantBaseline="middle"
-                fontSize="9.5"
-                fontWeight="700"
-                fill={hasData ? "#1e293b" : "#94a3b8"}
-              >
-                {axis.shortLabel}
-              </text>
+              {lines.map((line, lIdx) => (
+                <text
+                  key={lIdx}
+                  x={labelPos.x}
+                  y={labelPos.y - (lines.length > 1 ? 8 : 4) + lIdx * 11}
+                  textAnchor={labelPos.textAnchor}
+                  dominantBaseline="middle"
+                  fontSize="10"
+                  fontWeight="700"
+                  fill={hasData ? "#1e293b" : "#94a3b8"}
+                  stroke="#ffffff"
+                  strokeWidth="3"
+                  style={{ paintOrder: "stroke" }}
+                >
+                  {line}
+                </text>
+              ))}
               {hasData && (
                 <text
-                  x={labelPt.x}
-                  y={labelPt.y + 11}
-                  textAnchor="middle"
+                  x={labelPos.x}
+                  y={labelPos.y + scoreYOffset}
+                  textAnchor={labelPos.textAnchor}
                   dominantBaseline="middle"
-                  fontSize="9"
+                  fontSize="10"
                   fontWeight="800"
                   fill="#4f46e5"
+                  stroke="#ffffff"
+                  strokeWidth="3"
+                  style={{ paintOrder: "stroke" }}
                 >
                   {axis.averageScore.toFixed(2)} / 5
                 </text>
