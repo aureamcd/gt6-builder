@@ -9,6 +9,8 @@ import { Loader2, ChevronRight, ChevronLeft, Calendar, UploadCloud, FileText, He
 import { useRouter } from "next/navigation";
 import QuestionRenderer from "../../../components/QuestionRenderer";
 import { QuestLinkLogo } from "../../../components/QuestLinkLogo";
+import { generateConsolidatedMaturityReport } from "../../../lib/maturityAnalytics";
+import { RespondentMaturitySummaryCard } from "../../../components/MaturityAnalyticsSection";
 
 const calculateSectionTimeRaw = (section: Section) => {
   let seconds = 0;
@@ -527,6 +529,9 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
             <p className="text-slate-500 text-base sm:text-lg max-w-md mx-auto leading-relaxed">
               Muito obrigado por sua participação. Suas respostas foram registradas com segurança.
             </p>
+            <RespondentMaturitySummaryCard
+              result={generateConsolidatedMaturityReport(schema, [{ id: "current", answers }]).bySubmission.get("current") || null}
+            />
           </div>
         ) : (
           <>

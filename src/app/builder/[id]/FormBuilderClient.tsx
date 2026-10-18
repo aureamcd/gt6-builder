@@ -16,6 +16,8 @@ import CommentsPanel from "@/components/CommentsPanel";
 // Utilitários isolados
 import { calculateSectionTime } from "@/lib/formCalculations";
 import { exportFormToXML, parseFormFromXML } from "@/lib/xmlHandler";
+import { generateConsolidatedMaturityReport } from "@/lib/maturityAnalytics";
+import { MaturityAnalyticsSection } from "@/components/MaturityAnalyticsSection";
 
 // Custom Hooks isolados
 import { useFormHistory } from "./hooks/useFormHistory";
@@ -698,6 +700,12 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
     return [];
   };
 
+  // Relatório Consolidado de Maturidade (IMAPS) e Score por Envio
+  const maturityReport = useMemo(
+    () => generateConsolidatedMaturityReport(schema, responsesList),
+    [schema, responsesList]
+  );
+
   const exportResponsesAsCSV = () => {
     if (!responsesList || responsesList.length === 0) {
       showToast("Não há respostas registradas para exportar.", "info", "Aviso");
@@ -738,6 +746,9 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
       const headerRow = [
         'ID do Envio',
         'Data e Hora do Envio',
+        ...(maturityReport.hasWeightedQuestions
+          ? ['Score de Maturidade (1-5)', 'Aderência (%)', 'Nível de Maturidade (IMAPS)']
+          : []),
         ...questionColumns.map(c => c.header)
       ].map(h => `"${String(h).replace(/"/g, '""')}"`).join(';');
 
@@ -754,10 +765,22 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
           : 'Data não informada';
 
         const rowId = resp.id || `Envio #${responsesList.length - idx}`;
+        const subResult = maturityReport.bySubmission.get(resp.id || `sub_${idx}`);
 
         const rowValues = [
           rowId,
           formattedDate,
+          ...(maturityReport.hasWeightedQuestions
+            ? [
+                subResult?.averageScore !== null && subResult?.averageScore !== undefined
+                  ? subResult.averageScore.toFixed(2).replace('.', ',')
+                  : '',
+                subResult?.percentage !== null && subResult?.percentage !== undefined
+                  ? `${subResult.percentage}%`
+                  : '',
+                subResult?.levelInfo?.name || ''
+              ]
+            : []),
           ...questionColumns.map(col => answerMap.get(col.id) || '')
         ];
 
@@ -794,12 +817,23 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
     try {
       const exportData = responsesList.map((resp, idx) => {
         const answers = getNormalizedAnswers(resp);
+        const subResult = maturityReport.bySubmission.get(resp.id || `sub_${idx}`);
         return {
           id: resp.id || `envio_${responsesList.length - idx}`,
           data_envio: resp.submitted_at || resp.created_at || null,
           data_envio_formatada: resp.submitted_at || resp.created_at
             ? new Date(resp.submitted_at || resp.created_at).toLocaleString('pt-BR')
             : null,
+          maturidade: subResult && subResult.averageScore !== null ? {
+            score: subResult.averageScore,
+            aderencia_percentual: subResult.percentage,
+            nivel: subResult.levelInfo?.name || null,
+            dimensoes: subResult.dimensionScores.map(d => ({
+              dimensao: d.label,
+              score: d.averageScore,
+              nivel: d.levelInfo.shortName
+            }))
+          } : null,
           total_campos_respondidos: answers.length,
           respostas: answers.map(a => ({
             pergunta_id: a.questionId,
@@ -811,7 +845,22 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
         };
       });
 
-      const jsonStr = JSON.stringify(exportData, null, 2);
+      const payload = {
+        resumo_maturidade_consolidado: maturityReport.hasWeightedQuestions ? {
+          score_global: maturityReport.overallScore,
+          aderencia_global_percentual: maturityReport.overallPercentage,
+          nivel_global: maturityReport.overallLevel.name,
+          dimensoes: maturityReport.dimensions.map(d => ({
+            dimensao: d.label,
+            score_medio: d.averageScore,
+            aderencia_percentual: d.percentage,
+            nivel: d.levelInfo.name
+          }))
+        } : null,
+        envios: exportData
+      };
+
+      const jsonStr = JSON.stringify(payload, null, 2);
       const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -1092,7 +1141,21 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2.5 shrink-0 ml-auto">
+                <div className="flex flex-wrap items-center gap-2.5 shrink-0 ml-auto">
+                  {responsesList.length > 0 && maturityReport.hasWeightedQuestions && (
+                    <button
+                      onClick={() => {
+                        const el = document.getElementById('analise-maturidade');
+                        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/90 rounded-xl transition-all cursor-pointer active:scale-95 shrink-0"
+                      title="Ir para a Análise de Maturidade ao final da página"
+                    >
+                      <BarChart3 size={13} />
+                      <span>Ver Análise ({maturityReport.overallScore.toFixed(2)}/5)</span>
+                    </button>
+                  )}
+
                   <button
                     onClick={() => fetchResponses()}
                     disabled={isLoadingResponses}
@@ -1197,120 +1260,134 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                   )}
                 </div>
               ) : (
-                <div className="space-y-5">
-                  {responsesList.map((resp, i) => {
-                    const answers = getNormalizedAnswers(resp);
-                    const formattedDate = resp.submitted_at || resp.created_at
-                      ? new Date(resp.submitted_at || resp.created_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'medium' })
-                      : 'Data não informada';
+                <div className="space-y-6">
+                  <div className="space-y-5">
+                    {responsesList.map((resp, i) => {
+                      const answers = getNormalizedAnswers(resp);
+                      const subResult = maturityReport.bySubmission.get(resp.id || `sub_${i}`);
+                      const formattedDate = resp.submitted_at || resp.created_at
+                        ? new Date(resp.submitted_at || resp.created_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'medium' })
+                        : 'Data não informada';
 
-                    return (
-                      <div key={resp.id || i} className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/90 shadow-sm hover:shadow-md transition-all space-y-4">
-                        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3.5">
-                          <div className="flex items-center space-x-2.5">
-                            <span className="text-xs font-bold text-white bg-gradient-to-r from-indigo-600 to-indigo-700 px-3 py-1 rounded-full shadow-2xs flex items-center gap-1.5">
-                              <span>Envio #{responsesList.length - i}</span>
-                            </span>
-                          </div>
-                          
-                          <div className="flex items-center space-x-3 text-xs text-slate-500">
-                            <span className="flex items-center space-x-1.5 bg-slate-50 border border-slate-200/80 px-2.5 py-1 rounded-lg font-medium text-slate-600">
-                              <Clock size={13} className="text-slate-400" />
-                              <span>{formattedDate}</span>
-                            </span>
-                            <span className="bg-indigo-50/80 text-indigo-700 border border-indigo-100/80 font-semibold px-2.5 py-1 rounded-lg text-[11px]">
-                              {answers.length} {answers.length === 1 ? 'campo preenchido' : 'campos preenchidos'}
-                            </span>
-                            <button
-                              onClick={() => handleDeleteSingleResponse(resp.id)}
-                              disabled={deletingResponseId === resp.id}
-                              className="flex items-center space-x-1 text-slate-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-lg border border-transparent hover:border-red-200 transition-all cursor-pointer disabled:opacity-50 ml-1"
-                              title="Excluir esta resposta"
-                            >
-                              {deletingResponseId === resp.id ? (
-                                <Loader2 size={14} className="animate-spin text-red-500" />
-                              ) : (
-                                <Trash2 size={14} />
+                      return (
+                        <div key={resp.id || i} className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/90 shadow-sm hover:shadow-md transition-all space-y-4">
+                          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3.5">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-xs font-bold text-white bg-gradient-to-r from-indigo-600 to-indigo-700 px-3 py-1 rounded-full shadow-2xs flex items-center gap-1.5">
+                                <span>Envio #{responsesList.length - i}</span>
+                              </span>
+                              {subResult && subResult.averageScore !== null && subResult.levelInfo && (
+                                <span
+                                  className={`text-xs font-bold px-2.5 py-1 rounded-full border ${subResult.levelInfo.badgeClass}`}
+                                  title="Pontuação média ponderada deste envio na escala de 1 a 5"
+                                >
+                                  Maturidade: {subResult.averageScore.toFixed(2)}/5 • {subResult.levelInfo.shortName}
+                                </span>
                               )}
-                            </button>
-                          </div>
-                        </div>
-
-                        {answers.length === 0 ? (
-                          <div className="p-4 bg-slate-50 rounded-xl text-center text-xs text-slate-400">
-                            Nenhum campo respondido registrado para este envio.
-                          </div>
-                        ) : (
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {answers.map((item, idx) => (
-                              <div
-                                key={item.questionId || idx}
-                                className="bg-slate-50/70 hover:bg-slate-50 rounded-xl p-4 border border-slate-200/80 transition-all flex flex-col justify-between space-y-2.5 shadow-2xs"
+                            </div>
+                            
+                            <div className="flex items-center space-x-3 text-xs text-slate-500">
+                              <span className="flex items-center space-x-1.5 bg-slate-50 border border-slate-200/80 px-2.5 py-1 rounded-lg font-medium text-slate-600">
+                                <Clock size={13} className="text-slate-400" />
+                                <span>{formattedDate}</span>
+                              </span>
+                              <span className="bg-indigo-50/80 text-indigo-700 border border-indigo-100/80 font-semibold px-2.5 py-1 rounded-lg text-[11px]">
+                                {answers.length} {answers.length === 1 ? 'campo preenchido' : 'campos preenchidos'}
+                              </span>
+                              <button
+                                onClick={() => handleDeleteSingleResponse(resp.id)}
+                                disabled={deletingResponseId === resp.id}
+                                className="flex items-center space-x-1 text-slate-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-lg border border-transparent hover:border-red-200 transition-all cursor-pointer disabled:opacity-50 ml-1"
+                                title="Excluir esta resposta"
                               >
-                                <div>
-                                  {item.sectionTitle && (
-                                    <span className="text-[10px] uppercase font-bold tracking-wider text-indigo-700 bg-indigo-50 border border-indigo-100/90 px-2 py-0.5 rounded-md mb-1.5 inline-block">
-                                      {item.sectionTitle}
-                                    </span>
-                                  )}
-                                  <p className="text-xs sm:text-sm font-semibold text-slate-800 leading-snug">
-                                    {item.label}
-                                  </p>
-                                </div>
-                                <div className="pt-2 border-t border-slate-200/60">
-                                  {item.badges && item.badges.length > 0 ? (
-                                    <div className="flex flex-wrap gap-1.5">
-                                      {item.badges.map((badge, bIdx) => (
-                                        <span
-                                          key={bIdx}
-                                          className="inline-flex items-center text-xs font-medium text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg shadow-2xs"
-                                        >
-                                          ✓ {badge}
-                                        </span>
-                                      ))}
-                                    </div>
-                                  ) : typeof item.value === 'string' && (item.value.startsWith('http://') || item.value.startsWith('https://') || item.value.startsWith('data:')) ? (
-                                    <div className="bg-white border border-indigo-200 rounded-xl p-3 shadow-2xs space-y-2">
-                                      <div className="flex items-center justify-between gap-2">
-                                        <div className="flex items-center gap-2 min-w-0">
-                                          <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
-                                            <FileText size={16} />
-                                          </div>
-                                          <div className="min-w-0">
-                                            <span className="text-xs font-semibold text-slate-800 truncate block">
-                                              {item.value.startsWith('data:') ? 'Arquivo anexado (base64)' : (decodeURIComponent(item.value.split('/').pop() || 'Arquivo Anexado').replace(/^sub_[^_]+_\d+_/, '').replace(/^\d+_/, ''))}
-                                            </span>
-                                          </div>
-                                        </div>
-                                        <a
-                                          href={item.value}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-semibold transition-colors shrink-0"
-                                        >
-                                          <ExternalLink size={13} />
-                                          <span>Ver / Baixar</span>
-                                        </a>
-                                      </div>
-                                      {/\.(jpg|jpeg|png|webp|gif|svg)(\?.*)?$/i.test(item.value) && (
-                                        <div className="border border-slate-100 rounded-lg overflow-hidden max-h-36 bg-slate-50 flex items-center justify-center">
-                                          <img src={item.value} alt="Preview da Resposta" className="max-h-36 object-contain" />
-                                        </div>
-                                      )}
-                                    </div>
-                                  ) : (
-                                    <div className="bg-white border-l-4 border-indigo-500 border-y border-r border-slate-200/80 rounded-r-xl p-2.5 sm:p-3 text-xs sm:text-sm text-slate-900 font-medium shadow-2xs break-words">
-                                      {item.value}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            ))}
+                                {deletingResponseId === resp.id ? (
+                                  <Loader2 size={14} className="animate-spin text-red-500" />
+                                ) : (
+                                  <Trash2 size={14} />
+                                )}
+                              </button>
+                            </div>
                           </div>
-                        )}
-                      </div>
-                    );
-                  })}
+
+                          {answers.length === 0 ? (
+                            <div className="p-4 bg-slate-50 rounded-xl text-center text-xs text-slate-400">
+                              Nenhum campo respondido registrado para este envio.
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {answers.map((item, idx) => (
+                                <div
+                                  key={item.questionId || idx}
+                                  className="bg-slate-50/70 hover:bg-slate-50 rounded-xl p-4 border border-slate-200/80 transition-all flex flex-col justify-between space-y-2.5 shadow-2xs"
+                                >
+                                  <div>
+                                    {item.sectionTitle && (
+                                      <span className="text-[10px] uppercase font-bold tracking-wider text-indigo-700 bg-indigo-50 border border-indigo-100/90 px-2 py-0.5 rounded-md mb-1.5 inline-block">
+                                        {item.sectionTitle}
+                                      </span>
+                                    )}
+                                    <p className="text-xs sm:text-sm font-semibold text-slate-800 leading-snug">
+                                      {item.label}
+                                    </p>
+                                  </div>
+                                  <div className="pt-2 border-t border-slate-200/60">
+                                    {item.badges && item.badges.length > 0 ? (
+                                      <div className="flex flex-wrap gap-1.5">
+                                        {item.badges.map((badge, bIdx) => (
+                                          <span
+                                            key={bIdx}
+                                            className="inline-flex items-center text-xs font-medium text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg shadow-2xs"
+                                          >
+                                            ✓ {badge}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    ) : typeof item.value === 'string' && (item.value.startsWith('http://') || item.value.startsWith('https://') || item.value.startsWith('data:')) ? (
+                                      <div className="bg-white border border-indigo-200 rounded-xl p-3 shadow-2xs space-y-2">
+                                        <div className="flex items-center justify-between gap-2">
+                                          <div className="flex items-center gap-2 min-w-0">
+                                            <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
+                                              <FileText size={16} />
+                                            </div>
+                                            <div className="min-w-0">
+                                              <span className="text-xs font-semibold text-slate-800 truncate block">
+                                                {item.value.startsWith('data:') ? 'Arquivo anexado (base64)' : (decodeURIComponent(item.value.split('/').pop() || 'Arquivo Anexado').replace(/^sub_[^_]+_\d+_/, '').replace(/^\d+_/, ''))}
+                                              </span>
+                                            </div>
+                                          </div>
+                                          <a
+                                            href={item.value}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-semibold transition-colors shrink-0"
+                                          >
+                                            <ExternalLink size={13} />
+                                            <span>Ver / Baixar</span>
+                                          </a>
+                                        </div>
+                                        {/\.(jpg|jpeg|png|webp|gif|svg)(\?.*)?$/i.test(item.value) && (
+                                          <div className="border border-slate-100 rounded-lg overflow-hidden max-h-36 bg-slate-50 flex items-center justify-center">
+                                            <img src={item.value} alt="Preview da Resposta" className="max-h-36 object-contain" />
+                                          </div>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <div className="bg-white border-l-4 border-indigo-500 border-y border-r border-slate-200/80 rounded-r-xl p-2.5 sm:p-3 text-xs sm:text-sm text-slate-900 font-medium shadow-2xs break-words">
+                                        {item.value}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Seção de Análise Baseada em Pesos + Diagnóstico Multidimensional ao Final da Página */}
+                  <MaturityAnalyticsSection report={maturityReport} />
                 </div>
               )}
             </div>
