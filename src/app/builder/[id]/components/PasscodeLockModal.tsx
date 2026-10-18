@@ -1,5 +1,6 @@
 import React from "react";
 import { Lock, Key, AlertCircle, ArrowRight } from "lucide-react";
+import { QuestLinkLogo } from "@/components/QuestLinkLogo";
 
 interface PasscodeLockModalProps {
   title?: string;
@@ -21,8 +22,11 @@ export function PasscodeLockModal({
   return (
     <div className="min-h-screen bg-slate-100 font-sans flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200 p-8 animate-in fade-in zoom-in-95 duration-200">
-        <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-6 ring-8 ring-amber-50/50 shadow-inner">
-          <Lock size={32} />
+        <div className="flex justify-center mb-5">
+          <QuestLinkLogo size="md" subtitle="Builder" />
+        </div>
+        <div className="w-14 h-14 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-5 ring-8 ring-amber-50/50 shadow-inner">
+          <Lock size={28} />
         </div>
 
         <div className="text-center mb-6">

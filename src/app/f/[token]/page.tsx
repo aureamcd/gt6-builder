@@ -8,6 +8,7 @@ import { useToast } from "../../../context/ToastContext";
 import { Loader2, ChevronRight, ChevronLeft, Calendar, UploadCloud, FileText, Headphones, Video, Lock, Key, ArrowRight, ShieldCheck, AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import QuestionRenderer from "../../../components/QuestionRenderer";
+import { QuestLinkLogo } from "../../../components/QuestLinkLogo";
 
 const calculateSectionTimeRaw = (section: Section) => {
   let seconds = 0;
@@ -189,8 +190,11 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
     return (
       <div className="min-h-screen bg-slate-100 font-sans flex flex-col items-center justify-center p-4">
         <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200 p-8 animate-in fade-in zoom-in-95 duration-200">
-          <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-6 ring-8 ring-amber-50/50 shadow-inner">
-            <Lock size={32} />
+          <div className="flex justify-center mb-5">
+            <QuestLinkLogo size="md" subtitle="Diagnóstico & Formulários" />
+          </div>
+          <div className="w-14 h-14 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-5 ring-8 ring-amber-50/50 shadow-inner">
+            <Lock size={28} />
           </div>
 
           <div className="text-center mb-6">
@@ -238,7 +242,7 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
 
           <div className="mt-8 pt-4 border-t border-slate-100 text-center">
             <p className="text-xs text-slate-400">
-              Ambiente Seguro • Plataforma de Maturidade GT6
+              Ambiente Seguro • QuestLink
             </p>
           </div>
         </div>
@@ -476,10 +480,13 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
   return (
     <div className="min-h-screen bg-slate-50 font-sans flex flex-col">
       {/* Header */}
-      <header className="bg-indigo-600 text-white py-6 px-4 shadow-md sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
+      <header className="bg-indigo-600 text-white py-5 px-4 shadow-md sticky top-0 z-10">
+        <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold mt-1">{schema.title || "Formulário"}</h1>
+            <h1 className="text-xl sm:text-2xl font-bold leading-snug">{schema.title || "Formulário"}</h1>
+          </div>
+          <div className="shrink-0 hidden sm:flex items-center bg-indigo-700/60 border border-indigo-400/30 rounded-xl px-2.5 py-1.5">
+            <QuestLinkLogo size="sm" variant="light" />
           </div>
         </div>
       </header>

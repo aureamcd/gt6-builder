@@ -2,8 +2,9 @@
 
 import React, { useState, Suspense } from 'react';
 import { supabase, getFriendlyErrorMessage } from '../../lib/supabase';
-import { Loader2, Mail, Lock, ShieldCheck } from 'lucide-react';
+import { Loader2, Mail, Lock } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { QuestLinkLogo } from '../../components/QuestLinkLogo';
 
 function LoginContent() {
   const router = useRouter();
@@ -44,15 +45,13 @@ function LoginContent() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8 font-sans">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="flex justify-center text-indigo-600">
-          <ShieldCheck size={48} />
-        </div>
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-slate-900">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md flex flex-col items-center">
+        <QuestLinkLogo size="xl" subtitle="Diagnóstico & Formulários" />
+        <h2 className="mt-6 text-center text-2xl sm:text-3xl font-extrabold text-slate-900">
           {isLogin ? 'Acesse a Plataforma' : 'Criar Nova Conta'}
         </h2>
-        <p className="mt-2 text-center text-sm text-slate-600">
-          Formulários Institucionais GT6
+        <p className="mt-1.5 text-center text-sm text-slate-500">
+          Construa, compartilhe e avalie questionários inteligentes
         </p>
       </div>
 

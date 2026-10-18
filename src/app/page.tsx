@@ -7,6 +7,7 @@ import { Plus, FileText, Loader2, ArrowRight, Save, Download, FileCode, LogOut, 
 import { useRouter } from "next/navigation";
 import { supabase, getFriendlyErrorMessage } from "../lib/supabase";
 import { useToast } from "../context/ToastContext";
+import { QuestLinkLogo } from "../components/QuestLinkLogo";
 
 export default function Dashboard() {
   const { toast } = useToast();
@@ -223,10 +224,19 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-slate-50 font-sans p-4 sm:p-8">
       <div className="max-w-5xl mx-auto space-y-6 sm:space-y-8">
-        <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-slate-800 tracking-tight">Meus Formulários</h1>
-            <p className="text-sm sm:text-base text-slate-500 mt-1">Gerencie os questionários de Maturidade e Interoperabilidade.</p>
+        <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-xs">
+          <div className="flex items-center gap-3.5">
+            <QuestLinkLogo size="lg" showText={false} />
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-extrabold uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-200/70 px-2 py-0.5 rounded-md">
+                  QuestLink
+                </span>
+                <span className="text-xs text-slate-400 font-medium hidden sm:inline">• Painel de Questionários</span>
+              </div>
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-800 tracking-tight mt-0.5">Meus Formulários</h1>
+              <p className="text-xs sm:text-sm text-slate-500">Gerencie seus questionários de Diagnóstico e Maturidade.</p>
+            </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
             <button 

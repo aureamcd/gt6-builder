@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { Form, QuestionType } from "@/types/form";
 import { generateAccessToken } from "@/lib/api";
+import { QuestLinkLogo } from "@/components/QuestLinkLogo";
 
 interface SectionSidebarProps {
   isMobileMenuOpen: boolean;
@@ -57,10 +58,9 @@ export function SectionSidebar({
       {/* Sidebar: Components Palette */}
       <aside className={`fixed inset-y-0 left-0 z-30 w-64 bg-white border-r border-slate-200 flex flex-col shadow-xl md:shadow-sm transition-transform duration-300 md:relative md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="p-4 border-b border-slate-200 flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Layers className="text-indigo-600" />
-            <h1 className="font-bold text-lg text-slate-800">FormPanel</h1>
-          </div>
+          <a href="/" className="hover:opacity-90 transition-opacity" title="Voltar ao Painel QuestLink">
+            <QuestLinkLogo size="sm" subtitle="Builder" />
+          </a>
           <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden text-slate-500 hover:text-slate-800">
             <X size={20} />
           </button>

@@ -3,7 +3,8 @@
 import React, { useState } from "react";
 import { supabase, getFriendlyAuthError } from "../../lib/supabase";
 import { useRouter } from "next/navigation";
-import { Loader2, Mail, Lock, AlertCircle, UserPlus } from "lucide-react";
+import { Loader2, Mail, Lock, AlertCircle } from "lucide-react";
+import { QuestLinkLogo } from "../../components/QuestLinkLogo";
 
 export default function RegisterPage() {
   const [email, setEmail] = useState("");
@@ -45,12 +46,10 @@ export default function RegisterPage() {
     <div className="min-h-screen bg-slate-50 flex flex-col justify-center items-center p-4">
       <div className="max-w-md w-full bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
         <div className="p-8">
-          <div className="text-center mb-8">
-            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-indigo-100 mb-4 text-indigo-600">
-              <UserPlus size={24} />
-            </div>
+          <div className="text-center mb-8 flex flex-col items-center">
+            <QuestLinkLogo size="lg" subtitle="Builder" className="mb-4" />
             <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Criar Nova Conta</h1>
-            <p className="text-slate-500 mt-2">Comece a construir seus questionários</p>
+            <p className="text-slate-500 mt-1 text-sm">Comece a construir seus questionários no QuestLink</p>
           </div>
 
           {error && (
