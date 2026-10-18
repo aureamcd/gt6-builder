@@ -392,10 +392,14 @@ export default function PreviewPage({ params }: { params: Promise<{ id: string }
 
             {/* Questions List */}
             {isCurrentSectionHidden ? (
-              <div className="p-12 text-center flex flex-col items-center justify-center bg-white">
-                <Video size={48} className="text-slate-300 mb-4" />
-                <h3 className="text-lg font-medium text-slate-700">Perguntas Bloqueadas</h3>
-                <p className="text-slate-500 mt-2 max-w-md">As perguntas desta seção estão ocultas. Assista ao vídeo explicativo acima até {currentSection.unlock_at_seconds} segundos para liberá-las.</p>
+              <div className="p-10 sm:p-12 text-center flex flex-col items-center justify-center bg-white">
+                <div className="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-4 border border-indigo-100">
+                  <Video size={28} />
+                </div>
+                <h3 className="text-base sm:text-lg font-bold text-slate-800">Assista ao vídeo para liberar as perguntas</h3>
+                <p className="text-sm text-slate-500 mt-1.5 max-w-md leading-relaxed">
+                  As perguntas desta etapa serão exibidas automaticamente após você assistir ao vídeo de orientação acima (mínimo de {currentSection.unlock_at_seconds}s).
+                </p>
               </div>
             ) : (
               <div className="p-6 sm:p-8 space-y-10">
@@ -450,7 +454,7 @@ export default function PreviewPage({ params }: { params: Promise<{ id: string }
             <button
               onClick={() => setActiveSectionIndex(prev => Math.max(0, prev - 1))}
               disabled={activeSectionIndex === 0}
-              className={`w-full sm:w-auto flex items-center justify-center space-x-2 px-6 py-3 rounded-lg font-medium transition-colors ${activeSectionIndex === 0 ? 'bg-slate-100 text-slate-400 cursor-not-allowed hidden sm:flex opacity-0 pointer-events-none' : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 shadow-sm'}`}
+              className={`w-full sm:w-auto flex items-center justify-center space-x-2 px-6 py-3 rounded-xl font-medium transition-colors ${activeSectionIndex === 0 ? 'bg-slate-100 text-slate-400 cursor-not-allowed hidden sm:flex opacity-0 pointer-events-none' : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 shadow-sm'}`}
             >
               <ChevronLeft size={20} />
               <span>Anterior</span>
@@ -458,12 +462,12 @@ export default function PreviewPage({ params }: { params: Promise<{ id: string }
             <button
               onClick={handleNextSection}
               disabled={isCurrentSectionLocked}
-              title={isCurrentSectionLocked ? "Assista ao vídeo para prosseguir" : ""}
-              className={`w-full sm:w-auto flex items-center justify-center space-x-2 px-6 py-3 rounded-lg font-medium transition-colors ml-auto ${isCurrentSectionLocked ? 'bg-indigo-400 text-white cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm'}`}
+              title={isCurrentSectionLocked ? "Assista ao vídeo acima para liberar o avanço" : ""}
+              className={`w-full sm:w-auto flex items-center justify-center space-x-2 px-6 py-3 rounded-xl font-semibold transition-colors ml-auto ${isCurrentSectionLocked ? 'bg-slate-200 text-slate-500 border border-slate-300/80 cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm'}`}
             >
-              {activeSectionIndex === sections.length - 1 && <CheckCircle2 size={18} />}
-              <span>{isCurrentSectionLocked ? 'Vídeo Bloqueado' : (activeSectionIndex === sections.length - 1 ? 'Concluir Simulação' : 'Próxima')}</span>
-              {activeSectionIndex !== sections.length - 1 && <ChevronRight size={20} />}
+              {!isCurrentSectionLocked && activeSectionIndex === sections.length - 1 && <CheckCircle2 size={18} />}
+              <span>{isCurrentSectionLocked ? 'Assista ao vídeo para avançar' : (activeSectionIndex === sections.length - 1 ? 'Concluir Simulação' : 'Próxima Seção')}</span>
+              {!isCurrentSectionLocked && activeSectionIndex !== sections.length - 1 && <ChevronRight size={20} />}
             </button>
           </div>
         ) : (

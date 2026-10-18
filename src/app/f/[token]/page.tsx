@@ -610,10 +610,14 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
 
             {/* Questions List */}
             {isCurrentSectionHidden ? (
-              <div className="p-12 text-center flex flex-col items-center justify-center bg-white">
-                <Video size={48} className="text-slate-300 mb-4" />
-                <h3 className="text-lg font-medium text-slate-700">Perguntas Bloqueadas</h3>
-                <p className="text-slate-500 mt-2 max-w-md">As perguntas desta seção estão ocultas. Assista ao vídeo explicativo acima até {currentSection.unlock_at_seconds} segundos para liberá-las.</p>
+              <div className="p-10 sm:p-12 text-center flex flex-col items-center justify-center bg-white">
+                <div className="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-4 border border-indigo-100">
+                  <Video size={28} />
+                </div>
+                <h3 className="text-base sm:text-lg font-bold text-slate-800">Assista ao vídeo para liberar as perguntas</h3>
+                <p className="text-sm text-slate-500 mt-1.5 max-w-md leading-relaxed">
+                  As perguntas desta etapa serão exibidas automaticamente após você assistir ao vídeo de orientação acima (mínimo de {currentSection.unlock_at_seconds}s).
+                </p>
               </div>
             ) : (
               <div className="p-6 sm:p-8 space-y-10">
@@ -671,20 +675,22 @@ export default function PublicFormPage({ params }: { params: Promise<{ token: st
             <button 
               onClick={handleNextSection}
               disabled={isCurrentSectionLocked}
-              title={isCurrentSectionLocked ? "Assista ao vídeo para prosseguir" : ""}
-              className={`w-full sm:w-auto flex items-center justify-center space-x-2 px-8 py-3 rounded-xl font-semibold transition-colors ml-auto ${isCurrentSectionLocked ? 'bg-indigo-400 text-white cursor-not-allowed opacity-75' : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm cursor-pointer'}`}
+              title={isCurrentSectionLocked ? "Assista ao vídeo acima para liberar o avanço" : ""}
+              className={`w-full sm:w-auto flex items-center justify-center space-x-2 px-7 py-3 rounded-xl font-semibold transition-colors ml-auto ${isCurrentSectionLocked ? 'bg-slate-200 text-slate-500 border border-slate-300/80 cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm cursor-pointer'}`}
             >
-              <span>{isCurrentSectionLocked ? 'Vídeo Bloqueado' : 'Próxima Seção'}</span>
-              <ChevronRight size={18} />
+              {isCurrentSectionLocked && <Lock size={16} className="shrink-0" />}
+              <span>{isCurrentSectionLocked ? 'Assista ao vídeo para avançar' : 'Próxima Seção'}</span>
+              {!isCurrentSectionLocked && <ChevronRight size={18} />}
             </button>
           ) : (
             <button 
               onClick={handleSubmitResponse}
               disabled={isSubmitting || isCurrentSectionLocked}
-              title={isCurrentSectionLocked ? "Assista ao vídeo para prosseguir" : ""}
-              className={`w-full sm:w-auto flex items-center justify-center space-x-2 px-8 py-3.5 rounded-xl font-bold transition-colors ml-auto ${isCurrentSectionLocked ? 'bg-slate-400 text-white cursor-not-allowed opacity-75' : (isSubmitting ? 'bg-indigo-400 text-white cursor-wait' : 'bg-green-600 text-white hover:bg-green-700 shadow-md shadow-green-200 cursor-pointer')}`}
+              title={isCurrentSectionLocked ? "Assista ao vídeo acima para liberar o envio" : ""}
+              className={`w-full sm:w-auto flex items-center justify-center space-x-2 px-7 py-3.5 rounded-xl font-bold transition-colors ml-auto ${isCurrentSectionLocked ? 'bg-slate-200 text-slate-500 border border-slate-300/80 cursor-not-allowed' : (isSubmitting ? 'bg-indigo-400 text-white cursor-wait' : 'bg-green-600 text-white hover:bg-green-700 shadow-md shadow-green-200 cursor-pointer')}`}
             >
-              <span>{isCurrentSectionLocked ? 'Vídeo Bloqueado' : (isSubmitting ? 'Enviando...' : 'Finalizar e Enviar Respostas')}</span>
+              {isCurrentSectionLocked && <Lock size={16} className="shrink-0" />}
+              <span>{isCurrentSectionLocked ? 'Assista ao vídeo para finalizar' : (isSubmitting ? 'Enviando...' : 'Finalizar e Enviar Respostas')}</span>
             </button>
           )}
         </div>
