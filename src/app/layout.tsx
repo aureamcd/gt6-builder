@@ -15,6 +15,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "QuestLink | Diagnóstico e Formulários Inteligentes",
   description: "Plataforma de construção colaborativa de questionários e diagnóstico de maturidade institucional.",
+  icons: {
+    icon: "/icon.svg?v=3",
+    shortcut: "/icon.svg?v=3",
+  },
 };
 
 import { ToastProvider } from "../context/ToastContext";

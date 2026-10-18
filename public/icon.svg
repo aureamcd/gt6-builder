@@ -1,0 +1,32 @@
+<svg viewBox="0 0 88 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .ql-frame { stroke: #4F46E5; }
+    .ql-fill { fill: #4F46E5; }
+    .ql-line { stroke: #0F172A; }
+    @media (prefers-color-scheme: dark) {
+      .ql-frame { stroke: #6366F1; }
+      .ql-fill { fill: #6366F1; }
+      .ql-line { stroke: #F8FAFC; }
+    }
+  </style>
+  <path
+    class="ql-frame"
+    d="M80 24V19C80 10.7157 73.2843 4 65 4H21C12.7157 4 6 10.7157 6 19V77C6 85.2843 12.7157 92 21 92H65C73.2843 92 80 85.2843 80 77V69"
+    stroke-width="9.5"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <circle class="ql-fill" cx="25" cy="28" r="5.5" />
+  <line class="ql-line" x1="40" y1="28" x2="70" y2="28" stroke-width="8.5" stroke-linecap="round" />
+  <circle class="ql-fill" cx="25" cy="47" r="5.5" />
+  <line class="ql-line" x1="40" y1="47" x2="70" y2="47" stroke-width="8.5" stroke-linecap="round" />
+  <circle class="ql-fill" cx="29" cy="70" r="13" />
+  <path
+    d="M23 70.2L27.5 74.5L35.5 66"
+    stroke="#FFFFFF"
+    stroke-width="4.2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <line class="ql-frame" x1="50" y1="70" x2="70" y2="70" stroke-width="8.5" stroke-linecap="round" />
+</svg>
