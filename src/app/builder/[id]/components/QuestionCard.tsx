@@ -175,7 +175,7 @@ export function QuestionCard({
       const fileName = `audio_${Date.now()}_${safeName}`;
       const { error } = await supabase.storage
         .from('form-media')
-        .upload(fileName, file, { upsert: false });
+        .upload(fileName, file, { upsert: false, contentType: file.type || 'audio/mpeg' });
 
       if (error) throw error;
 
@@ -190,7 +190,21 @@ export function QuestionCard({
       globalToast.success("Áudio enviado com sucesso!", "Upload Concluído");
     } catch (err: any) {
       console.error(err);
-      globalToast.error(getFriendlyErrorMessage(err), "Erro no Upload");
+      if (file.size <= 3 * 1024 * 1024) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (reader.result) {
+            onUpdateSubQuestionTemplate({
+              ...question.sub_question_template,
+              audio_url: reader.result.toString()
+            });
+            globalToast.info("Áudio carregado com sucesso.", "Upload Salvo");
+          }
+        };
+        reader.readAsDataURL(file);
+      } else {
+        globalToast.error(getFriendlyErrorMessage(err), "Erro no Upload");
+      }
     } finally {
       setIsUploadingAudio(false);
     }
@@ -449,12 +463,12 @@ export function QuestionCard({
                   ) : (
                     <>
                       <Headphones size={24} className="mb-2 text-slate-400" />
-                      <span className="text-sm text-slate-600 mb-3">Envie um arquivo MP3, WAV, AAC ou OGG (Max 25MB)</span>
+                      <span className="text-sm text-slate-600 mb-3 text-center">Envie um arquivo MP3, WAV, M4A, AAC ou OGG/WhatsApp (Máx 25MB)</span>
                       <label className="cursor-pointer bg-white px-4 py-2 border border-slate-300 rounded-md text-sm font-medium text-slate-700 hover:bg-slate-50 shadow-xs">
                         Selecionar Áudio
                         <input
                           type="file"
-                          accept="audio/*"
+                          accept="audio/*,.mp3,.wav,.ogg,.opus,.m4a,.aac,.webm"
                           className="hidden"
                           onChange={handleAudioUpload}
                         />
