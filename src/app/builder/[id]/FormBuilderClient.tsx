@@ -1124,63 +1124,63 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
             <div className="max-w-5xl mx-auto space-y-6 pb-24">
               
               {/* Header Card de Respostas */}
-              <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/90 shadow-sm relative z-20 flex flex-wrap items-center justify-between gap-4">
+              <div className="bg-white rounded-2xl p-4 sm:p-6 border border-slate-200/90 shadow-sm relative z-20 flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center justify-between gap-4">
                 <div className="absolute top-0 left-0 right-0 h-1 rounded-t-2xl bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"></div>
                 
-                <div className="flex items-center gap-3.5 min-w-0">
-                  <div className="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center shrink-0 shadow-xs">
-                    <BarChart3 size={22} />
+                <div className="flex items-center gap-3 min-w-0 w-full sm:w-auto">
+                  <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center shrink-0 shadow-xs">
+                    <BarChart3 size={20} />
                   </div>
-                  <div className="min-w-0">
-                    <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight">
+                  <div className="min-w-0 flex-1">
+                    <h2 className="text-base sm:text-xl font-extrabold text-slate-900 tracking-tight truncate">
                       Respostas Recebidas
                     </h2>
-                    <p className="text-xs text-slate-500 truncate max-w-xs sm:max-w-md">
+                    <p className="text-xs text-slate-500 truncate">
                       Acompanhe em tempo real os formulários submetidos pelos respondentes.
                     </p>
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2.5 shrink-0 ml-auto">
+                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:ml-auto min-w-0">
                   {responsesList.length > 0 && maturityReport.hasWeightedQuestions && (
                     <button
                       onClick={() => {
                         const el = document.getElementById('analise-maturidade');
                         if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
                       }}
-                      className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/90 rounded-xl transition-all cursor-pointer active:scale-95 shrink-0"
+                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/90 rounded-xl transition-all cursor-pointer active:scale-95"
                       title="Ir para a Análise de Maturidade ao final da página"
                     >
-                      <BarChart3 size={13} />
-                      <span>Ver Análise ({maturityReport.overallScore.toFixed(2)}/5)</span>
+                      <BarChart3 size={13} className="shrink-0" />
+                      <span className="truncate">Ver Análise ({maturityReport.overallScore.toFixed(2)}/5)</span>
                     </button>
                   )}
 
                   <button
                     onClick={() => fetchResponses()}
                     disabled={isLoadingResponses}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-xl transition-all cursor-pointer disabled:opacity-50 active:scale-95 shrink-0"
+                    className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-xl transition-all cursor-pointer disabled:opacity-50 active:scale-95"
                     title="Atualizar lista de respostas"
                   >
-                    <RefreshCw size={13} className={isLoadingResponses ? "animate-spin text-indigo-600" : ""} />
+                    <RefreshCw size={13} className={`shrink-0 ${isLoadingResponses ? "animate-spin text-indigo-600" : ""}`} />
                     <span>Atualizar</span>
                   </button>
 
                   {/* Menu Dropdown de Exportação de Respostas */}
-                  <div className="relative shrink-0" ref={exportMenuRef}>
+                  <div className="relative" ref={exportMenuRef}>
                     <button
                       onClick={() => setIsExportMenuOpen(prev => !prev)}
                       disabled={responsesList.length === 0}
-                      className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200/90 rounded-xl transition-all shadow-2xs cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 shrink-0"
+                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200/90 rounded-xl transition-all shadow-2xs cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
                       title={responsesList.length === 0 ? "Nenhuma resposta registrada para exportar" : "Exportar dados das respostas"}
                     >
-                      <Download size={13} />
+                      <Download size={13} className="shrink-0" />
                       <span>Exportar Dados</span>
-                      <ChevronDown size={13} className={`transition-transform duration-200 ${isExportMenuOpen ? 'rotate-180' : ''}`} />
+                      <ChevronDown size={13} className={`shrink-0 transition-transform duration-200 ${isExportMenuOpen ? 'rotate-180' : ''}`} />
                     </button>
 
                     {isExportMenuOpen && (
-                      <div className="absolute right-0 mt-2 w-60 bg-white rounded-2xl shadow-xl border border-slate-200 py-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+                      <div className="absolute left-0 sm:left-auto sm:right-0 mt-2 w-60 max-w-[calc(100vw-3rem)] bg-white rounded-2xl shadow-xl border border-slate-200 py-2 z-50 animate-in fade-in zoom-in-95 duration-150">
                         <div className="px-3.5 py-1 border-b border-slate-100 mb-1">
                           <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Opções de Exportação</span>
                         </div>
@@ -1194,9 +1194,9 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                           <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 group-hover:bg-emerald-100 flex items-center justify-center shrink-0">
                             <FileSpreadsheet size={16} />
                           </div>
-                          <div className="flex flex-col">
-                            <span className="font-semibold text-slate-800 group-hover:text-emerald-800">Exportar CSV (Excel)</span>
-                            <span className="text-[10px] text-slate-400">Compatível com Excel e Planilhas</span>
+                          <div className="flex flex-col min-w-0">
+                            <span className="font-semibold text-slate-800 group-hover:text-emerald-800 truncate">Exportar CSV (Excel)</span>
+                            <span className="text-[10px] text-slate-400 truncate">Compatível com Excel e Planilhas</span>
                           </div>
                         </button>
                         <button
@@ -1209,9 +1209,9 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                           <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 group-hover:bg-indigo-100 flex items-center justify-center shrink-0">
                             <FileText size={16} />
                           </div>
-                          <div className="flex flex-col">
-                            <span className="font-semibold text-slate-800 group-hover:text-indigo-800">Exportar JSON</span>
-                            <span className="text-[10px] text-slate-400">Dados brutos estruturados</span>
+                          <div className="flex flex-col min-w-0">
+                            <span className="font-semibold text-slate-800 group-hover:text-indigo-800 truncate">Exportar JSON</span>
+                            <span className="text-[10px] text-slate-400 truncate">Dados brutos estruturados</span>
                           </div>
                         </button>
                       </div>
@@ -1219,8 +1219,8 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                   </div>
 
                   {/* Contador Total */}
-                  <div className="bg-gradient-to-br from-indigo-600 to-indigo-800 text-white rounded-xl px-3.5 py-1.5 text-center shadow-xs flex items-center gap-2.5 shrink-0">
-                    <span className="text-xl font-black">{responsesList.length}</span>
+                  <div className="bg-gradient-to-br from-indigo-600 to-indigo-800 text-white rounded-xl px-3 py-1.5 text-center shadow-xs flex items-center gap-2 ml-auto sm:ml-0">
+                    <span className="text-lg sm:text-xl font-black">{responsesList.length}</span>
                     <div className="text-left leading-tight">
                       <span className="text-[9px] font-bold uppercase tracking-wider text-indigo-200 block">Total</span>
                       <span className="text-[11px] font-semibold text-white block">Envios</span>
@@ -1270,8 +1270,8 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                         : 'Data não informada';
 
                       return (
-                        <div key={resp.id || i} className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/90 shadow-sm hover:shadow-md transition-all space-y-4">
-                          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3.5">
+                        <div key={resp.id || i} className="bg-white rounded-2xl p-4 sm:p-6 border border-slate-200/90 shadow-sm hover:shadow-md transition-all space-y-4">
+                          <div className="flex flex-wrap items-center justify-between gap-2.5 border-b border-slate-100 pb-3.5">
                             <div className="flex flex-wrap items-center gap-2">
                               <span className="text-xs font-bold text-white bg-gradient-to-r from-indigo-600 to-indigo-700 px-3 py-1 rounded-full shadow-2xs flex items-center gap-1.5">
                                 <span>Envio #{responsesList.length - i}</span>
@@ -1286,9 +1286,9 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                               )}
                             </div>
                             
-                            <div className="flex items-center space-x-3 text-xs text-slate-500">
+                            <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 w-full sm:w-auto">
                               <span className="flex items-center space-x-1.5 bg-slate-50 border border-slate-200/80 px-2.5 py-1 rounded-lg font-medium text-slate-600">
-                                <Clock size={13} className="text-slate-400" />
+                                <Clock size={13} className="text-slate-400 shrink-0" />
                                 <span>{formattedDate}</span>
                               </span>
                               <span className="bg-indigo-50/80 text-indigo-700 border border-indigo-100/80 font-semibold px-2.5 py-1 rounded-lg text-[11px]">
@@ -1297,7 +1297,7 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                               <button
                                 onClick={() => handleDeleteSingleResponse(resp.id)}
                                 disabled={deletingResponseId === resp.id}
-                                className="flex items-center space-x-1 text-slate-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-lg border border-transparent hover:border-red-200 transition-all cursor-pointer disabled:opacity-50 ml-1"
+                                className="flex items-center space-x-1 text-slate-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-lg border border-transparent hover:border-red-200 transition-all cursor-pointer disabled:opacity-50 ml-auto sm:ml-1"
                                 title="Excluir esta resposta"
                               >
                                 {deletingResponseId === resp.id ? (
