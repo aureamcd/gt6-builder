@@ -87,7 +87,8 @@ export const parseFormFromXML = (xmlContent: string): Form => {
             label: String(sq.label || `Critério ${sqIdx + 1}`),
             options: Array.isArray(sq.options) ? sq.options.map((so: any) => ({
               id: String(so.id || crypto.randomUUID()),
-              label: String(so.label !== undefined ? so.label : so)
+              label: String(so.label !== undefined ? so.label : so),
+              weight: so.weight !== "" && so.weight !== null && so.weight !== undefined ? Number(so.weight) : null
             })) : undefined
           }));
         }
@@ -108,7 +109,7 @@ export const parseFormFromXML = (xmlContent: string): Form => {
         sub_question_template: cleanTpl,
         video_url: q.video_url || null,
         trigger_source_question_id: q.trigger_source_question_id || null,
-        tags: Array.isArray(q.tags) ? q.tags : undefined
+        tags: Array.isArray(q.tags) ? q.tags.map(String) : (q.tags ? [String(q.tags)] : undefined)
       };
     });
 
@@ -119,6 +120,7 @@ export const parseFormFromXML = (xmlContent: string): Form => {
       description: sec.description ? String(sec.description) : undefined,
       video_url: sec.video_url ? String(sec.video_url) : undefined,
       unlock_at_seconds: sec.unlock_at_seconds !== undefined && sec.unlock_at_seconds !== null && sec.unlock_at_seconds !== "" ? Number(sec.unlock_at_seconds) : undefined,
+      tags: Array.isArray(sec.tags) ? sec.tags.map(String) : (sec.tags ? [String(sec.tags)] : undefined),
       order_index: typeof sec.order_index === 'number' ? sec.order_index : sIdx,
       created_at: sec.created_at || new Date().toISOString(),
       questions

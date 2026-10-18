@@ -20,6 +20,7 @@ export interface QuestionScoreStat {
   sectionTitle: string;
   dimensionKey: string;
   dimensionLabel: string;
+  questionWeight: number;
   averageScore: number;
   minScore: number;
   maxScore: number;
@@ -30,6 +31,7 @@ export interface QuestionScoreStat {
 export interface DimensionScoreStat {
   key: string;
   label: string;
+  shortLabel: string;
   subtitle: string;
   averageScore: number;
   percentage: number;
@@ -52,7 +54,13 @@ export interface SubmissionMaturityResult {
   percentage: number | null;
   scoredAnswersCount: number;
   levelInfo: MaturityLevelInfo | null;
-  dimensionScores: { key: string; label: string; averageScore: number; levelInfo: MaturityLevelInfo }[];
+  dimensionScores: { key: string; label: string; shortLabel: string; averageScore: number; levelInfo: MaturityLevelInfo }[];
+}
+
+export interface SegmentFilterOption {
+  questionId: string;
+  questionLabel: string;
+  values: { value: string; count: number }[];
 }
 
 export interface ConsolidatedMaturityReport {
@@ -72,23 +80,28 @@ export interface ConsolidatedMaturityReport {
   qualitativeHighlights: QualitativeQuestionStat[];
   levelDistribution: { levelInfo: MaturityLevelInfo; count: number; percentage: number }[];
   bySubmission: Map<string, SubmissionMaturityResult>;
+  segmentFilters: SegmentFilterOption[];
 }
 
-const IMAPS_DIMENSION_LABELS: Record<string, { label: string; subtitle: string }> = {
+const IMAPS_DIMENSION_LABELS: Record<string, { label: string; shortLabel: string; subtitle: string }> = {
   TIMAPS: {
     label: "TIMAPS • Interoperabilidade Técnica",
+    shortLabel: "Técnica (TIMAPS)",
     subtitle: "Infraestrutura, APIs, integração de sistemas e automação de troca de dados"
   },
   SIMAPS: {
     label: "SIMAPS • Interoperabilidade Semântica",
+    shortLabel: "Semântica (SIMAPS)",
     subtitle: "Padronização de dados, vocabulários, metadados e compreensão mútua"
   },
   OIMAPS: {
     label: "OIMAPS • Interoperabilidade Organizacional",
+    shortLabel: "Organizacional (OIMAPS)",
     subtitle: "Processos de negócio, fluxos intersetoriais, governança e colaboração"
   },
   LIMAPS: {
     label: "LIMAPS • Interoperabilidade Legal",
+    shortLabel: "Legal (LIMAPS)",
     subtitle: "Conformidade normativa, LGPD, acordos formais e respaldo jurídico"
   }
 };
@@ -173,7 +186,11 @@ export function scoreToPercentage(score: number): number {
   return Math.max(0, Math.min(100, Math.round(((score - 1) / 4) * 100)));
 }
 
-function resolveDimensionForQuestion(q: Question, sectionTitle: string, sectionTags?: string[] | null): { key: string; label: string; subtitle: string } {
+function resolveDimensionForQuestion(
+  q: Question,
+  sectionTitle: string,
+  sectionTags?: string[] | null
+): { key: string; label: string; shortLabel: string; subtitle: string } {
   const tags = (q.tags && q.tags.length > 0 ? q.tags : sectionTags) || [];
   for (const rawTag of tags) {
     const upper = rawTag.trim().toUpperCase();
@@ -181,22 +198,24 @@ function resolveDimensionForQuestion(q: Question, sectionTitle: string, sectionT
       return {
         key: upper,
         label: IMAPS_DIMENSION_LABELS[upper].label,
+        shortLabel: IMAPS_DIMENSION_LABELS[upper].shortLabel,
         subtitle: IMAPS_DIMENSION_LABELS[upper].subtitle
       };
     }
   }
 
   const cleanSec = (sectionTitle || "Geral").trim();
+  const shortSec = cleanSec.replace(/^SEÇÃO\s*\d+\s*[-–•:]\s*/i, "").trim() || cleanSec;
   return {
     key: `SEC_${cleanSec}`,
     label: cleanSec,
-    subtitle: "Avaliação consolidada das perguntas desta seção"
+    shortLabel: shortSec.length > 24 ? shortSec.slice(0, 22) + "…" : shortSec,
+    subtitle: "Avaliação consolidada dos critérios desta seção"
   };
 }
 
 /**
- * Extrai a nota numérica (1 a 5) de uma resposta para uma determinada pergunta,
- * caso a pergunta possua opções com peso (weight).
+ * Extrai a nota numérica (1 a 5) de uma resposta para uma pergunta comum (com opções ponderadas).
  */
 export function evaluateQuestionResponseWeight(q: Question, rawVal: any): number | null {
   if (rawVal === null || rawVal === undefined || rawVal === "") return null;
@@ -224,7 +243,6 @@ export function evaluateQuestionResponseWeight(q: Question, rawVal: any): number
     return null;
   };
 
-  // Caso 1: Matriz Likert { [rowId]: colOptId }
   if (q.type === "GRID_LIKERT" && typeof rawVal === "object" && !Array.isArray(rawVal)) {
     const rowScores: number[] = [];
     Object.values(rawVal).forEach(colVal => {
@@ -235,7 +253,6 @@ export function evaluateQuestionResponseWeight(q: Question, rawVal: any): number
     return rowScores.reduce((a, b) => a + b, 0) / rowScores.length;
   }
 
-  // Caso 2: Array (ex: CHECKBOX_MULTIPLE)
   if (Array.isArray(rawVal)) {
     const itemScores: number[] = [];
     rawVal.forEach(v => {
@@ -246,7 +263,6 @@ export function evaluateQuestionResponseWeight(q: Question, rawVal: any): number
     return itemScores.reduce((a, b) => a + b, 0) / itemScores.length;
   }
 
-  // Caso 3: Objeto com { selected: [...] }
   if (typeof rawVal === "object" && Array.isArray(rawVal.selected)) {
     const itemScores: number[] = [];
     rawVal.selected.forEach((v: any) => {
@@ -257,8 +273,79 @@ export function evaluateQuestionResponseWeight(q: Question, rawVal: any): number
     return itemScores.reduce((a, b) => a + b, 0) / itemScores.length;
   }
 
-  // Caso 4: Valor único (RADIO_SINGLE, DROPDOWN)
   return lookupWeight(String(rawVal));
+}
+
+/**
+ * Avalia uma sub-pergunta ponderada dentro de um DYNAMIC_REPEATER para todos os itens repetidos no envio.
+ */
+function evaluateRepeaterSubQuestionWeight(
+  repeaterQ: Question,
+  subQ: any,
+  rawMap: Record<string, any>
+): number | null {
+  if (!subQ.options || !Array.isArray(subQ.options) || subQ.options.length === 0) return null;
+
+  const weightMap = new Map<string, number>();
+  const labelWeightMap = new Map<string, number>();
+
+  subQ.options.forEach((opt: any) => {
+    if (typeof opt.weight === "number" && !isNaN(opt.weight)) {
+      if (opt.id) weightMap.set(String(opt.id), opt.weight);
+      if (opt.label) labelWeightMap.set(String(opt.label).trim().toLowerCase(), opt.weight);
+    }
+  });
+
+  if (weightMap.size === 0 && labelWeightMap.size === 0) return null;
+
+  const lookupWeight = (val: any): number | null => {
+    if (val === null || val === undefined || val === "") return null;
+    const str = String(val);
+    if (weightMap.has(str)) return weightMap.get(str)!;
+    const lower = str.trim().toLowerCase();
+    if (labelWeightMap.has(lower)) return labelWeightMap.get(lower)!;
+    return null;
+  };
+
+  const evalSingleSubAns = (subAns: any): number | null => {
+    if (Array.isArray(subAns)) {
+      const arrScores: number[] = [];
+      subAns.forEach(item => {
+        const w = lookupWeight(item);
+        if (w !== null) arrScores.push(w);
+      });
+      return arrScores.length > 0 ? arrScores.reduce((a, b) => a + b, 0) / arrScores.length : null;
+    }
+    return lookupWeight(subAns);
+  };
+
+  const scores: number[] = [];
+
+  // Formato 1: Agrupado em rawMap[repeaterQ.id] = { [itemKey]: { [subQ.id]: subAns } }
+  const grouped = rawMap[repeaterQ.id];
+  if (grouped && typeof grouped === "object" && !Array.isArray(grouped)) {
+    Object.values(grouped).forEach((itemObj: any) => {
+      if (itemObj && typeof itemObj === "object" && subQ.id in itemObj) {
+        const s = evalSingleSubAns(itemObj[subQ.id]);
+        if (s !== null) scores.push(s);
+      }
+    });
+  }
+
+  // Formato 2: Chaves planas no cliente `${repeaterQ.id}_${itemKey}_${subQ.id}`
+  if (scores.length === 0) {
+    const prefix = `${repeaterQ.id}_`;
+    const suffix = `_${subQ.id}`;
+    Object.entries(rawMap).forEach(([k, v]) => {
+      if (k.startsWith(prefix) && k.endsWith(suffix)) {
+        const s = evalSingleSubAns(v);
+        if (s !== null) scores.push(s);
+      }
+    });
+  }
+
+  if (scores.length === 0) return null;
+  return scores.reduce((a, b) => a + b, 0) / scores.length;
 }
 
 /**
@@ -290,6 +377,15 @@ export function extractRawAnswersMap(resp: any): Record<string, any> {
   return map;
 }
 
+interface EvaluableItem {
+  id: string;
+  label: string;
+  sectionTitle: string;
+  questionWeight: number;
+  dimension: { key: string; label: string; shortLabel: string; subtitle: string };
+  evaluate: (rawMap: Record<string, any>) => number | null;
+}
+
 /**
  * Calcula o diagnóstico completo consolidado e individual a partir do schema do formulário e lista de respostas
  */
@@ -316,32 +412,39 @@ export function generateConsolidatedMaturityReport(
       strongQuestions: [],
       qualitativeHighlights: [],
       levelDistribution: [],
-      bySubmission
+      bySubmission,
+      segmentFilters: []
     };
   }
 
-  // 1. Identificar todas as perguntas que possuem pesos configurados e perguntas qualitativas de escolha
-  const weightedQuestions: {
-    question: Question;
-    sectionTitle: string;
-    dimension: { key: string; label: string; subtitle: string };
-  }[] = [];
-
+  const evaluableItems: EvaluableItem[] = [];
   const qualitativeChoiceQuestions: {
     question: Question;
     sectionTitle: string;
     optionLabelMap: Map<string, string>;
   }[] = [];
 
+  const potentialFilterQuestions: {
+    question: Question;
+    optionLabelMap: Map<string, string>;
+  }[] = [];
+
   schema.sections.forEach((sec, sIdx) => {
     const secTitle = sec.title || `Seção ${sIdx + 1}`;
     sec.questions?.forEach(q => {
+      const qWeight = Number(q.sub_question_template?.question_weight) || 1;
+      const dim = resolveDimensionForQuestion(q, secTitle, sec.tags);
+
+      // Verificar se é pergunta comum com pesos
       const hasWeights = q.options?.some(opt => typeof opt.weight === "number" && !isNaN(opt.weight));
       if (hasWeights) {
-        weightedQuestions.push({
-          question: q,
+        evaluableItems.push({
+          id: q.id,
+          label: q.label || "Pergunta sem título",
           sectionTitle: secTitle,
-          dimension: resolveDimensionForQuestion(q, secTitle, sec.tags)
+          questionWeight: qWeight,
+          dimension: dim,
+          evaluate: (rawMap) => evaluateQuestionResponseWeight(q, rawMap[q.id])
         });
       } else if (["CHECKBOX_MULTIPLE", "RADIO_SINGLE", "DROPDOWN"].includes(q.type) && q.options && q.options.length > 0) {
         const optMap = new Map<string, string>();
@@ -354,59 +457,134 @@ export function generateConsolidatedMaturityReport(
           optionLabelMap: optMap
         });
       }
+
+      // Verificar se é DYNAMIC_REPEATER com sub-perguntas ponderadas
+      if (q.type === "DYNAMIC_REPEATER" && Array.isArray(q.sub_question_template?.sub_questions)) {
+        q.sub_question_template.sub_questions.forEach((subQ: any) => {
+          const subHasWeights = Array.isArray(subQ.options) && subQ.options.some((o: any) => typeof o.weight === "number" && !isNaN(o.weight));
+          if (subHasWeights) {
+            evaluableItems.push({
+              id: `${q.id}__${subQ.id}`,
+              label: `[Repetidor] ${subQ.label || "Sub-pergunta"}`,
+              sectionTitle: secTitle,
+              questionWeight: qWeight,
+              dimension: dim,
+              evaluate: (rawMap) => evaluateRepeaterSubQuestionWeight(q, subQ, rawMap)
+            });
+          }
+        });
+      }
+
+      // Candidatas a filtro de segmentação (Unidade, Cargo, Função, Tempo de atuação, etc.)
+      if (["TEXT_SHORT", "RADIO_SINGLE", "DROPDOWN"].includes(q.type)) {
+        const optMap = new Map<string, string>();
+        q.options?.forEach(o => {
+          if (o.id && o.label) optMap.set(o.id, o.label);
+        });
+        potentialFilterQuestions.push({ question: q, optionLabelMap: optMap });
+      }
     });
   });
 
-  const hasWeightedQuestions = weightedQuestions.length > 0;
+  // Extrair filtros de segmentação disponíveis nas respostas
+  const segmentFilters: SegmentFilterOption[] = [];
+  potentialFilterQuestions.slice(0, 8).forEach(({ question, optionLabelMap }) => {
+    const valueCounts = new Map<string, number>();
+    responsesList.forEach(resp => {
+      const rawMap = extractRawAnswersMap(resp);
+      const rawVal = rawMap[question.id];
+      if (rawVal === null || rawVal === undefined || rawVal === "" || typeof rawVal === "object") return;
+      const strVal = String(rawVal).trim();
+      if (!strVal) return;
+      const resolved = strVal.startsWith("other:")
+        ? strVal.replace("other:", "").trim()
+        : (optionLabelMap.get(strVal) || strVal);
+      if (resolved && resolved.length <= 60) {
+        valueCounts.set(resolved, (valueCounts.get(resolved) || 0) + 1);
+      }
+    });
 
-  // Acumuladores por pergunta e por dimensão
-  const questionScoresAccum = new Map<string, number[]>();
-  weightedQuestions.forEach(wq => questionScoresAccum.set(wq.question.id, []));
-
-  const dimensionQuestionsSet = new Map<string, Set<string>>();
-  const dimensionMetaMap = new Map<string, { label: string; subtitle: string }>();
-  const dimensionScoresAccum = new Map<string, number[]>();
-
-  weightedQuestions.forEach(wq => {
-    const dKey = wq.dimension.key;
-    if (!dimensionMetaMap.has(dKey)) {
-      dimensionMetaMap.set(dKey, { label: wq.dimension.label, subtitle: wq.dimension.subtitle });
-      dimensionQuestionsSet.set(dKey, new Set());
-      dimensionScoresAccum.set(dKey, []);
+    if (valueCounts.size > 0) {
+      segmentFilters.push({
+        questionId: question.id,
+        questionLabel: question.label || "Pergunta",
+        values: Array.from(valueCounts.entries()).map(([value, count]) => ({ value, count }))
+      });
     }
-    dimensionQuestionsSet.get(dKey)!.add(wq.question.id);
   });
 
-  // 2. Processar cada envio
+  const hasWeightedQuestions = evaluableItems.length > 0;
+
+  // Acumuladores por item e por dimensão
+  const itemScoresAccum = new Map<string, number[]>();
+  evaluableItems.forEach(item => itemScoresAccum.set(item.id, []));
+
+  const dimensionItemsSet = new Map<string, Set<string>>();
+  const dimensionMetaMap = new Map<string, { label: string; shortLabel: string; subtitle: string }>();
+  const dimensionWeightedAccum = new Map<string, { weightedSum: number; totalWeight: number; count: number }>();
+
+  evaluableItems.forEach(item => {
+    const dKey = item.dimension.key;
+    if (!dimensionMetaMap.has(dKey)) {
+      dimensionMetaMap.set(dKey, {
+        label: item.dimension.label,
+        shortLabel: item.dimension.shortLabel,
+        subtitle: item.dimension.subtitle
+      });
+      dimensionItemsSet.set(dKey, new Set());
+      dimensionWeightedAccum.set(dKey, { weightedSum: 0, totalWeight: 0, count: 0 });
+    }
+    dimensionItemsSet.get(dKey)!.add(item.id);
+  });
+
+  // Processar cada envio
   responsesList.forEach((resp, idx) => {
     const subId = resp.id || `sub_${idx}`;
     const rawMap = extractRawAnswersMap(resp);
 
-    const subScores: number[] = [];
-    const subDimAccum = new Map<string, { label: string; scores: number[] }>();
+    let subWeightedSum = 0;
+    let subTotalWeight = 0;
+    let subScoredCount = 0;
 
-    weightedQuestions.forEach(({ question, dimension }) => {
-      const rawVal = rawMap[question.id];
-      const score = evaluateQuestionResponseWeight(question, rawVal);
+    const subDimAccum = new Map<string, { label: string; shortLabel: string; weightedSum: number; totalWeight: number }>();
+
+    evaluableItems.forEach(item => {
+      const score = item.evaluate(rawMap);
       if (score !== null) {
-        subScores.push(score);
-        questionScoresAccum.get(question.id)?.push(score);
-        dimensionScoresAccum.get(dimension.key)?.push(score);
+        const w = item.questionWeight || 1;
+        subWeightedSum += score * w;
+        subTotalWeight += w;
+        subScoredCount += 1;
 
-        if (!subDimAccum.has(dimension.key)) {
-          subDimAccum.set(dimension.key, { label: dimension.label, scores: [] });
+        itemScoresAccum.get(item.id)?.push(score);
+
+        const dAcc = dimensionWeightedAccum.get(item.dimension.key)!;
+        dAcc.weightedSum += score * w;
+        dAcc.totalWeight += w;
+        dAcc.count += 1;
+
+        if (!subDimAccum.has(item.dimension.key)) {
+          subDimAccum.set(item.dimension.key, {
+            label: item.dimension.label,
+            shortLabel: item.dimension.shortLabel,
+            weightedSum: 0,
+            totalWeight: 0
+          });
         }
-        subDimAccum.get(dimension.key)!.scores.push(score);
+        const sDim = subDimAccum.get(item.dimension.key)!;
+        sDim.weightedSum += score * w;
+        sDim.totalWeight += w;
       }
     });
 
-    if (subScores.length > 0) {
-      const avg = subScores.reduce((a, b) => a + b, 0) / subScores.length;
+    if (subTotalWeight > 0) {
+      const avg = subWeightedSum / subTotalWeight;
       const dimList = Array.from(subDimAccum.entries()).map(([key, val]) => {
-        const dAvg = val.scores.reduce((a, b) => a + b, 0) / val.scores.length;
+        const dAvg = val.weightedSum / val.totalWeight;
         return {
           key,
           label: val.label,
+          shortLabel: val.shortLabel,
           averageScore: Number(dAvg.toFixed(2)),
           levelInfo: getMaturityLevel(dAvg)
         };
@@ -416,7 +594,7 @@ export function generateConsolidatedMaturityReport(
         submissionId: subId,
         averageScore: Number(avg.toFixed(2)),
         percentage: scoreToPercentage(avg),
-        scoredAnswersCount: subScores.length,
+        scoredAnswersCount: subScoredCount,
         levelInfo: getMaturityLevel(avg),
         dimensionScores: dimList
       });
@@ -432,20 +610,21 @@ export function generateConsolidatedMaturityReport(
     }
   });
 
-  // 3. Consolidar estatísticas por pergunta
+  // Consolidar estatísticas por critério
   const questionStats: QuestionScoreStat[] = [];
-  weightedQuestions.forEach(({ question, sectionTitle, dimension }) => {
-    const scores = questionScoresAccum.get(question.id) || [];
+  evaluableItems.forEach(item => {
+    const scores = itemScoresAccum.get(item.id) || [];
     if (scores.length === 0) return;
     const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
     const min = Math.min(...scores);
     const max = Math.max(...scores);
     questionStats.push({
-      questionId: question.id,
-      label: question.label || "Pergunta sem título",
-      sectionTitle,
-      dimensionKey: dimension.key,
-      dimensionLabel: dimension.label,
+      questionId: item.id,
+      label: item.label,
+      sectionTitle: item.sectionTitle,
+      dimensionKey: item.dimension.key,
+      dimensionLabel: item.dimension.label,
+      questionWeight: item.questionWeight,
       averageScore: Number(avg.toFixed(2)),
       minScore: Number(min.toFixed(2)),
       maxScore: Number(max.toFixed(2)),
@@ -454,25 +633,25 @@ export function generateConsolidatedMaturityReport(
     });
   });
 
-  // 4. Consolidar estatísticas por dimensão
+  // Consolidar estatísticas por dimensão
   const dimensions: DimensionScoreStat[] = [];
   dimensionMetaMap.forEach((meta, key) => {
-    const scores = dimensionScoresAccum.get(key) || [];
-    if (scores.length === 0) return;
-    const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
+    const dAcc = dimensionWeightedAccum.get(key);
+    if (!dAcc || dAcc.totalWeight === 0) return;
+    const avg = dAcc.weightedSum / dAcc.totalWeight;
     dimensions.push({
       key,
       label: meta.label,
+      shortLabel: meta.shortLabel,
       subtitle: meta.subtitle,
       averageScore: Number(avg.toFixed(2)),
       percentage: scoreToPercentage(avg),
-      questionsCount: dimensionQuestionsSet.get(key)?.size || 0,
-      responsesCount: scores.length,
+      questionsCount: dimensionItemsSet.get(key)?.size || 0,
+      responsesCount: dAcc.count,
       levelInfo: getMaturityLevel(avg)
     });
   });
 
-  // Ordenar dimensões e perguntas
   const sortedDimensions = [...dimensions].sort((a, b) => b.averageScore - a.averageScore);
   const strongestDimension = sortedDimensions.length > 0 ? sortedDimensions[0] : null;
   const weakestDimension = sortedDimensions.length > 1 ? sortedDimensions[sortedDimensions.length - 1] : (sortedDimensions[0] || null);
@@ -489,7 +668,7 @@ export function generateConsolidatedMaturityReport(
     .filter(q => q.averageScore >= 3.4)
     .sort((a, b) => b.averageScore - a.averageScore);
 
-  // 5. Calcular Score Global
+  // Score Global
   const scoredSubmissions = Array.from(bySubmission.values()).filter(s => s.averageScore !== null);
   const overallScore = scoredSubmissions.length > 0
     ? Number((scoredSubmissions.reduce((acc, s) => acc + (s.averageScore || 0), 0) / scoredSubmissions.length).toFixed(2))
@@ -497,7 +676,7 @@ export function generateConsolidatedMaturityReport(
   const overallPercentage = scoredSubmissions.length > 0 ? scoreToPercentage(overallScore) : 0;
   const overallLevel = getMaturityLevel(overallScore || 1);
 
-  // 6. Distribuição por Nível de Maturidade
+  // Distribuição por Nível
   const levelCounts: Record<1 | 2 | 3 | 4 | 5, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
   scoredSubmissions.forEach(s => {
     if (s.levelInfo) {
@@ -511,7 +690,7 @@ export function generateConsolidatedMaturityReport(
     percentage: scoredSubmissions.length > 0 ? Math.round((levelCounts[lvl] / scoredSubmissions.length) * 100) : 0
   }));
 
-  // 7. Destaques Qualitativos (Perguntas de Mapeamento sem peso, ex: Sistemas Utilizados, Meios, Finalidades)
+  // Destaques Qualitativos
   const qualitativeHighlights: QualitativeQuestionStat[] = [];
   qualitativeChoiceQuestions.forEach(({ question, sectionTitle, optionLabelMap }) => {
     const counts = new Map<string, number>();
@@ -578,6 +757,7 @@ export function generateConsolidatedMaturityReport(
     strongQuestions,
     qualitativeHighlights,
     levelDistribution,
-    bySubmission
+    bySubmission,
+    segmentFilters
   };
 }

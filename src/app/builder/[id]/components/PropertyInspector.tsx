@@ -234,7 +234,33 @@ export function PropertyInspector({
 
               <div className="space-y-2 pt-4 border-t border-slate-100">
                 <label className="text-sm font-medium text-slate-700">Tag de Camada (IMAPS)</label>
-                <p className="text-xs text-slate-500">Ex: TIMAPS, SIMAPS, OIMAPS, LIMAPS</p>
+                <p className="text-xs text-slate-500">Clique para selecionar ou digite tags separadas por vírgula:</p>
+                <div className="flex flex-wrap gap-1.5 pb-1">
+                  {(['TIMAPS', 'SIMAPS', 'OIMAPS', 'LIMAPS'] as const).map(tag => {
+                    const isSelected = selectedSection.tags?.map(t => t.toUpperCase()).includes(tag);
+                    return (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => {
+                          const current = selectedSection.tags || [];
+                          const exists = current.some(t => t.toUpperCase() === tag);
+                          const next = exists
+                            ? current.filter(t => t.toUpperCase() !== tag)
+                            : [...current, tag];
+                          updateSectionProperty(selectedSection.id, 'tags', next.length > 0 ? next : undefined);
+                        }}
+                        className={`px-2.5 py-1 rounded-md text-[11px] font-bold border transition-colors cursor-pointer ${
+                          isSelected
+                            ? 'bg-indigo-600 text-white border-indigo-600'
+                            : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200'
+                        }`}
+                      >
+                        {tag}
+                      </button>
+                    );
+                  })}
+                </div>
                 <input
                   type="text"
                   placeholder="Adicionar tags separadas por vírgula..."
@@ -368,11 +394,37 @@ export function PropertyInspector({
                 <label className="text-sm font-medium text-slate-700">Tag de Camada (IMAPS)</label>
                 {selectedSection?.tags && selectedSection.tags.length > 0 ? (
                   <div className="p-3 bg-amber-50 border border-amber-200 rounded-md text-xs text-amber-700 leading-relaxed">
-                    <strong>Tags desativadas:</strong> A seção atual já possui tags configuradas ({selectedSection.tags.join(', ')}). Todas as perguntas desta seção herdarão automaticamente as tags da seção.
+                    <strong>Tags herdadas da seção:</strong> A seção atual já possui tags configuradas ({selectedSection.tags.join(', ')}). Todas as perguntas desta seção herdam automaticamente essa camada.
                   </div>
                 ) : (
                   <>
-                    <p className="text-xs text-slate-500">Ex: TIMAPS, SIMAPS, OIMAPS, LIMAPS</p>
+                    <p className="text-xs text-slate-500">Clique para selecionar ou digite tags separadas por vírgula:</p>
+                    <div className="flex flex-wrap gap-1.5 pb-1">
+                      {(['TIMAPS', 'SIMAPS', 'OIMAPS', 'LIMAPS'] as const).map(tag => {
+                        const isSelected = selectedQuestion.tags?.map(t => t.toUpperCase()).includes(tag);
+                        return (
+                          <button
+                            key={tag}
+                            type="button"
+                            onClick={() => {
+                              const current = selectedQuestion.tags || [];
+                              const exists = current.some(t => t.toUpperCase() === tag);
+                              const next = exists
+                                ? current.filter(t => t.toUpperCase() !== tag)
+                                : [...current, tag];
+                              updateQuestionProperty(activeSectionId, selectedQuestion.id, 'tags', next.length > 0 ? next : undefined);
+                            }}
+                            className={`px-2.5 py-1 rounded-md text-[11px] font-bold border transition-colors cursor-pointer ${
+                              isSelected
+                                ? 'bg-indigo-600 text-white border-indigo-600'
+                                : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200'
+                            }`}
+                          >
+                            {tag}
+                          </button>
+                        );
+                      })}
+                    </div>
                     <input
                       type="text"
                       placeholder="Adicionar tags separadas por vírgula..."
@@ -483,26 +535,100 @@ export function PropertyInspector({
                 </div>
               )}
 
-              {/* Option Weights */}
+              {/* Option Weights & Question Importance */}
               {(selectedQuestion.type === 'RADIO_SINGLE' || selectedQuestion.type === 'CHECKBOX_MULTIPLE' || selectedQuestion.type === 'DROPDOWN' || selectedQuestion.type === 'GRID_LIKERT') && selectedQuestion.options && (
-                <div className="space-y-2 pt-4 border-t border-slate-100">
-                  <label className="text-sm font-medium text-slate-700">Pesos Analíticos (Scores)</label>
-                  <p className="text-xs text-slate-500 mb-3">Atribua valores numéricos de 1 a 5 para cálculo de maturidade.</p>
-                  {selectedQuestion.options.map(opt => (
-                    <div key={opt.id} className="flex items-center space-x-2">
-                      <span className="flex-1 text-xs text-slate-600 truncate">{opt.label || 'Sem rótulo'}</span>
-                      <input
-                        type="number"
-                        placeholder="Peso"
-                        value={opt.weight ?? ''}
-                        onChange={(e) => {
-                          const val = e.target.value === '' ? null : Number(e.target.value);
-                          updateOptionWeight(activeSectionId, selectedQuestion.id, opt.id, val);
+                <div className="space-y-3 pt-4 border-t border-slate-100">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-medium text-slate-700">Pesos Analíticos (IMAPS)</label>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const count = selectedQuestion.options?.length || 0;
+                          if (count === 0) return;
+                          selectedQuestion.options?.forEach((opt, idx) => {
+                            const w = count === 1 ? 5 : Number((1 + (idx / (count - 1)) * 4).toFixed(1));
+                            updateOptionWeight(activeSectionId, selectedQuestion.id, opt.id, w);
+                          });
                         }}
-                        className="w-16 text-xs bg-slate-50 border border-slate-200 rounded px-2 py-1 text-center outline-none focus:border-indigo-500"
-                      />
+                        className="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 cursor-pointer"
+                        title="Distribuir pesos crescentes de 1 a 5"
+                      >
+                        1 → 5
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const count = selectedQuestion.options?.length || 0;
+                          if (count === 0) return;
+                          selectedQuestion.options?.forEach((opt, idx) => {
+                            const w = count === 1 ? 5 : Number((5 - (idx / (count - 1)) * 4).toFixed(1));
+                            updateOptionWeight(activeSectionId, selectedQuestion.id, opt.id, w);
+                          });
+                        }}
+                        className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200 cursor-pointer"
+                        title="Distribuir pesos decrescentes de 5 a 1"
+                      >
+                        5 → 1
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          selectedQuestion.options?.forEach(opt => {
+                            updateOptionWeight(activeSectionId, selectedQuestion.id, opt.id, null);
+                          });
+                        }}
+                        className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-50 text-slate-400 border border-slate-200 hover:text-red-600 cursor-pointer"
+                        title="Limpar pesos desta pergunta"
+                      >
+                        Limpar
+                      </button>
                     </div>
-                  ))}
+                  </div>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    Atribua valores de 1 a 5 para o cálculo de maturidade. Deixe vazio (<strong>N/A</strong>) em opções neutras como <em>"Não se aplica"</em> para ignorá-las na média.
+                  </p>
+                  <div className="space-y-1.5">
+                    {selectedQuestion.options.map(opt => (
+                      <div key={opt.id} className="flex items-center space-x-2">
+                        <span className="flex-1 text-xs text-slate-600 truncate" title={opt.label}>{opt.label || 'Sem rótulo'}</span>
+                        <input
+                          type="number"
+                          step="0.5"
+                          placeholder="N/A"
+                          value={opt.weight ?? ''}
+                          onChange={(e) => {
+                            const val = e.target.value === '' ? null : Number(e.target.value);
+                            updateOptionWeight(activeSectionId, selectedQuestion.id, opt.id, val);
+                          }}
+                          className="w-16 text-xs bg-slate-50 border border-slate-200 rounded px-2 py-1 text-center outline-none focus:border-indigo-500 font-semibold text-slate-800"
+                        />
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Multiplicador de Importância da Pergunta */}
+                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <label className="text-xs font-semibold text-slate-700 block">Importância da Pergunta</label>
+                      <span className="text-[10px] text-slate-400 block">Peso desta pergunta na média da camada</span>
+                    </div>
+                    <select
+                      value={selectedQuestion.sub_question_template?.question_weight || 1}
+                      onChange={(e) => {
+                        const qWeight = Number(e.target.value) || 1;
+                        updateQuestionProperty(activeSectionId, selectedQuestion.id, 'sub_question_template', {
+                          ...(selectedQuestion.sub_question_template || {}),
+                          question_weight: qWeight
+                        });
+                      }}
+                      className="text-xs bg-slate-50 border border-slate-200 rounded-md px-2 py-1 outline-none font-semibold text-slate-700 focus:border-indigo-500"
+                    >
+                      <option value={1}>1x (Normal)</option>
+                      <option value={2}>2x (Alta)</option>
+                      <option value={3}>3x (Estrutural / Crítica)</option>
+                    </select>
+                  </div>
                 </div>
               )}
 
@@ -617,7 +743,21 @@ export function PropertyInspector({
                                   value={subQ._rawOptionsText !== undefined ? subQ._rawOptionsText : (subQ.options?.map((o: any) => o.label).join(', ') || '')}
                                   onChange={(e) => {
                                     const rawText = e.target.value;
-                                    const opts = rawText.split(',').map(t => ({ id: generateId(), label: t.trim() })).filter(o => o.label);
+                                    const existingOpts: any[] = subQ.options || [];
+                                    const opts = rawText
+                                      .split(',')
+                                      .map((t, oIdx) => {
+                                        const trimmed = t.trim();
+                                        const matchByIndexOrLabel =
+                                          existingOpts.find((eo: any) => eo.label?.toLowerCase() === trimmed.toLowerCase()) ||
+                                          existingOpts[oIdx];
+                                        return {
+                                          id: matchByIndexOrLabel?.id || generateId(),
+                                          label: trimmed,
+                                          weight: matchByIndexOrLabel?.weight ?? null
+                                        };
+                                      })
+                                      .filter(o => o.label);
                                     const newSubQs = [...(selectedQuestion.sub_question_template.sub_questions || [])];
                                     newSubQs[index] = { ...newSubQs[index], options: opts, _rawOptionsText: rawText };
                                     updateQuestionProperty(activeSectionId, selectedQuestion.id, 'sub_question_template', { ...selectedQuestion.sub_question_template, sub_questions: newSubQs });
@@ -637,6 +777,83 @@ export function PropertyInspector({
                                   />
                                   Adicionar opção "Outros" (Permite texto livre)
                                 </label>
+
+                                {/* Pesos das Opções da Sub-pergunta do Repetidor */}
+                                {subQ.options && subQ.options.length > 0 && (
+                                  <div className="pt-2 mt-1 border-t border-slate-100 space-y-1.5 bg-slate-50/80 p-2 rounded">
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                                        Pesos IMAPS (1 a 5)
+                                      </span>
+                                      <div className="flex items-center gap-1">
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const count = subQ.options.length;
+                                            const updatedOpts = subQ.options.map((o: any, oIdx: number) => ({
+                                              ...o,
+                                              weight: count === 1 ? 5 : Number((1 + (oIdx / (count - 1)) * 4).toFixed(1))
+                                            }));
+                                            const newSubQs = [...(selectedQuestion.sub_question_template.sub_questions || [])];
+                                            newSubQs[index] = { ...newSubQs[index], options: updatedOpts };
+                                            updateQuestionProperty(activeSectionId, selectedQuestion.id, 'sub_question_template', {
+                                              ...selectedQuestion.sub_question_template,
+                                              sub_questions: newSubQs
+                                            });
+                                          }}
+                                          className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 cursor-pointer"
+                                        >
+                                          1→5
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const count = subQ.options.length;
+                                            const updatedOpts = subQ.options.map((o: any, oIdx: number) => ({
+                                              ...o,
+                                              weight: count === 1 ? 5 : Number((5 - (oIdx / (count - 1)) * 4).toFixed(1))
+                                            }));
+                                            const newSubQs = [...(selectedQuestion.sub_question_template.sub_questions || [])];
+                                            newSubQs[index] = { ...newSubQs[index], options: updatedOpts };
+                                            updateQuestionProperty(activeSectionId, selectedQuestion.id, 'sub_question_template', {
+                                              ...selectedQuestion.sub_question_template,
+                                              sub_questions: newSubQs
+                                            });
+                                          }}
+                                          className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 cursor-pointer"
+                                        >
+                                          5→1
+                                        </button>
+                                      </div>
+                                    </div>
+                                    {subQ.options.map((opt: any, optIdx: number) => (
+                                      <div key={opt.id || optIdx} className="flex items-center justify-between gap-2">
+                                        <span className="text-[11px] text-slate-600 truncate flex-1" title={opt.label}>
+                                          {opt.label}
+                                        </span>
+                                        <input
+                                          type="number"
+                                          step="0.5"
+                                          placeholder="N/A"
+                                          value={opt.weight ?? ''}
+                                          onChange={(e) => {
+                                            const val = e.target.value === '' ? null : Number(e.target.value);
+                                            const updatedOpts = subQ.options.map((o: any, i: number) =>
+                                              i === optIdx ? { ...o, weight: val } : o
+                                            );
+                                            const newSubQs = [...(selectedQuestion.sub_question_template.sub_questions || [])];
+                                            newSubQs[index] = { ...newSubQs[index], options: updatedOpts };
+                                            updateQuestionProperty(activeSectionId, selectedQuestion.id, 'sub_question_template', {
+                                              ...selectedQuestion.sub_question_template,
+                                              sub_questions: newSubQs
+                                            });
+                                          }}
+                                          className="w-14 text-[11px] bg-white border border-slate-200 rounded px-1.5 py-0.5 text-center outline-none focus:border-indigo-500 font-semibold text-slate-800"
+                                        />
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>

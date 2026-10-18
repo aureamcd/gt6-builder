@@ -1387,7 +1387,11 @@ export default function FormBuilderSketch({ params }: { params: Promise<{ id: st
                   </div>
 
                   {/* Seção de Análise Baseada em Pesos + Diagnóstico Multidimensional ao Final da Página */}
-                  <MaturityAnalyticsSection report={maturityReport} />
+                  <MaturityAnalyticsSection
+                    report={maturityReport}
+                    schema={schema}
+                    responsesList={responsesList}
+                  />
                 </div>
               )}
             </div>

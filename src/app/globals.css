@@ -26,3 +26,17 @@ body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+@media print {
+  body,
+  main,
+  div {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  aside,
+  header {
+    display: none !important;
+  }
+}

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useMemo } from "react";
 import {
   Award,
   TrendingUp,
@@ -9,19 +9,240 @@ import {
   BarChart3,
   Sparkles,
   Compass,
-  PieChart
+  PieChart,
+  Filter,
+  Printer,
+  RotateCcw
 } from "lucide-react";
+import { Form } from "@/types/form";
 import {
   ConsolidatedMaturityReport,
+  DimensionScoreStat,
   MATURITY_LEVELS,
-  SubmissionMaturityResult
+  SubmissionMaturityResult,
+  extractRawAnswersMap,
+  generateConsolidatedMaturityReport
 } from "@/lib/maturityAnalytics";
 
+function ImapsRadarChart({ dimensions }: { dimensions: DimensionScoreStat[] }) {
+  // Se houver menos de 3 dimensões, adicionamos eixos de referência das 4 camadas IMAPS para compor o polígono ou exibimos os eixos existentes
+  const axes = useMemo(() => {
+    if (dimensions.length >= 3) return dimensions;
+    const defaultImapsKeys = [
+      { key: "TIMAPS", shortLabel: "Técnica (TIMAPS)" },
+      { key: "SIMAPS", shortLabel: "Semântica (SIMAPS)" },
+      { key: "OIMAPS", shortLabel: "Organizacional (OIMAPS)" },
+      { key: "LIMAPS", shortLabel: "Legal (LIMAPS)" }
+    ];
+    const merged: { key: string; shortLabel: string; averageScore: number; hasData: boolean }[] = [];
+    dimensions.forEach(d => {
+      merged.push({ key: d.key, shortLabel: d.shortLabel, averageScore: d.averageScore, hasData: true });
+    });
+    defaultImapsKeys.forEach(def => {
+      if (merged.length < 4 && !merged.some(m => m.key === def.key)) {
+        merged.push({ key: def.key, shortLabel: def.shortLabel, averageScore: 0, hasData: false });
+      }
+    });
+    return merged;
+  }, [dimensions]);
+
+  const size = 280;
+  const center = size / 2;
+  const radius = 92;
+  const count = axes.length;
+
+  const getCoordinates = (index: number, value: number) => {
+    const angle = (Math.PI * 2 * index) / count - Math.PI / 2;
+    const normalized = Math.max(0, Math.min(5, value)) / 5;
+    const r = normalized * radius;
+    return {
+      x: center + r * Math.cos(angle),
+      y: center + r * Math.sin(angle)
+    };
+  };
+
+  const dataPoints = axes.map((axis, idx) => getCoordinates(idx, axis.averageScore));
+  const polygonPoints = dataPoints.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+
+  return (
+    <div className="flex flex-col items-center justify-center">
+      <svg
+        viewBox={`0 0 ${size} ${size}`}
+        className="w-full max-w-[270px] h-auto overflow-visible"
+        role="img"
+        aria-label="Gráfico Radar de Maturidade IMAPS"
+      >
+        {/* Polígonos concêntricos para os Níveis 1 a 5 */}
+        {[1, 2, 3, 4, 5].map(lvl => {
+          const ringPoints = axes
+            .map((_, idx) => {
+              const pt = getCoordinates(idx, lvl);
+              return `${pt.x.toFixed(1)},${pt.y.toFixed(1)}`;
+            })
+            .join(" ");
+          return (
+            <polygon
+              key={lvl}
+              points={ringPoints}
+              fill={lvl % 2 === 0 ? "rgba(241, 245, 249, 0.45)" : "none"}
+              stroke={lvl === 5 ? "#cbd5e1" : "#e2e8f0"}
+              strokeWidth={lvl === 5 ? 1.5 : 1}
+              strokeDasharray={lvl < 5 ? "3 2" : undefined}
+            />
+          );
+        })}
+
+        {/* Eixos Radiais */}
+        {axes.map((_, idx) => {
+          const end = getCoordinates(idx, 5);
+          return (
+            <line
+              key={idx}
+              x1={center}
+              y1={center}
+              x2={end.x}
+              y2={end.y}
+              stroke="#cbd5e1"
+              strokeWidth={1}
+            />
+          );
+        })}
+
+        {/* Rótulos dos níveis no eixo vertical superior */}
+        {[1, 2, 3, 4, 5].map(lvl => {
+          const yPos = center - (lvl / 5) * radius;
+          return (
+            <text
+              key={lvl}
+              x={center + 4}
+              y={yPos + 3}
+              fontSize="8"
+              fontWeight="700"
+              fill="#94a3b8"
+            >
+              {lvl}.0
+            </text>
+          );
+        })}
+
+        {/* Polígono Preenchido dos Scores */}
+        <polygon
+          points={polygonPoints}
+          fill="rgba(79, 70, 229, 0.20)"
+          stroke="#4f46e5"
+          strokeWidth={2.5}
+        />
+
+        {/* Vértices e Rótulos Externos */}
+        {axes.map((axis, idx) => {
+          const pt = dataPoints[idx];
+          const labelPt = getCoordinates(idx, 6.15);
+          const hasData = "hasData" in axis ? axis.hasData : true;
+          return (
+            <g key={axis.key}>
+              {hasData && (
+                <circle
+                  cx={pt.x}
+                  cy={pt.y}
+                  r={4.5}
+                  fill="#4f46e5"
+                  stroke="#ffffff"
+                  strokeWidth={2}
+                />
+              )}
+              <text
+                x={labelPt.x}
+                y={labelPt.y}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fontSize="9.5"
+                fontWeight="700"
+                fill={hasData ? "#1e293b" : "#94a3b8"}
+              >
+                {axis.shortLabel}
+              </text>
+              {hasData && (
+                <text
+                  x={labelPt.x}
+                  y={labelPt.y + 11}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  fontSize="9"
+                  fontWeight="800"
+                  fill="#4f46e5"
+                >
+                  {axis.averageScore.toFixed(2)} / 5
+                </text>
+              )}
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
 export function MaturityAnalyticsSection({
-  report
+  report,
+  schema,
+  responsesList
 }: {
   report: ConsolidatedMaturityReport;
+  schema?: Form | null;
+  responsesList?: any[];
 }) {
+  const [selectedSubmissionId, setSelectedSubmissionId] = useState<string>("ALL");
+  const [selectedFilterQuestionId, setSelectedFilterQuestionId] = useState<string>("");
+  const [selectedFilterValue, setSelectedFilterValue] = useState<string>("");
+
+  // Recalcular relatório quando houver filtro ativo (por envio ou por segmento ex: Unidade/Função)
+  const activeReport = useMemo(() => {
+    if (!schema || !responsesList) return report;
+    if (selectedSubmissionId === "ALL" && (!selectedFilterQuestionId || !selectedFilterValue)) {
+      return report;
+    }
+
+    // Mapear opções da pergunta filtro para comparar tanto ID quanto texto
+    let optionLabelMap = new Map<string, string>();
+    if (selectedFilterQuestionId) {
+      schema.sections?.forEach(sec => {
+        sec.questions?.forEach(q => {
+          if (q.id === selectedFilterQuestionId) {
+            q.options?.forEach(o => {
+              if (o.id && o.label) optionLabelMap.set(o.id, o.label);
+            });
+          }
+        });
+      });
+    }
+
+    const filteredList = responsesList.filter((resp, idx) => {
+      const subId = resp.id || `sub_${idx}`;
+      if (selectedSubmissionId !== "ALL" && subId !== selectedSubmissionId) {
+        return false;
+      }
+
+      if (selectedFilterQuestionId && selectedFilterValue) {
+        const rawMap = extractRawAnswersMap(resp);
+        const rawVal = rawMap[selectedFilterQuestionId];
+        if (rawVal === null || rawVal === undefined || rawVal === "") return false;
+        const strVal = String(rawVal).trim();
+        const resolved = strVal.startsWith("other:")
+          ? strVal.replace("other:", "").trim()
+          : (optionLabelMap.get(strVal) || strVal);
+        if (resolved.toLowerCase() !== selectedFilterValue.toLowerCase()) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+
+    return generateConsolidatedMaturityReport(schema, filteredList);
+  }, [report, schema, responsesList, selectedSubmissionId, selectedFilterQuestionId, selectedFilterValue]);
+
+  const hasActiveFilter = selectedSubmissionId !== "ALL" || Boolean(selectedFilterQuestionId && selectedFilterValue);
+
   if (!report.hasWeightedQuestions || report.scoredSubmissionsCount === 0) {
     return (
       <div id="analise-maturidade" className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200/90 shadow-sm space-y-3">
@@ -34,7 +255,7 @@ export function MaturityAnalyticsSection({
               Análise de Maturidade Baseada em Pesos (IMAPS)
             </h3>
             <p className="text-xs text-slate-500">
-              Configure pesos (1 a 5) nas opções de perguntas no Construtor para gerar automaticamente o diagnóstico consolidado ao final desta página.
+              Configure pesos (1 a 5) nas opções de perguntas ou sub-perguntas do Repetidor no Construtor para gerar automaticamente o diagnóstico consolidado ao final desta página.
             </p>
           </div>
         </div>
@@ -55,48 +276,145 @@ export function MaturityAnalyticsSection({
     qualitativeHighlights,
     levelDistribution,
     scoredSubmissionsCount
-  } = report;
+  } = activeReport;
+
+  const selectedSegmentFilterObj = report.segmentFilters.find(f => f.questionId === selectedFilterQuestionId);
 
   return (
     <section
       id="analise-maturidade"
-      className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden space-y-0"
+      className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden space-y-0 print:shadow-none print:border-slate-300"
     >
       {/* Faixa Superior */}
       <div className="h-1.5 w-full bg-gradient-to-r from-indigo-600 via-violet-600 to-emerald-500" />
 
       {/* Cabeçalho da Análise */}
-      <div className="p-6 sm:p-8 border-b border-slate-100 bg-slate-50/50 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-3.5">
-          <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-sm shadow-indigo-200 shrink-0">
-            <Award size={24} />
-          </div>
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
-                Diagnóstico Automático • Escala 1 a 5
-              </span>
-              <span className="text-xs text-slate-400 font-medium">
-                Baseado em {scoredSubmissionsCount} {scoredSubmissionsCount === 1 ? "envio avaliado" : "envios avaliados"}
-              </span>
+      <div className="p-4 sm:p-8 border-b border-slate-100 bg-slate-50/50 flex flex-col gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5 min-w-0">
+            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-sm shadow-indigo-200 shrink-0">
+              <Award size={24} />
             </div>
-            <h3 className="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight mt-0.5">
-              Análise de Maturidade & Diagnóstico Consolidado
-            </h3>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
+                  Diagnóstico IMAPS • Escala 1 a 5
+                </span>
+                <span className="text-xs text-slate-400 font-medium">
+                  Baseado em {scoredSubmissionsCount} {scoredSubmissionsCount === 1 ? "envio avaliado" : "envios avaliados"}
+                </span>
+              </div>
+              <h3 className="text-base sm:text-xl font-extrabold text-slate-900 tracking-tight mt-0.5">
+                Análise de Maturidade & Diagnóstico Consolidado
+              </h3>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+            <div className={`px-3.5 py-2 rounded-xl border font-bold text-xs flex items-center gap-1.5 ${overallLevel.badgeClass}`}>
+              <span>Classificação:</span>
+              <span className="font-extrabold">{overallLevel.name}</span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="print:hidden inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-100 border border-slate-200 shadow-2xs transition-colors cursor-pointer"
+              title="Imprimir ou Salvar Laudo de Diagnóstico em PDF"
+            >
+              <Printer size={14} className="text-indigo-600" />
+              <span>Imprimir / PDF</span>
+            </button>
           </div>
         </div>
 
-        <div className={`px-4 py-2 rounded-xl border font-bold text-xs sm:text-sm flex items-center gap-2 ${overallLevel.badgeClass}`}>
-          <span>Classificação Global:</span>
-          <span className="font-extrabold">{overallLevel.name}</span>
-        </div>
+        {/* Barra de Filtros Dinâmicos por Envio ou por Segmento (Unidade, Função, etc.) */}
+        {responsesList && responsesList.length > 0 && (
+          <div className="print:hidden bg-white rounded-xl p-3 sm:p-3.5 border border-slate-200/80 flex flex-wrap items-center gap-2.5 shadow-2xs">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-600 mr-1">
+              <Filter size={14} className="text-indigo-600" />
+              <span>Filtrar Diagnóstico:</span>
+            </div>
+
+            {/* Filtro por Envio */}
+            <select
+              value={selectedSubmissionId}
+              onChange={(e) => setSelectedSubmissionId(e.target.value)}
+              className="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-700 font-semibold outline-none focus:border-indigo-500 max-w-full"
+            >
+              <option value="ALL">Todos os Envios ({responsesList.length})</option>
+              {responsesList.map((resp, idx) => {
+                const subId = resp.id || `sub_${idx}`;
+                const dateStr = resp.submitted_at || resp.created_at
+                  ? new Date(resp.submitted_at || resp.created_at).toLocaleDateString("pt-BR")
+                  : "";
+                return (
+                  <option key={subId} value={subId}>
+                    Envio #{responsesList.length - idx} {dateStr ? `(${dateStr})` : ""}
+                  </option>
+                );
+              })}
+            </select>
+
+            {/* Filtro por Pergunta de Segmentação (Unidade, Cargo, etc.) */}
+            {report.segmentFilters.length > 0 && (
+              <>
+                <select
+                  value={selectedFilterQuestionId}
+                  onChange={(e) => {
+                    setSelectedFilterQuestionId(e.target.value);
+                    setSelectedFilterValue("");
+                  }}
+                  className="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-700 font-medium outline-none focus:border-indigo-500 max-w-xs truncate"
+                >
+                  <option value="">Segmentar por critério (ex: Unidade/Função)...</option>
+                  {report.segmentFilters.map(f => (
+                    <option key={f.questionId} value={f.questionId}>
+                      {f.questionLabel}
+                    </option>
+                  ))}
+                </select>
+
+                {selectedSegmentFilterObj && (
+                  <select
+                    value={selectedFilterValue}
+                    onChange={(e) => setSelectedFilterValue(e.target.value)}
+                    className="text-xs bg-indigo-50 border border-indigo-200 rounded-lg px-2.5 py-1.5 text-indigo-800 font-bold outline-none focus:border-indigo-500 max-w-xs truncate"
+                  >
+                    <option value="">Todas as respostas ({selectedSegmentFilterObj.values.length})</option>
+                    {selectedSegmentFilterObj.values.map(v => (
+                      <option key={v.value} value={v.value}>
+                        {v.value} ({v.count})
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </>
+            )}
+
+            {hasActiveFilter && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedSubmissionId("ALL");
+                  setSelectedFilterQuestionId("");
+                  setSelectedFilterValue("");
+                }}
+                className="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer ml-auto"
+              >
+                <RotateCcw size={12} />
+                <span>Limpar Filtros</span>
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
-      <div className="p-6 sm:p-8 space-y-8">
+      <div className="p-4 sm:p-8 space-y-8">
         {/* 1. Card Principal de Score Global + Régua de Maturidade */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
           {/* Bloco Esquerdo: Nota Global */}
-          <div className={`lg:col-span-5 rounded-2xl p-6 border ${overallLevel.borderClass} ${overallLevel.bgClass} flex flex-col justify-between space-y-4`}>
+          <div className={`lg:col-span-5 rounded-2xl p-5 sm:p-6 border ${overallLevel.borderClass} ${overallLevel.bgClass} flex flex-col justify-between space-y-4`}>
             <div className="flex items-start justify-between gap-3">
               <div>
                 <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
@@ -143,11 +461,11 @@ export function MaturityAnalyticsSection({
           </div>
 
           {/* Bloco Direito: Escala de 5 Níveis IMAPS + Destaques Extremos */}
-          <div className="lg:col-span-7 bg-slate-50/70 rounded-2xl p-5 sm:p-6 border border-slate-200/80 flex flex-col justify-between space-y-5">
+          <div className="lg:col-span-7 bg-slate-50/70 rounded-2xl p-4 sm:p-6 border border-slate-200/80 flex flex-col justify-between space-y-5">
             <div>
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                 <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
-                  <Compass size={15} className="text-indigo-600" />
+                  <Compass size={15} className="text-indigo-600 shrink-0" />
                   <span>Posicionamento na Escala IMAPS (1 a 5)</span>
                 </h4>
                 <span className="text-[11px] text-slate-400 font-medium">
@@ -238,14 +556,14 @@ export function MaturityAnalyticsSection({
           </div>
         </div>
 
-        {/* 2. Análise Multidimensional por Camadas / Seções */}
+        {/* 2. Análise Multidimensional por Camadas / Seções + Gráfico Radar IMAPS */}
         {dimensions.length > 0 && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
               <div className="flex items-center gap-2">
-                <Layers size={18} className="text-indigo-600" />
+                <Layers size={18} className="text-indigo-600 shrink-0" />
                 <h4 className="text-sm sm:text-base font-extrabold text-slate-800">
-                  Desempenho por Dimensão / Camada Avaliada
+                  Desempenho por Dimensão / Camada IMAPS
                 </h4>
               </div>
               <span className="text-xs text-slate-400">
@@ -253,41 +571,52 @@ export function MaturityAnalyticsSection({
               </span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {dimensions.map(dim => (
-                <div
-                  key={dim.key}
-                  className="bg-slate-50/60 hover:bg-slate-50 rounded-xl p-4 border border-slate-200/80 transition-all space-y-3"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <h5 className="text-xs sm:text-sm font-bold text-slate-800 truncate">
-                        {dim.label}
-                      </h5>
-                      <p className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">
-                        {dim.subtitle}
-                      </p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${dim.levelInfo.badgeClass}`}>
-                        {dim.averageScore.toFixed(2)} • {dim.levelInfo.shortName}
-                      </span>
-                    </div>
-                  </div>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+              {/* Gráfico Radar Vetorial (Teia IMAPS) */}
+              <div className="lg:col-span-5 bg-slate-50/70 rounded-2xl p-5 border border-slate-200/80 flex flex-col items-center justify-center">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">
+                  Visão em Radar (Eixos de Maturidade)
+                </span>
+                <ImapsRadarChart dimensions={dimensions} />
+              </div>
 
-                  <div className="w-full h-2.5 bg-slate-200/80 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-500 ${dim.levelInfo.barColorClass}`}
-                      style={{ width: `${Math.max(8, (dim.averageScore / 5) * 100)}%` }}
-                    />
-                  </div>
+              {/* Barras Detalhadas por Dimensão */}
+              <div className="lg:col-span-7 grid grid-cols-1 gap-3.5">
+                {dimensions.map(dim => (
+                  <div
+                    key={dim.key}
+                    className="bg-slate-50/60 hover:bg-slate-50 rounded-xl p-4 border border-slate-200/80 transition-all space-y-2.5"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <h5 className="text-xs sm:text-sm font-bold text-slate-800 truncate">
+                          {dim.label}
+                        </h5>
+                        <p className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">
+                          {dim.subtitle}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${dim.levelInfo.badgeClass}`}>
+                          {dim.averageScore.toFixed(2)} • {dim.levelInfo.shortName}
+                        </span>
+                      </div>
+                    </div>
 
-                  <div className="flex items-center justify-between text-[11px] text-slate-400">
-                    <span>{dim.questionsCount} {dim.questionsCount === 1 ? "critério avaliado" : "critérios avaliados"}</span>
-                    <span>Índice de maturidade: <strong className="text-slate-600">{dim.percentage}%</strong></span>
+                    <div className="w-full h-2.5 bg-slate-200/80 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${dim.levelInfo.barColorClass}`}
+                        style={{ width: `${Math.max(8, (dim.averageScore / 5) * 100)}%` }}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between text-[11px] text-slate-400">
+                      <span>{dim.questionsCount} {dim.questionsCount === 1 ? "critério avaliado" : "critérios avaliados"}</span>
+                      <span>Índice de maturidade: <strong className="text-slate-600">{dim.percentage}%</strong></span>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
         )}
@@ -296,7 +625,7 @@ export function MaturityAnalyticsSection({
         <div className="space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
             <div className="flex items-center gap-2">
-              <BarChart3 size={18} className="text-indigo-600" />
+              <BarChart3 size={18} className="text-indigo-600 shrink-0" />
               <h4 className="text-sm sm:text-base font-extrabold text-slate-800">
                 Diagnóstico por Critério (Gargalos Críticos vs. Forças Consolidadas)
               </h4>
@@ -431,7 +760,7 @@ export function MaturityAnalyticsSection({
           <div className="space-y-4 pt-2">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
               <div className="flex items-center gap-2">
-                <PieChart size={18} className="text-indigo-600" />
+                <PieChart size={18} className="text-indigo-600 shrink-0" />
                 <h4 className="text-sm sm:text-base font-extrabold text-slate-800">
                   Mapeamento Complementar de Uso (Perguntas Qualitativas sem Peso)
                 </h4>
