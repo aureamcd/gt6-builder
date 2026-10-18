@@ -390,8 +390,8 @@ export function MaturityAnalyticsSection({
       <div className="p-4 sm:p-8 border-b border-slate-100 bg-slate-50/50 flex flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3.5 min-w-0">
-            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-sm shadow-indigo-200 shrink-0">
-              <Award size={24} />
+            <div className="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center shadow-xs shrink-0">
+              <Award size={22} />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
