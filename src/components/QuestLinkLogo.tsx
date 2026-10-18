@@ -16,83 +16,79 @@ export function QuestLinkLogo({
     className = '',
 }: QuestLinkLogoProps) {
     const dimensions = {
-        sm: { box: 28, text: 'text-base', sub: 'text-[10px]' },
-        md: { box: 36, text: 'text-xl', sub: 'text-[11px]' },
-        lg: { box: 46, text: 'text-2xl', sub: 'text-xs' },
-        xl: { box: 56, text: 'text-3xl', sub: 'text-xs' },
+        sm: { iconWidth: 30, iconHeight: 34, text: 'text-lg', sub: 'text-[10px]', gap: 'gap-2' },
+        md: { iconWidth: 38, iconHeight: 42, text: 'text-2xl', sub: 'text-[11px]', gap: 'gap-2.5' },
+        lg: { iconWidth: 46, iconHeight: 52, text: 'text-3xl', sub: 'text-xs', gap: 'gap-3' },
+        xl: { iconWidth: 56, iconHeight: 62, text: 'text-4xl', sub: 'text-xs', gap: 'gap-3.5' },
     }[size];
 
     const isLight = variant === 'light';
+    const primaryBlue = '#0084FF';
+    const darkStroke = isLight ? '#FFFFFF' : '#0B0F19';
 
     return (
-        <div className={`inline-flex items-center gap-2.5 select-none ${className}`}>
-            {/* Conceito B: Dois cards de questionário interligados com elo central + Check */}
+        <div className={`inline-flex items-center ${dimensions.gap} select-none ${className}`}>
+            {/* Ícone Oficial QuestLink: Moldura aberta azul + 2 itens + 1 item com Check */}
             <div
-                className="relative flex items-center justify-center shrink-0 rounded-xl shadow-md shadow-indigo-500/20 overflow-hidden"
-                style={{ width: dimensions.box, height: dimensions.box }}
+                className="relative flex items-center justify-center shrink-0"
+                style={{ width: dimensions.iconWidth, height: dimensions.iconHeight }}
             >
                 <svg
-                    viewBox="0 0 48 48"
+                    viewBox="0 0 88 100"
                     fill="none"
                     xmlns="http://www.w3.org/2000/svg"
                     className="w-full h-full"
                 >
-                    <defs>
-                        <linearGradient id="questlink-bg" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
-                            <stop offset="0%" stopColor="#4F46E5" />
-                            <stop offset="55%" stopColor="#6366F1" />
-                            <stop offset="100%" stopColor="#7C3AED" />
-                        </linearGradient>
-                        <linearGradient id="questlink-card-back" x1="6" y1="6" x2="30" y2="30" gradientUnits="userSpaceOnUse">
-                            <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.38" />
-                            <stop offset="100%" stopColor="#E0E7FF" stopOpacity="0.18" />
-                        </linearGradient>
-                    </defs>
-
-                    {/* Background Squircle */}
-                    <rect width="48" height="48" rx="12" fill="url(#questlink-bg)" />
-
-                    {/* Card Traseiro (Bloco de Questionário 1) */}
-                    <rect
-                        x="7"
-                        y="7"
-                        width="21"
-                        height="21"
-                        rx="5.5"
-                        fill="url(#questlink-card-back)"
-                        stroke="white"
-                        strokeOpacity="0.45"
-                        strokeWidth="1.5"
-                    />
-                    {/* Linhas de formulário sutis no card traseiro */}
-                    <line x1="11.5" y1="13" x2="21" y2="13" stroke="white" strokeOpacity="0.7" strokeWidth="2" strokeLinecap="round" />
-                    <line x1="11.5" y1="17.5" x2="17.5" y2="17.5" stroke="white" strokeOpacity="0.5" strokeWidth="2" strokeLinecap="round" />
-
-                    {/* Elo de Conexão (Link) unindo os dois cards */}
+                    {/* Moldura Externa Azul com abertura lateral direita (estilo elo/documento) */}
                     <path
-                        d="M16 25.5C14.2 27.3 14.2 30.2 16 32C17.8 33.8 20.7 33.8 22.5 32L25.5 29"
-                        stroke="#C7D2FE"
-                        strokeWidth="2.4"
-                        strokeLinecap="round"
-                    />
-
-                    {/* Card Frontal Principal (Bloco de Questionário 2 + Check) */}
-                    <rect
-                        x="18"
-                        y="18"
-                        width="23"
-                        height="23"
-                        rx="6.5"
-                        fill="white"
-                    />
-
-                    {/* Checkmark de Diagnóstico/Validação dentro do Card Frontal */}
-                    <path
-                        d="M24.2 29.8L27.9 33.5L35.2 25.8"
-                        stroke="#4F46E5"
-                        strokeWidth="3.2"
+                        d="M78 26V22C78 13.1634 70.8366 6 62 6H24C15.1634 6 8 13.1634 8 22V78C8 86.8366 15.1634 94 24 94H62C70.8366 94 78 86.8366 78 78V70"
+                        stroke={primaryBlue}
+                        strokeWidth="8.5"
                         strokeLinecap="round"
                         strokeLinejoin="round"
+                    />
+
+                    {/* Linha 1: Ponto azul + Barra preta */}
+                    <circle cx="26" cy="30" r="4.8" fill={primaryBlue} />
+                    <line
+                        x1="40"
+                        y1="30"
+                        x2="68"
+                        y2="30"
+                        stroke={darkStroke}
+                        strokeWidth="7.5"
+                        strokeLinecap="round"
+                    />
+
+                    {/* Linha 2: Ponto azul + Barra preta */}
+                    <circle cx="26" cy="48" r="4.8" fill={primaryBlue} />
+                    <line
+                        x1="40"
+                        y1="48"
+                        x2="68"
+                        y2="48"
+                        stroke={darkStroke}
+                        strokeWidth="7.5"
+                        strokeLinecap="round"
+                    />
+
+                    {/* Linha 3: Círculo Azul com Check Branco + Barra Azul */}
+                    <circle cx="30" cy="71" r="12" fill={primaryBlue} />
+                    <path
+                        d="M24.5 71.2L28.5 75.2L36 67.2"
+                        stroke="#FFFFFF"
+                        strokeWidth="3.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                    />
+                    <line
+                        x1="50"
+                        y1="71"
+                        x2="68"
+                        y2="71"
+                        stroke={primaryBlue}
+                        strokeWidth="7.5"
+                        strokeLinecap="round"
                     />
                 </svg>
             </div>
@@ -100,15 +96,13 @@ export function QuestLinkLogo({
             {showText && (
                 <div className="flex flex-col justify-center leading-none">
                     <div className={`font-extrabold tracking-tight flex items-center ${dimensions.text}`}>
-                        <span className={isLight ? 'text-white' : 'text-slate-900'}>Quest</span>
-                        <span className={isLight ? 'text-indigo-200' : 'bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent'}>
-                            Link
-                        </span>
+                        <span className={isLight ? 'text-white' : 'text-[#0B0F19]'}>Quest</span>
+                        <span style={{ color: isLight ? '#60A5FA' : primaryBlue }}>Link</span>
                     </div>
                     {subtitle && (
                         <span
-                            className={`font-semibold tracking-wider uppercase mt-0.5 ${dimensions.sub} ${
-                                isLight ? 'text-indigo-100/80' : 'text-slate-400'
+                            className={`font-semibold tracking-wider uppercase mt-1 ${dimensions.sub} ${
+                                isLight ? 'text-slate-200' : 'text-slate-400'
                             }`}
                         >
                             {subtitle}
